@@ -11,7 +11,8 @@ def test_create_user_normalises_email_domain():
     user = User.objects.create_user(email="Chef@Example.COM", password="s3cret-pass")
     assert user.email == "Chef@example.com"
     assert user.check_password("s3cret-pass")
-    assert user.role == User.Role.WAITER
+    assert user.role == User.Role.STAFF
+    assert user.is_staff_member and not user.is_admin
 
 
 def test_create_user_requires_email():
@@ -19,7 +20,8 @@ def test_create_user_requires_email():
         User.objects.create_user(email="", password="s3cret-pass")
 
 
-def test_create_superuser_is_owner():
+def test_create_superuser_is_admin():
     admin = User.objects.create_superuser(email="owner@example.com", password="s3cret-pass")
     assert admin.is_staff and admin.is_superuser
-    assert admin.role == User.Role.OWNER
+    assert admin.role == User.Role.ADMIN
+    assert admin.is_admin
