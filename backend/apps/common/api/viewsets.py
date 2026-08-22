@@ -25,17 +25,22 @@ class RestaurantScopedQuerysetMixin:
     rows, so filtering there would leak other restaurants' data on every list
     endpoint.
 
-    Set `restaurant_field` when the path to the restaurant is not `restaurant`.
+    `restaurant_field` is a full lookup, not a field name, so a model that IS
+    the tenant can set it to "pk" and one that reaches it through a relation can
+    set it to e.g. "order__restaurant_id".
+
+    A user with no restaurant gets an empty queryset rather than everything -
+    failing closed matters more here than a helpful error.
     """
 
-    restaurant_field = "restaurant"
+    restaurant_field = "restaurant_id"
 
     def get_queryset(self):
         queryset = super().get_queryset()
         restaurant_id = getattr(self.request.user, "restaurant_id", None)
         if restaurant_id is None:
             return queryset.none()
-        return queryset.filter(**{f"{self.restaurant_field}_id": restaurant_id})
+        return queryset.filter(**{self.restaurant_field: restaurant_id})
 
 
 class StaffViewSet(RestaurantScopedQuerysetMixin, viewsets.ModelViewSet):

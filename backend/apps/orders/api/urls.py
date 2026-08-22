@@ -1,10 +1,18 @@
-"""Routes for the orders app, mounted at /api/v1/orders/."""
+"""Routes for the orders app.
+
+One router per role. config/urls.py mounts them under /api/v1/staff/ and
+/api/v1/admin/, so nothing here needs to know the prefix.
+"""
 
 from rest_framework.routers import DefaultRouter
 
 app_name = "orders"
 
-router = DefaultRouter()
-# router.register("", SomeViewSet, basename="some")
+staff_router = DefaultRouter()
+# staff_router.register("<resource>", Staff<Model>ViewSet, basename="<resource>")
 
-urlpatterns = router.urls
+admin_router = DefaultRouter()
+# admin_router.register("<resource>", Admin<Model>ViewSet, basename="<resource>")
+
+staff_urlpatterns = staff_router.urls
+admin_urlpatterns = admin_router.urls
