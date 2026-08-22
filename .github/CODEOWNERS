@@ -1,0 +1,16 @@
+# Every PR needs a review from the owner of the code it touches.
+# GitHub auto-requests these reviewers. Replace the placeholders with real
+# GitHub usernames before enabling "Require review from Code Owners".
+#
+# Later entries win, so put the specific paths last.
+
+*                       @ORG/restaurant-team
+
+/backend/               @backend-owner-username
+/mobile/                @mobile-owner-username
+/docs/                  @ORG/restaurant-team
+
+# Anything that changes how the repo is built or protected needs the
+# repo maintainer, regardless of who wrote it.
+/.github/               @repo-maintainer-username
+/backend/config/        @backend-owner-username @repo-maintainer-username
