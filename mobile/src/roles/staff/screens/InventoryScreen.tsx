@@ -1,7 +1,7 @@
 import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 
-import {spacing} from '../../theme';
+import {spacing} from '../../../theme';
 
 /** Stock levels and low-stock alerts. */
 export function InventoryScreen(): React.JSX.Element {

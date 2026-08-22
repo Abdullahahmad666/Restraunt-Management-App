@@ -1,14 +1,14 @@
 import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 
-import {spacing} from '../../theme';
+import {spacing} from '../../../theme';
 
-/** Today's covers, revenue and open tickets. */
-export function DashboardScreen(): React.JSX.Element {
+/** Open orders and their status. */
+export function OrdersScreen(): React.JSX.Element {
   return (
     <View style={styles.container}>
-      <Text style={styles.heading}>Dashboard</Text>
-      <Text>Today's covers, revenue and open tickets.</Text>
+      <Text style={styles.heading}>Orders</Text>
+      <Text>Open orders and their status.</Text>
     </View>
   );
 }

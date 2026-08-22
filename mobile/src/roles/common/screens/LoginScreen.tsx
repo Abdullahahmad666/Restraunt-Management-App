@@ -1,10 +1,10 @@
 import React, {useState} from 'react';
 import {ActivityIndicator, Button, StyleSheet, Text, TextInput, View} from 'react-native';
 
-import {tokenStorage} from '../../api/tokenStorage';
-import {useAuthStore} from '../../store/authStore';
-import {colors, spacing} from '../../theme';
-import {fetchMe, login} from './authApi';
+import {tokenStorage} from '../../../api/tokenStorage';
+import {useAuthStore} from '../../../store/authStore';
+import {colors, spacing} from '../../../theme';
+import {fetchMe, login} from '../../../features/auth/api';
 
 export function LoginScreen(): React.JSX.Element {
   const [email, setEmail] = useState('');

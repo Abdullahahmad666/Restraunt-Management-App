@@ -5,14 +5,24 @@ import {createNativeStackNavigator} from '@react-navigation/native-stack';
 
 import {useAuthStore} from '../store/authStore';
 import {useRestoreSession} from '../features/auth/useRestoreSession';
+import {AdminNavigator} from '../roles/admin/navigation/AdminNavigator';
+import {StaffNavigator} from '../roles/staff/navigation/StaffNavigator';
+import {ROLES} from '../types/roles';
 import {AuthNavigator} from './AuthNavigator';
-import {MainNavigator} from './MainNavigator';
 import type {RootStackParamList} from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+/**
+ * The single place the app forks on role.
+ *
+ * Only one branch is ever mounted, so a staff build never has admin screens in
+ * its navigation tree. That is a convenience, not a security boundary - the
+ * backend rejects a staff token on an /admin/ path regardless.
+ */
 export function RootNavigator(): React.JSX.Element {
   const status = useAuthStore(state => state.status);
+  const user = useAuthStore(state => state.user);
 
   useRestoreSession();
 
@@ -27,10 +37,12 @@ export function RootNavigator(): React.JSX.Element {
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{headerShown: false}}>
-        {status === 'authenticated' ? (
-          <Stack.Screen name="Main" component={MainNavigator} />
-        ) : (
+        {status !== 'authenticated' || !user ? (
           <Stack.Screen name="Auth" component={AuthNavigator} />
+        ) : user.role === ROLES.ADMIN ? (
+          <Stack.Screen name="Admin" component={AdminNavigator} />
+        ) : (
+          <Stack.Screen name="Staff" component={StaffNavigator} />
         )}
       </Stack.Navigator>
     </NavigationContainer>

@@ -1,4 +1,8 @@
 /** Shapes returned by the DRF backend. Keep in sync with /api/schema/. */
+import type {Role} from './roles';
+
+/** Re-exported so callers can get every API type from this one module. */
+export type {Role};
 
 export type Paginated<T> = {
   count: number;
@@ -7,15 +11,13 @@ export type Paginated<T> = {
   results: T[];
 };
 
-export type UserRole = 'OWNER' | 'MANAGER' | 'CHEF' | 'WAITER' | 'CASHIER';
-
 export type User = {
   id: string;
   email: string;
   first_name: string;
   last_name: string;
   phone: string;
-  role: UserRole;
+  role: Role;
   restaurant: string | null;
 };
 

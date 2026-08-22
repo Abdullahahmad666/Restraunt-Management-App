@@ -2,7 +2,7 @@ import {useEffect} from 'react';
 
 import {tokenStorage} from '../../api/tokenStorage';
 import {useAuthStore} from '../../store/authStore';
-import {fetchMe} from './authApi';
+import {fetchMe} from './api';
 
 /**
  * On cold start, turn a stored refresh token back into a signed-in session.

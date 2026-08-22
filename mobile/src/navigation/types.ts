@@ -5,15 +5,22 @@ export type AuthStackParamList = {
   Register: undefined;
 };
 
-export type MainTabParamList = {
-  Dashboard: undefined;
+/** Floor screens. Reachable by STAFF and ADMIN. */
+export type StaffTabParamList = {
   Orders: undefined;
   Inventory: undefined;
 };
 
+/** Management screens. ADMIN only. */
+export type AdminTabParamList = {
+  Dashboard: undefined;
+  Staff: undefined;
+};
+
 export type RootStackParamList = {
   Auth: NavigatorScreenParams<AuthStackParamList>;
-  Main: NavigatorScreenParams<MainTabParamList>;
+  Staff: NavigatorScreenParams<StaffTabParamList>;
+  Admin: NavigatorScreenParams<AdminTabParamList>;
   OrderDetail: {orderId: string};
 };
 
