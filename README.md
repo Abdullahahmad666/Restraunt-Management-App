@@ -68,4 +68,6 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) before your first PR. The short version:
 | Mobile | _TBD_ |
 | Repo / CI | _TBD_ |
 
-Update [.github/CODEOWNERS](.github/CODEOWNERS) to match.
+Add each person as a collaborator with **Write** access, then uncomment
+their line in [.github/CODEOWNERS](.github/CODEOWNERS) - in that order, or
+GitHub flags the whole file.

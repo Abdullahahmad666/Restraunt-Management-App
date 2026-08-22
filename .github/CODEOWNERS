@@ -1,16 +1,45 @@
-# Every PR needs a review from the owner of the code it touches.
-# GitHub auto-requests these reviewers. Replace the placeholders with real
-# GitHub usernames before enabling "Require review from Code Owners".
+# Code owners are auto-requested as reviewers on PRs touching their paths.
 #
-# Later entries win, so put the specific paths last.
+# Two constraints shape this file:
+#
+#  1. Every owner must be a real GitHub account with **write access** to this
+#     repository. GitHub validates the file and warns on anything else.
+#  2. Team syntax (@org/team-name) needs a GitHub **organization**. This repo
+#     lives under a personal account, so teams are not available here at all -
+#     list individual usernames instead. If the project later moves to an org,
+#     teams become the better option.
+#
+# Later entries win, so specific paths go last.
 
-*                       @ORG/restaurant-team
+# ---------------------------------------------------------------------------
+# Catch-all. Replace with a team once the repo moves to an organisation.
+# ---------------------------------------------------------------------------
+*                       @Abdullahahmad666
 
-/backend/               @backend-owner-username
-/mobile/                @mobile-owner-username
-/docs/                  @ORG/restaurant-team
+# ---------------------------------------------------------------------------
+# Per-area owners.
+#
+# Uncomment each line and swap in the real GitHub username once that person
+# has been added as a collaborator with Write access
+# (Settings -> Collaborators and teams -> Add people).
+#
+# Adding a line before the account exists makes GitHub flag the whole file,
+# so add the collaborator first, then uncomment.
+# ---------------------------------------------------------------------------
+# /backend/             @backend-owner
+# /mobile/              @mobile-owner
+# /docs/                @Abdullahahmad666
 
-# Anything that changes how the repo is built or protected needs the
+# Anything that changes how the repo is built, tested or protected needs the
 # repo maintainer, regardless of who wrote it.
-/.github/               @repo-maintainer-username
-/backend/config/        @backend-owner-username @repo-maintainer-username
+/.github/               @Abdullahahmad666
+/backend/config/        @Abdullahahmad666
+
+# ---------------------------------------------------------------------------
+# NOTE: leave "Require review from Code Owners" OFF in the branch ruleset until
+# at least two people here have write access.
+#
+# GitHub never requests review from a PR's own author. While Abdullah is the
+# only code owner, any PR he opens would need a code-owner approval that no
+# one is able to give - the PR is stuck with no way out but an admin bypass.
+# ---------------------------------------------------------------------------

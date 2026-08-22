@@ -34,10 +34,28 @@ Enable these rules:
 | Require a pull request before merging | on |
 | ↳ Required approvals | **1** |
 | ↳ Dismiss stale approvals when new commits are pushed | on |
-| ↳ Require review from Code Owners | on |
+| ↳ Require review from Code Owners | **off for now** - see below |
 | ↳ Require conversation resolution before merging | on |
 | Require status checks to pass | on |
 | ↳ Require branches to be up to date before merging | on |
+
+### Code Owners: leave it off until there are two of you
+
+[.github/CODEOWNERS](../.github/CODEOWNERS) is valid but currently names one
+person, because it can only list accounts that already have write access.
+
+GitHub never requests review from a PR's own author. So while Abdullah is the
+only code owner, any PR he opens needs a code-owner approval that nobody is
+able to give, and the PR is stuck with no exit but an admin bypass. Turn the
+rule on once at least two people have write access and CODEOWNERS names them.
+
+Two related gotchas:
+
+- **Team syntax needs an organisation.** `@org/team-name` cannot resolve on a
+  repo owned by a personal account. Use individual usernames until the project
+  moves to a GitHub org.
+- **Add the collaborator before the CODEOWNERS line.** Naming an account that
+  lacks write access makes GitHub flag the entire file, not just that line.
 
 **Bypass list: leave it empty.** A rule the admin can walk around is a
 convention, not a rule. If you genuinely need to bypass it, you can add
@@ -90,7 +108,7 @@ gh api --method PUT repos/:owner/:repo/branches/main/protection \
   "required_pull_request_reviews": {
     "required_approving_review_count": 1,
     "dismiss_stale_reviews": true,
-    "require_code_owner_reviews": true
+    "require_code_owner_reviews": false
   },
   "restrictions": null,
   "required_linear_history": true,
