@@ -2,6 +2,24 @@
 
 Base URL: `/api/v1/`. Schema: `/api/schema/`. Docs: `/api/docs/`.
 
+## Role namespaces
+
+Every resource sits under a role namespace:
+
+| Prefix | Who | Scope |
+| --- | --- | --- |
+| `/api/v1/auth/` | anyone | login happens before a role exists |
+| `/api/v1/staff/` | STAFF + ADMIN | the caller's own restaurant only |
+| `/api/v1/admin/` | ADMIN | management; not restaurant-scoped |
+
+The same resource appears under both prefixes with a different serializer, not
+a different model. `/api/v1/staff/restaurants/` is read-only and returns one
+row; `/api/v1/admin/restaurants/` is full CRUD and exposes `timezone` and
+`is_active`.
+
+Wrong namespace is a `403`, not a `404` - the path exists, the role does not
+qualify.
+
 ## URLs
 
 - Plural, lowercase, hyphenated nouns: `/api/v1/orders/`, `/api/v1/stock-items/`
@@ -66,6 +84,10 @@ GET  /api/v1/auth/me/        Bearer <access>   -> current user
 ```
 
 Send `Authorization: Bearer <access>` on everything else.
+
+`GET /api/v1/auth/me/` returns `role`, which the mobile client uses to pick its
+navigator. Never trust a client-side role check for access: the namespaces do
+the enforcing.
 
 ## Changing the API
 

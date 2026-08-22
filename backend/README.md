@@ -40,15 +40,27 @@ Each domain app follows the same shape:
 
 ```
 apps/<name>/
-├── models.py        # data
+├── models.py        # data - one model per table, no role knowledge
 ├── services.py      # business logic - views call into here
 ├── admin.py
 ├── api/
-│   ├── serializers.py
-│   ├── views.py     # thin: validate, delegate to services, respond
-│   └── urls.py      # mounted at /api/v1/<name>/
+│   ├── common.py    # serializers/querysets both roles share
+│   ├── staff.py     # what a floor user may see and do
+│   ├── admin.py     # what an owner or manager may see and do
+│   └── urls.py      # one router per role
 └── tests/
 ```
+
+Routes are namespaced by role in `config/urls.py`:
+
+```
+/api/v1/auth/     role-agnostic
+/api/v1/staff/    STAFF + ADMIN, scoped to the caller's restaurant
+/api/v1/admin/    ADMIN only
+```
+
+`apps/restaurants/` is the worked example - copy its `api/` layout when
+building out `orders`, `inventory` and `payments`.
 
 ## Commands
 
@@ -72,4 +84,8 @@ With the server running: <http://localhost:8000/api/docs/> (Swagger UI) and
   `apps.common.models.BaseModel`.
 - **`ATOMIC_REQUESTS = True`** - every request runs in a transaction.
 - **Business logic in `services.py`**, not in views or serializers.
+- **Roles are an access level**, not a job title - see `apps/common/roles.py`.
+  Two exist (`ADMIN`, `STAFF`) and the list stays short on purpose.
+- **Row scoping goes on the queryset**, not in a permission class. A permission
+  class never sees a list view's rows.
 - **Migrations are committed.** CI fails if a model change has no migration.

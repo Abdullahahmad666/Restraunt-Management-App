@@ -28,8 +28,9 @@ iOS additionally needs `cd ios && pod install` once after `npm install`.
 | --- | --- |
 | `src/api/` | axios instance, auth interceptor, keychain token storage, endpoint map |
 | `src/config/` | environment access - the only place that reads `@env` |
-| `src/features/<name>/` | one folder per domain: screens, hooks, and its API calls |
-| `src/navigation/` | navigators and typed route params |
+| `src/features/<domain>/` | **data** layer: API calls, hooks, types - shared across roles |
+| `src/roles/<role>/` | **presentation** layer: screens and navigation per role |
+| `src/navigation/` | root and auth navigators, typed route params |
 | `src/store/` | zustand stores - session state only |
 | `src/components/` | shared presentational components |
 | `src/theme/` | colors, spacing, radii |
@@ -37,9 +38,15 @@ iOS additionally needs `cd ios && pod install` once after `npm install`.
 
 ## Conventions
 
-- **Feature-first.** A screen, its hooks and its API calls live together in
-  `src/features/<name>/`. Only genuinely shared code moves up to `components/`
-  or `hooks/`.
+- **Two axes: data by domain, presentation by role.** `features/` holds API
+  calls and hooks; `roles/` holds screens and navigation. See
+  [`src/roles/README.md`](src/roles/README.md) and
+  [`src/features/README.md`](src/features/README.md).
+- **`RootNavigator` is the only place that forks on role.** Screens below it
+  can assume they are being shown to the right person.
+- **The role split is not a security boundary.** Hiding a screen hides a
+  button, not an endpoint - the backend's `/staff/` and `/admin/` namespaces
+  do the enforcing.
 - **Server state in react-query, session state in zustand.** Do not mirror API
   responses into the store.
 - **Tokens in the keychain**, never AsyncStorage - see `src/api/tokenStorage.ts`.
