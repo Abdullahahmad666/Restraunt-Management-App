@@ -23,10 +23,24 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 
+from apps.attendance.api import urls as attendance_urls
+from apps.audit.api import urls as audit_urls
 from apps.common.views import health_check
+from apps.compliance.api import urls as compliance_urls
+from apps.equipment.api import urls as equipment_urls
+from apps.notifications.api import urls as notifications_urls
+from apps.payroll.api import urls as payroll_urls
 from apps.restaurants.api import urls as restaurants_urls
 
-DOMAINS = (("restaurants", restaurants_urls),)
+DOMAINS = (
+    ("restaurants", restaurants_urls),
+    ("equipment", equipment_urls),
+    ("attendance", attendance_urls),
+    ("payroll", payroll_urls),
+    ("compliance", compliance_urls),
+    ("notifications", notifications_urls),
+    ("audit", audit_urls),
+)
 
 staff_api = [
     path("", include((module.staff_urlpatterns, name), namespace=name)) for name, module in DOMAINS
