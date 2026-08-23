@@ -24,17 +24,9 @@ from drf_spectacular.views import (
 )
 
 from apps.common.views import health_check
-from apps.inventory.api import urls as inventory_urls
-from apps.orders.api import urls as orders_urls
-from apps.payments.api import urls as payments_urls
 from apps.restaurants.api import urls as restaurants_urls
 
-DOMAINS = (
-    ("restaurants", restaurants_urls),
-    ("orders", orders_urls),
-    ("inventory", inventory_urls),
-    ("payments", payments_urls),
-)
+DOMAINS = (("restaurants", restaurants_urls),)
 
 staff_api = [
     path("", include((module.staff_urlpatterns, name), namespace=name)) for name, module in DOMAINS
