@@ -22,12 +22,17 @@ qualify.
 
 ## URLs
 
-- Plural, lowercase, hyphenated nouns: `/api/v1/orders/`, `/api/v1/stock-items/`
+- Plural, lowercase, hyphenated nouns: `/api/v1/staff/attendance/logs/`,
+  `/api/v1/admin/compliance/templates/`
 - Trailing slash always (Django default)
 - Nest one level at most: `/api/v1/orders/{id}/items/`. Deeper than that, make
   it a top-level resource with a filter.
 - Actions that are not CRUD become a sub-path:
-  `POST /api/v1/orders/{id}/cancel/`
+  `POST /api/v1/staff/compliance/tasks/{id}/complete/`
+- One endpoint may cover both directions of a toggle where the server, not the
+  client, decides which it is. `POST /api/v1/staff/attendance/scan/` checks in
+  or out depending on whether an open check-in exists; a client that guessed
+  would race with itself on a double scan.
 
 ## Methods and status codes
 
@@ -71,7 +76,12 @@ Errors use DRF's default shape:
   converting, so there is one name per field across the stack.
 - Timestamps are ISO 8601 UTC: `2026-03-14T09:30:00Z`.
 - Money as a decimal **string** (`"1250.00"`) plus a `currency` code. Never a
-  float - `0.1 + 0.2` is not `0.3` and a bill is not the place to find out.
+  float - `0.1 + 0.2` is not `0.3` and someone's wages are not the place to
+  find out. The same applies to temperatures, which are compared against legal
+  thresholds.
+- Every event carries the time it **happened**, not the time it was received.
+  A check recorded offline and synced an hour later is evidence about the
+  earlier moment.
 - Ids are UUID strings.
 
 ## Authentication

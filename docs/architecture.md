@@ -5,7 +5,7 @@
 ```
 ┌──────────────────────────┐
 │  React Native app        │
-│  (waiter / chef / owner) │
+│  (staff / manager)       │
 └───────────┬──────────────┘
             │  HTTPS, JSON, JWT bearer token
             ▼
@@ -25,12 +25,15 @@ Domain apps under `backend/apps/`, one per bounded area:
 
 | App | Owns |
 | --- | --- |
-| `users` | accounts, roles, JWT auth |
-| `restaurants` | restaurants, branches, tables, menus |
-| `orders` | orders, line items, status transitions |
-| `inventory` | stock items, suppliers, movements |
-| `payments` | bills, payments, refunds |
-| `common` | abstract models, pagination, shared permissions, health check |
+| `users` | staff accounts, roles, JWT auth |
+| `restaurants` | the site - the tenant everything hangs off |
+| `equipment` | fridges, freezers, probes, and their safe ranges |
+| `attendance` | barcode scan, check-in/out, the attendance log |
+| `payroll` | pay periods, rate history, hours x rate |
+| `compliance` | checklists, scheduled checks, results, corrective actions |
+| `notifications` | alerting managers about missed and failed checks |
+| `audit` | append-only trail, presented at an inspection |
+| `common` | abstract models, roles, permissions, viewset bases, health check |
 
 Each app is `models.py` (data) + `services.py` (logic) + `api/` (role-scoped
 serializers and views) + `tests/`. Views stay thin - they validate and
@@ -56,19 +59,21 @@ without a second account.
 The backend splits by **domain**, with role as a dimension inside each app:
 
 ```
-apps/orders/
-├── models.py        one Order model, one table
-├── services.py      business logic, no role knowledge
+apps/attendance/
+├── models.py        one AttendanceLog model, one table
+├── services/        business logic, no role knowledge
 └── api/
     ├── common.py    shared serializer + queryset
-    ├── staff.py     what a floor user may see and do
-    ├── admin.py     what an owner or manager may see and do
+    ├── staff.py     scan, and read your own history
+    ├── admin.py     everyone's history, plus manual edits
     └── urls.py      one router per role
 ```
 
 Roles are a *permission* concern, not a structural one. Splitting apps by role
-instead would need two `Order` models for one table, forcing one to import the
-other - the domain would end up spread across three trees for no gain.
+instead would need two `AttendanceLog` models for one table, forcing one to
+import the other - the domain would end up spread across three trees for no
+gain. What actually differs is narrow: staff may scan and read their own rows,
+admins may read everyone's and edit them.
 
 Routes come out namespaced, assembled in `config/urls.py`:
 
@@ -109,10 +114,12 @@ than importing, which keeps the dependency graph acyclic.
 ## Decisions worth knowing
 
 **UUID primary keys** on anything the app references by id. Sequential integers
-leak volume - order `#1041` tells a competitor how many orders you have taken.
+leak headcount, and a sequential id in a printed barcode is guessable, which
+would let someone clock in a colleague.
 
-**`ATOMIC_REQUESTS = True`.** Every request runs in a transaction. A half-written
-order is worse than a failed one.
+**`ATOMIC_REQUESTS = True`.** Every request runs in a transaction. A check-in
+with no matching log row, or a completed check with no corrective action
+attached, is worse than a request that failed outright and can be retried.
 
 **Deny by default.** DRF's default permission class is `IsAuthenticated`; public
 endpoints opt out explicitly. The failure mode of the opposite default is a
@@ -126,6 +133,23 @@ blacklisted on use, so a stolen refresh token is single-use.
 
 **Versioned URL prefix** (`/api/v1/`). Users do not update apps promptly; the
 old client will be calling the old endpoints for months.
+
+**Attendance is separate from payroll.** Time and money have different
+lifecycles: the same hours get recosted when a rate changes retroactively, and
+only one of the two is sensitive enough to restrict to admins.
+
+**The audit trail is its own app, and append-only.** Compliance history is the
+product's actual deliverable - it is what gets shown to an inspector. If it
+lives as mutable rows inside the feature that writes it, "who edited this
+after the fact" becomes unanswerable. Admin edits to attendance are recorded
+there too, since a manually adjusted timesheet is exactly the thing an auditor
+asks about.
+
+**Compliance models split by lifecycle**, not into one flat module: what a
+check *is* (template), what is *due today* (instance), what *happened*
+(result), and the *corrective action*. Collapsing those into one model is the
+mistake that makes "what was the rule last March" impossible to answer once a
+checklist is edited.
 
 ## Mobile
 
@@ -154,8 +178,34 @@ All HTTP goes through `src/api/client.ts`, which attaches the access token,
 refreshes once on a 401 and replays the request. Concurrent 401s share a single
 refresh call rather than each firing their own.
 
+## Decisions still open
+
+These are load-bearing and worth settling before the models are written.
+
+**Offline capture.** A walk-in freezer has no signal, and a temperature check
+taken there still has to be recorded at the time it happened. That means a
+local queue and a sync step, and it changes the client's data layer
+substantially. Retrofitting it is much harder than designing for it.
+
+**Recorded-at vs synced-at.** Following from the above, every check and scan
+needs the time the *event* happened, not the time the server heard about it.
+An inspector cares about the former.
+
+**Time zones and the business day.** `USE_TZ` is on and everything is stored
+in UTC, but "has this person already checked in today" and "which day does a
+23:50 closing check belong to" are business-day questions, not UTC-midnight
+ones. A site's local day boundary needs to be explicit.
+
+**Immutability boundary.** Which records can never be edited (audit entries),
+which can be edited only with a reason recorded (attendance logs), and which
+are freely editable (checklist templates).
+
+**Barcode format.** What the barcode encodes matters: an opaque random token
+is safer than the staff id, since a printed barcode is easy to photograph and
+a guessable one lets someone clock in a colleague.
+
 ## Not built yet
 
-- Realtime order updates (ASGI is wired up; websockets are not)
-- Background jobs (celery + redis) for reports and stock alerts
-- Offline order capture and sync
+- Background jobs (celery + redis) for scheduled task generation, missed
+  check-out reconciliation and manager alerts
+- Realtime dashboard updates (ASGI is wired up; websockets are not)

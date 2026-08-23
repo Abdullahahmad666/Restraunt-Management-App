@@ -3,6 +3,9 @@
 Django 6 + Django REST Framework. Serves `/api/v1/` to the React Native client
 in [`../mobile`](../mobile).
 
+Domain: staff time tracking and food-safety compliance. No customers, no
+orders, no transactions.
+
 ## Local setup
 
 ```bash
@@ -28,12 +31,15 @@ python -c "from django.core.management.utils import get_random_secret_key as k; 
 | --- | --- |
 | `config/` | Project settings, root URLs, WSGI/ASGI entrypoints |
 | `config/settings/` | `base` + `development` / `production` / `test` overrides |
-| `apps/common/` | Abstract models, pagination, shared permissions, health check |
-| `apps/users/` | Custom `User` model (email login, roles), JWT auth endpoints |
-| `apps/restaurants/` | Restaurants, branches, tables, menus |
-| `apps/orders/` | Order capture, line items, status transitions |
-| `apps/inventory/` | Stock items, suppliers, stock movements |
-| `apps/payments/` | Bills, payments, refunds |
+| `apps/common/` | Abstract models, roles, permissions, viewset bases, health check |
+| `apps/users/` | Staff accounts (email login, roles), JWT auth endpoints |
+| `apps/restaurants/` | The site - the tenant everything else hangs off |
+| `apps/equipment/` | Fridges, freezers, probes, and their safe ranges |
+| `apps/attendance/` | Barcode scan, check-in/out, the attendance log |
+| `apps/payroll/` | Pay periods, rate history, hours x rate |
+| `apps/compliance/` | Checklists, scheduled checks, results, corrective actions |
+| `apps/notifications/` | Alerting managers about missed and failed checks |
+| `apps/audit/` | Append-only trail - the deliverable at an inspection |
 | `requirements/` | `base` / `dev` / `prod` dependency sets |
 
 Each domain app follows the same shape:

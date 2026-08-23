@@ -15,7 +15,7 @@ Cut every branch from an up-to-date `main`:
 ```bash
 git switch main
 git pull --ff-only
-git switch -c feature/ahmad-order-management
+git switch -c feature/ahmad-attendance-scan
 ```
 
 Naming: `<type>/<yourname>-<topic>`
@@ -36,18 +36,18 @@ If we later need release trains, we will add them then - not before.
 Conventional Commits, because the squash-merge title becomes the changelog:
 
 ```
-feat(orders): add order status transition endpoint
+feat(attendance): add the barcode scan endpoint
 fix(auth): refresh token before retrying a 401
-chore(deps): bump react-native to 0.77.1
-docs(api): document the order lifecycle
+chore(deps): bump react-native to 0.87.1
+docs(api): document the check-in lifecycle
 ```
 
-Scopes: `auth`, `orders`, `inventory`, `payments`, `restaurants`, `api`, `ui`,
-`ci`, `deps`.
+Scopes: `auth`, `attendance`, `payroll`, `compliance`, `equipment`, `audit`,
+`notifications`, `restaurants`, `api`, `ui`, `ci`, `deps`.
 
 ## Pull requests
 
-1. Push your branch: `git push -u origin feature/ahmad-order-management`
+1. Push your branch: `git push -u origin feature/ahmad-attendance-scan`
 2. Open a PR against `main`. The template fills itself in - complete it.
 3. **Keep it small.** Under ~400 changed lines gets a real review; 2,000 lines
    gets a rubber stamp. Split large work into stacked PRs.
@@ -64,7 +64,7 @@ Scopes: `auth`, `orders`, `inventory`, `payments`, `restaurants`, `api`, `ui`,
 `main` must be mergeable into your branch before GitHub will let you merge:
 
 ```bash
-git switch feature/ahmad-order-management
+git switch feature/ahmad-attendance-scan
 git fetch origin
 git rebase origin/main
 git push --force-with-lease
@@ -82,9 +82,11 @@ Look for:
 
 - Does it do what the issue asked?
 - Is there a test for the behaviour that changed?
-- Permissions: can a waiter hit an endpoint only a manager should reach?
+- Permissions: can a staff token reach an admin-only endpoint?
 - N+1 queries (`select_related` / `prefetch_related`)?
 - Does a backend response shape change break the mobile client in this PR?
+- Can a failed check be closed without a corrective action? It must not be.
+- Is anything written to the audit trail also editable somewhere else?
 - Anything hardcoded that belongs in the environment?
 
 Review conventions:

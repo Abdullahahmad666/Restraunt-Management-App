@@ -1,7 +1,22 @@
 # Restaurant Management System
 
-A restaurant management platform: a React Native app for floor and kitchen
-staff, backed by a Django REST API.
+A staff time-tracking and food-safety compliance system for a food
+business: a React Native app used by staff and managers, backed by a Django
+REST API.
+
+**It is not a point-of-sale.** There are no customers, no orders and no
+transactions. The users are employees; the output is a defensible record of
+who did what and when, suitable for presenting at a food hygiene inspection.
+
+Two things it does:
+
+1. **Staff time tracking** - each staff member has a unique barcode. Scanning
+   it on a kiosk or their own phone checks them in or out. Hours accumulate
+   into a pay period and are costed against an hourly rate.
+2. **Daily food-safety compliance** - opening checks, fridge and freezer
+   temperatures, cooking and hot-holding temperatures, cleaning, delivery and
+   closing checks. A failed check cannot be closed until a corrective action
+   is recorded. Everything is written to a permanent trail.
 
 Single repository, two deployables:
 
@@ -13,7 +28,7 @@ restaurant-management/
 └── .github/    CI workflows, issue and PR templates, CODEOWNERS
 ```
 
-One repo because a single feature - "a waiter can create an order" - almost
+One repo because a single feature - "a staff member scans in" - almost
 always touches both sides, and shipping both halves in one reviewable PR keeps
 the API contract honest.
 

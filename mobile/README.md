@@ -3,6 +3,10 @@
 React Native 0.87 + TypeScript. Requires Node >= 22.11. Talks to the Django API in
 [`../backend`](../backend).
 
+Two audiences in one app: staff scan a barcode to clock in and work through
+their daily food-safety checks; managers review who is on shift, what has been
+checked, and what failed.
+
 ## Local setup
 
 ```bash
@@ -56,6 +60,14 @@ iOS additionally needs `cd ios && pod install` once after `npm install`.
 - **Config through `src/config/env.ts`.** `.env` values are inlined at build
   time by react-native-dotenv, so after editing `.env` restart Metro with
   `npm start -- --reset-cache`.
+
+## Not chosen yet
+
+- **A barcode scanning library.** Needs to work on a fixed kiosk device and on
+  staff phones. Deferred until the native projects exist, since every candidate
+  requires native linking and camera permissions.
+- **An offline queue.** Checks get taken in walk-in freezers with no signal.
+  See "Decisions still open" in [`../docs/architecture.md`](../docs/architecture.md).
 
 ## Commands
 

@@ -133,10 +133,10 @@ Add required check names to `contexts` once they have run once.
 ```
 main
  │
- ├── feature/ahmad-order-management
- ├── feature/ali-inventory
+ ├── feature/ahmad-attendance-scan
+ ├── feature/ali-compliance-checks
  ├── feature/usman-auth
- └── feature/hamza-dashboard
+ └── feature/hamza-admin-dashboard
               │
               ▼
         Pull Request
