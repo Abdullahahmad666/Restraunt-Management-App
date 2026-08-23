@@ -3,12 +3,12 @@ import {StyleSheet, Text, View} from 'react-native';
 
 import {spacing} from '../../../theme';
 
-/** Stock levels and low-stock alerts. */
-export function InventoryScreen(): React.JSX.Element {
+/** Completed, overdue and failed checks across the site. */
+export function ComplianceDashboardScreen(): React.JSX.Element {
   return (
     <View style={styles.container}>
-      <Text style={styles.heading}>Inventory</Text>
-      <Text>Stock levels and low-stock alerts.</Text>
+      <Text style={styles.heading}>Compliance Dashboard</Text>
+      <Text>Completed, overdue and failed checks across the site.</Text>
     </View>
   );
 }

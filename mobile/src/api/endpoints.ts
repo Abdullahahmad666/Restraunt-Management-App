@@ -1,7 +1,7 @@
 /**
  * Every backend path in one place, mirroring backend/config/urls.py.
  *
- * The staff/admin split is not cosmetic - the backend rejects a staff token on
+ * The staff/admin split is not cosmetic - the backend answers a staff token on
  * an /admin/ path with a 403. Calling the wrong namespace is a bug, so the
  * shape here makes the namespace impossible to forget.
  */
@@ -19,44 +19,56 @@ export const endpoints = {
   },
 
   staff: {
-    restaurants: {
-      list: `${STAFF}/restaurants/`,
-      detail: (id: string) => `${STAFF}/restaurants/${id}/`,
+    attendance: {
+      // One endpoint for both directions - the server decides which it is
+      // from whether an open check-in already exists today.
+      scan: `${STAFF}/attendance/scan/`,
+      myLogs: `${STAFF}/attendance/logs/`,
     },
-    tables: {
-      list: `${STAFF}/tables/`,
-      detail: (id: string) => `${STAFF}/tables/${id}/`,
+    payroll: {
+      mySummary: `${STAFF}/payroll/summary/`,
     },
-    orders: {
-      list: `${STAFF}/orders/`,
-      detail: (id: string) => `${STAFF}/orders/${id}/`,
+    compliance: {
+      myTasks: `${STAFF}/compliance/tasks/`,
+      task: (id: string) => `${STAFF}/compliance/tasks/${id}/`,
+      complete: (id: string) => `${STAFF}/compliance/tasks/${id}/complete/`,
+      correctiveAction: (id: string) => `${STAFF}/compliance/tasks/${id}/corrective-action/`,
     },
-    inventory: {
-      list: `${STAFF}/inventory/`,
-      detail: (id: string) => `${STAFF}/inventory/${id}/`,
+    equipment: {
+      list: `${STAFF}/equipment/`,
     },
   },
 
   admin: {
-    restaurants: {
-      list: `${ADMIN}/restaurants/`,
-      detail: (id: string) => `${ADMIN}/restaurants/${id}/`,
+    staff: {
+      list: `${ADMIN}/staff/`,
+      detail: (id: string) => `${ADMIN}/staff/${id}/`,
+      barcode: (id: string) => `${ADMIN}/staff/${id}/barcode/`,
     },
-    tables: {
-      list: `${ADMIN}/tables/`,
-      detail: (id: string) => `${ADMIN}/tables/${id}/`,
+    attendance: {
+      live: `${ADMIN}/attendance/live/`,
+      logs: `${ADMIN}/attendance/logs/`,
+      log: (id: string) => `${ADMIN}/attendance/logs/${id}/`,
     },
-    orders: {
-      list: `${ADMIN}/orders/`,
-      detail: (id: string) => `${ADMIN}/orders/${id}/`,
+    payroll: {
+      periods: `${ADMIN}/payroll/periods/`,
+      summary: `${ADMIN}/payroll/summary/`,
     },
-    inventory: {
-      list: `${ADMIN}/inventory/`,
-      detail: (id: string) => `${ADMIN}/inventory/${id}/`,
+    compliance: {
+      dashboard: `${ADMIN}/compliance/dashboard/`,
+      tasks: `${ADMIN}/compliance/tasks/`,
+      history: `${ADMIN}/compliance/history/`,
+      templates: `${ADMIN}/compliance/templates/`,
     },
-    payments: {
-      list: `${ADMIN}/payments/`,
-      detail: (id: string) => `${ADMIN}/payments/${id}/`,
+    equipment: {
+      list: `${ADMIN}/equipment/`,
+      detail: (id: string) => `${ADMIN}/equipment/${id}/`,
+    },
+    notifications: {
+      list: `${ADMIN}/notifications/`,
+    },
+    audit: {
+      list: `${ADMIN}/audit/`,
     },
   },
 } as const;

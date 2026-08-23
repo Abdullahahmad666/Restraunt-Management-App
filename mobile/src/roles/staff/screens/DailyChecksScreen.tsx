@@ -3,12 +3,12 @@ import {StyleSheet, Text, View} from 'react-native';
 
 import {spacing} from '../../../theme';
 
-/** Open orders and their status. */
-export function OrdersScreen(): React.JSX.Element {
+/** The staff member's assigned checks for today. */
+export function DailyChecksScreen(): React.JSX.Element {
   return (
     <View style={styles.container}>
-      <Text style={styles.heading}>Orders</Text>
-      <Text>Open orders and their status.</Text>
+      <Text style={styles.heading}>Daily Checks</Text>
+      <Text>The staff member's assigned checks for today.</Text>
     </View>
   );
 }

@@ -1,0 +1,2 @@
+/** Notification shape. */
+export {};
