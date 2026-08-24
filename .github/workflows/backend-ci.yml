@@ -3,7 +3,7 @@ name: Backend CI
 # Path filters mean a mobile-only PR does not wait on backend checks.
 on:
   push:
-    branches: [main]
+    branches: [main, stage]
     paths:
       - "backend/**"
       - ".github/workflows/backend-ci.yml"
