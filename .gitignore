@@ -1,0 +1,62 @@
+# ---------------------------------------------------------------- secrets --
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.keystore
+!debug.keystore
+google-services.json
+GoogleService-Info.plist
+
+# ---------------------------------------------------------------- python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.Python
+db.sqlite3
+db.sqlite3-journal
+/backend/media/
+/backend/staticfiles/
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.ruff_cache/
+.mypy_cache/
+
+# ------------------------------------------------------------------ node ---
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+coverage/
+.eslintcache
+
+# ---------------------------------------------------------- react native ---
+.metro-health-check*
+*.jsbundle
+/mobile/ios/Pods/
+/mobile/ios/build/
+/mobile/ios/*.xcworkspace/xcuserdata/
+/mobile/android/.gradle/
+/mobile/android/build/
+/mobile/android/app/build/
+/mobile/android/local.properties
+/mobile/android/.cxx/
+*.hprof
+
+# ------------------------------------------------------------------- ide ---
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+*.iml
+
+# ------------------------------------------------------------------- os ----
+.DS_Store
+Thumbs.db
+desktop.ini
