@@ -1,0 +1,42 @@
+# Local development database.
+#
+# Only Postgres runs in Docker - the Django app and Metro still run natively on
+# your machine. The point is that all four of us (and CI, and production) use
+# the same Postgres major version, so nobody hits a bug that reproduces on one
+# laptop only.
+#
+#   docker compose up -d db     start it (first run downloads the image)
+#   docker compose ps           check it is healthy
+#   docker compose stop         stop it, keep the data
+#   docker compose down -v      delete it and ALL its data (clean slate)
+#
+# The credentials below are deliberately boring and identical for everyone.
+# They are local-only and never used anywhere real, which is why they can live
+# in a committed file. Production reads DATABASE_URL from its own secrets.
+
+services:
+  db:
+    # Keep this major version in step with .github/workflows/backend-ci.yml
+    # and with whatever we deploy on.
+    image: postgres:16
+    container_name: philly_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: philly_compliance
+    ports:
+      # host:container. If something already owns 5432 on your machine, change
+      # the LEFT number only, and match it in backend/.env.
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d philly_compliance"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  pgdata:
