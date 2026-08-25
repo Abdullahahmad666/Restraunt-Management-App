@@ -1,9 +1,12 @@
 /**
- * Entry point. Registers the root component with the native runtime.
+ * Entry point.
+ *
+ * registerRootComponent replaces AppRegistry.registerComponent: it wraps the
+ * root component the way Expo Go and expo-dev-client need, and calls
+ * AppRegistry itself underneath.
  */
-import {AppRegistry} from 'react-native';
+import {registerRootComponent} from 'expo';
 
 import App from './src/App';
-import {name as appName} from './app.json';
 
-AppRegistry.registerComponent(appName, () => App);
+registerRootComponent(App);

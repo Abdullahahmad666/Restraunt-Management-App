@@ -1,4 +1,34 @@
 {
-  "name": "RestaurantManagement",
-  "displayName": "Restaurant Management"
+  "expo": {
+    "name": "Philly's Compliance",
+    "slug": "phillys-compliance",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "phillyscompliance",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "com.phillys.compliance",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.phillys.compliance",
+      "adaptiveIcon": {
+        "backgroundColor": "#B23A18"
+      }
+    },
+    "plugins": [
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": false,
+          "faceIDPermission": "Allow $(PRODUCT_NAME) to unlock your saved sign-in."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "e0ff8b7a-e714-4d41-a520-a69e184e70c4"
+      }
+    }
+  }
 }
