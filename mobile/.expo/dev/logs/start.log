@@ -1,0 +1,26 @@
+{"_e":"root:init","_t":1787682883193,"format":"v0-jsonl","version":"57.0.18"}
+{"_e":"env:mode","_t":1787682883193,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1787682883197,"mode":"development","files":["../..\\..\\.env"],"env":{"EXPO_PUBLIC_API_BASE_URL":"http://10.0.2.2:8000/api/v1","EXPO_PUBLIC_API_TIMEOUT_MS":"15000"}}
+{"_e":"devserver:start","_t":1787682886639,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../..\\..\\app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1787682886957,"serverRoot":"../..\\..","projectRoot":"../..\\..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"expo:dev-tools-plugin:load","_t":1787682889184,"plugins":[]}
+{"_e":"metro:instantiate","_t":1787682898220,"atlas":false,"workers":8,"host":"::","port":8099}
+{"_e":"metro:bundling:started","_t":1787682913866,"id":"1","platform":"android","environment":null,"entry":"index.js"}
+{"_e":"metro:bundling:done","_t":1787682923931,"id":"1","total":1099,"ms":10065.2019}
+{"_e":"root:init","_t":1787683403627,"format":"v0-jsonl","version":"57.0.18"}
+{"_e":"env:mode","_t":1787683403628,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1787683403632,"mode":"development","files":["../..\\..\\.env"],"env":{"EXPO_PUBLIC_API_BASE_URL":"http://10.0.2.2:8000/api/v1","EXPO_PUBLIC_API_TIMEOUT_MS":"15000"}}
+{"_e":"devserver:start","_t":1787683403886,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../..\\..\\app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1787683404162,"serverRoot":"../..\\..","projectRoot":"../..\\..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"expo:dev-tools-plugin:load","_t":1787683404417,"plugins":[]}
+{"_e":"metro:instantiate","_t":1787683409547,"atlas":false,"workers":8,"host":"::","port":8081}
+{"_e":"metro:client_log","_t":1787683447066,"level":"error","data":["Project is incompatible with this version of Expo Go\n\nThis project requires a newer version of Expo Go.\n\nHow to fix this error:\nDownload the latest version of Expo Go from the Play Store."]}
+{"_e":"metro:client_log","_t":1787683462939,"level":"error","data":["Project is incompatible with this version of Expo Go\n\nThis project requires a newer version of Expo Go.\n\nHow to fix this error:\nDownload the latest version of Expo Go from the Play Store."]}
+{"_e":"metro:client_log","_t":1787683917476,"level":"error","data":["Project is incompatible with this version of Expo Go\n\nThis project requires a newer version of Expo Go.\n\nHow to fix this error:\nDownload the latest version of Expo Go from the Play Store."]}
+{"_e":"root:init","_t":1787684280783,"format":"v0-jsonl","version":"57.0.18"}
+{"_e":"env:mode","_t":1787684280784,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1787684280790,"mode":"development","files":["../..\\..\\.env"],"env":{"EXPO_PUBLIC_API_BASE_URL":"http://10.0.2.2:8000/api/v1","EXPO_PUBLIC_API_TIMEOUT_MS":"15000"}}
+{"_e":"devserver:start","_t":1787684281260,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../..\\..\\app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1787684281538,"serverRoot":"../..\\..","projectRoot":"../..\\..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"expo:dev-tools-plugin:load","_t":1787684281802,"plugins":[]}
+{"_e":"metro:instantiate","_t":1787684287222,"atlas":false,"workers":8,"host":"::","port":8081}
