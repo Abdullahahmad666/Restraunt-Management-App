@@ -1,7 +1,8 @@
 {
   "expo": {
     "name": "Philly's Compliance",
-    "slug": "phillys-compliance",
+    "slug": "phillyz",
+    "owner": "invincibles",
     "version": "0.1.0",
     "orientation": "portrait",
     "scheme": "phillyscompliance",
