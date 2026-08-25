@@ -1,13 +1,17 @@
 /* eslint-env jest */
 
-// Native modules have no JS implementation under Jest, so stub the ones the
-// app touches on import.
-jest.mock('react-native-keychain', () => ({
-  setGenericPassword: jest.fn(() => Promise.resolve(true)),
-  getGenericPassword: jest.fn(() => Promise.resolve(false)),
-  resetGenericPassword: jest.fn(() => Promise.resolve(true)),
-}));
-
-// '@env' is not mocked: react-native-dotenv inlines those values at transform
-// time, so under Jest (where there is no .env) src/config/env.ts simply falls
-// back to its defaults - which is the behaviour worth testing anyway.
+// jest-expo mocks the expo-* native modules for us, but not the behaviour we
+// depend on, so stub the two calls tokenStorage makes.
+jest.mock('expo-secure-store', () => {
+  const store = new Map();
+  return {
+    setItemAsync: jest.fn(async (key, value) => {
+      store.set(key, value);
+    }),
+    getItemAsync: jest.fn(async key => (store.has(key) ? store.get(key) : null)),
+    deleteItemAsync: jest.fn(async key => {
+      store.delete(key);
+    }),
+    __store: store,
+  };
+});
