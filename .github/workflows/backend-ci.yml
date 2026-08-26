@@ -3,7 +3,7 @@ name: Backend CI
 # Path filters mean a mobile-only PR does not wait on backend checks.
 on:
   push:
-    branches: [main]
+    branches: [main, stage]
     paths:
       - "backend/**"
       - ".github/workflows/backend-ci.yml"
@@ -45,7 +45,7 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: restaurant_test
+          POSTGRES_DB: philly_compliance
         ports: ["5432:5432"]
         options: >-
           --health-cmd pg_isready
@@ -57,7 +57,8 @@ jobs:
       DJANGO_SETTINGS_MODULE: config.settings.test
       # Must be >=50 chars with enough entropy or `check --deploy` fails (W009).
       DJANGO_SECRET_KEY: ci-only-throwaway-key-3f8b1c47ae92d05b6e7419acd8f230b5c1e6
-      DATABASE_URL: postgres://postgres:postgres@localhost:5432/restaurant_test
+      # pytest-django creates and drops test_philly_compliance from this.
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/philly_compliance
       ALLOWED_HOSTS: localhost,127.0.0.1
 
     steps:

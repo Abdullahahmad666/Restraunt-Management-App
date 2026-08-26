@@ -8,22 +8,67 @@ orders, no transactions.
 
 ## Local setup
 
+Requires **Python 3.13+** and **Docker Desktop**.
+
+### 1. Start the database
+
+From the repo root, not `backend/`:
+
+```bash
+docker compose up -d db
+docker compose ps          # wait until it says "healthy"
+```
+
+Postgres runs in Docker so everyone on the team - and CI, and production - uses
+the same major version. The app itself still runs natively.
+
+### 2. Set up the backend
+
 ```bash
 cd backend
 python -m venv .venv
-source .venv/Scripts/activate      # Windows (Git Bash); use .venv/bin/activate on macOS/Linux
+source .venv/Scripts/activate      # Windows (Git Bash); .venv/bin/activate on macOS/Linux
 pip install -r requirements/dev.txt
-cp .env.example .env               # then edit DJANGO_SECRET_KEY and DATABASE_URL
+cp .env.example .env
+```
+
+Then put your own secret key in `.env`:
+
+```bash
+python -c "from django.core.management.utils import get_random_secret_key as k; print(k())"
+```
+
+`DATABASE_URL` in `.env.example` already matches `docker-compose.yml`, so if you
+used Docker there is nothing else to change.
+
+### 3. Create the tables and run
+
+```bash
 python manage.py migrate
 python manage.py createsuperuser
 python manage.py runserver 0.0.0.0:8000
 ```
 
-Generate a secret key:
+Check it worked: <http://localhost:8000/healthz/> should return
+`{"status": "ok", "database": true}`.
+
+### Every time you pull
 
 ```bash
-python -c "from django.core.management.utils import get_random_secret_key as k; print(k())"
+git pull
+pip install -r requirements/dev.txt   # if requirements changed
+python manage.py migrate              # if anyone added a migration
 ```
+
+`migrate` is safe to run whenever. Django records what it has already applied,
+so running it twice does nothing the second time.
+
+### Not using Docker?
+
+Install Postgres 16 yourself, create the database once with
+`createdb philly_compliance`, and edit `DATABASE_URL` in `.env` to match your
+own user, password and port. Everything else is identical - but you are on your
+own if a version difference bites.
 
 ## Layout
 
