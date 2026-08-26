@@ -1,4 +1,9 @@
 {
   "name": "RestaurantManagement",
-  "displayName": "Restaurant Management"
+  "displayName": "Restaurant Management",
+  "extra": {
+    "eas": {
+      "projectId": "e0ff8b7a-e714-4d41-a520-a69e184e70c4"
+    }
+  }
 }

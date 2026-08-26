@@ -97,6 +97,64 @@ Review conventions:
 - "Request changes" for correctness and security. "Comment" for preferences.
 - Approving means *you* are comfortable with this on `main`.
 
+## Database and migrations
+
+**Never write CREATE TABLE by hand, and never share a `.sql` file.** Django owns
+the schema. If you create a table with raw SQL, Django's migration state does
+not know it exists and the next `makemigrations` tries to create it again.
+
+Changing the schema:
+
+```bash
+vim backend/apps/attendance/models.py
+python manage.py makemigrations attendance   # generates the migration file
+python manage.py migrate                     # applies it to your local database
+git add backend/apps/attendance/             # model AND migration, one commit
+```
+
+Picking up someone else's change:
+
+```bash
+git pull
+python manage.py migrate
+```
+
+`migrate` is always safe to run. Django records applied migrations in a
+`django_migrations` table in your own database, so a second run does nothing.
+
+### The rules
+
+1. **The model and its migration go in the same commit.** CI runs
+   `makemigrations --check --dry-run`, so a model change without its migration
+   fails the build.
+2. **Never edit a migration that has been merged.** Once it is on `stage` it may
+   already be applied on three other machines. Change it with a *new* migration.
+3. **One person owns one app at a time.** Migration conflicts can only happen
+   inside a single app, so dividing apps between us removes almost all of them.
+4. **If you do get a conflict** - two `0002_*.py` files in one app after a merge
+   - Django says "Conflicting migrations detected; multiple leaf nodes". Fix it
+   with `python manage.py makemigrations --merge`, or rebase and regenerate.
+   Never hand-edit the numbers.
+5. **Migrations get reviewed like code.** They are the schema's history and they
+   run against production.
+
+### Useful
+
+```bash
+python manage.py sqlmigrate attendance 0001   # show the actual SQL
+python manage.py dbshell                      # psql against your local database
+python manage.py showmigrations               # what is applied and what is not
+python manage.py seed_demo                    # development data (refuses in prod)
+```
+
+### Demo data vs reference data
+
+- **Reference data the application depends on** - the standard set of
+  food-safety check types, for instance - goes in a **data migration**, so every
+  environment including production has it.
+- **Anything you just want to click around in** goes in **`seed_demo`**. Never
+  in a migration: migrations run in production.
+
 ## Working across the stack
 
 When a feature touches both sides, agree the API contract **before** writing
@@ -110,7 +168,7 @@ compatible until the app catches up.
 ## Before you push
 
 ```bash
-# backend
+# backend (needs the database up: docker compose up -d db)
 cd backend && ruff check . && ruff format . && pytest
 
 # mobile
