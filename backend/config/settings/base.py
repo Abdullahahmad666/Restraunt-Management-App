@@ -169,6 +169,15 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "0.1.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
+    # Several models each have their own "status" choices field. Without this,
+    # drf-spectacular can't tell them apart and auto-suffixes the schema
+    # component names (e.g. "StatusE7bEnum") - give each a stable, readable
+    # name instead.
+    "ENUM_NAME_OVERRIDES": {
+        "AttendanceLogStatusEnum": "apps.attendance.models.ATTENDANCE_LOG_STATUS_CHOICES",
+        "PayPeriodStatusEnum": "apps.payroll.models.PAY_PERIOD_STATUS_CHOICES",
+        "NotificationStatusEnum": "apps.notifications.models.NOTIFICATION_STATUS_CHOICES",
+    },
 }
 
 CORS_ALLOWED_ORIGINS = env("CORS_ALLOWED_ORIGINS")
