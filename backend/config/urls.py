@@ -31,6 +31,7 @@ from apps.equipment.api import urls as equipment_urls
 from apps.notifications.api import urls as notifications_urls
 from apps.payroll.api import urls as payroll_urls
 from apps.restaurants.api import urls as restaurants_urls
+from apps.users.api import urls as users_urls
 
 DOMAINS = (
     ("restaurants", restaurants_urls),
@@ -40,6 +41,9 @@ DOMAINS = (
     ("compliance", compliance_urls),
     ("notifications", notifications_urls),
     ("audit", audit_urls),
+    # Staff-account management only - login/register/me stay mounted at
+    # auth/ below via the same module's plain `urlpatterns`.
+    ("users", users_urls),
 )
 
 staff_api = [
