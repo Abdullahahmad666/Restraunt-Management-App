@@ -79,3 +79,8 @@ class DeliveryAttempt(BaseModel):
 
     def __str__(self):
         return f"{self.notification_id} via {self.channel}"
+
+
+# Flat, top-level name for config.settings.base's ENUM_NAME_OVERRIDES - see
+# the matching comment in apps.attendance.models.
+NOTIFICATION_STATUS_CHOICES = Notification.Status.choices

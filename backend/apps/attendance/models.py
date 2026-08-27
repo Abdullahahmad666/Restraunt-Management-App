@@ -130,3 +130,9 @@ class AttendanceLog(BaseModel):
 
     def __str__(self):
         return f"{self.staff} {self.clock_in_at:%Y-%m-%d %H:%M}"
+
+
+# A flat, top-level name so config.settings.base can point drf-spectacular's
+# ENUM_NAME_OVERRIDES at it - a dotted path through a nested class attribute
+# (AttendanceLog.Status.choices) is not resolvable there.
+ATTENDANCE_LOG_STATUS_CHOICES = AttendanceLog.Status.choices

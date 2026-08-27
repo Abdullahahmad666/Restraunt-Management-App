@@ -28,6 +28,8 @@ class DeviceTokenViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, viewset
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return models.DeviceToken.objects.none()
         return models.DeviceToken.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
@@ -41,6 +43,8 @@ class NotificationViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return models.Notification.objects.none()
         return models.Notification.objects.filter(user=self.request.user)
 
     @action(detail=True, methods=["post"], url_path="mark-read")

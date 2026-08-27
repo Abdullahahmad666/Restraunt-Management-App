@@ -18,6 +18,8 @@ class AdminNotificationViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     permission_classes = [IsAdmin]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return models.Notification.objects.none()
         return models.Notification.objects.filter(
             user__restaurant=self.request.user.restaurant
         ).select_related("user")

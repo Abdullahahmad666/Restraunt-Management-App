@@ -118,3 +118,8 @@ class PayrollEntry(BaseModel):
 
     def __str__(self):
         return f"{self.staff} - {self.pay_period}"
+
+
+# Flat, top-level name for config.settings.base's ENUM_NAME_OVERRIDES - see
+# the matching comment in apps.attendance.models.
+PAY_PERIOD_STATUS_CHOICES = PayPeriod.Status.choices

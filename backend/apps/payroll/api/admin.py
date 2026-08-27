@@ -6,6 +6,7 @@ Mounted at /api/v1/admin/payroll/.
 from decimal import Decimal
 
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema
 from rest_framework import serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -111,11 +112,26 @@ class AdminPayrollEntryViewSet(RestaurantScopedQuerysetMixin, AdminViewSet):
         return Response(BasePayrollEntrySerializer(entry).data)
 
 
+class StaffCostRowSerializer(serializers.Serializer):
+    staff_id = serializers.UUIDField()
+    staff_name = serializers.CharField()
+    hours = serializers.DecimalField(max_digits=8, decimal_places=2)
+    total_pay = serializers.DecimalField(max_digits=10, decimal_places=2)
+
+
+class StaffCostReportSerializer(serializers.Serializer):
+    year = serializers.IntegerField()
+    month = serializers.IntegerField()
+    total = serializers.DecimalField(max_digits=10, decimal_places=2)
+    by_staff = StaffCostRowSerializer(many=True)
+
+
 class StaffCostReportView(APIView):
     """GET ?year=2026&month=8 - total staff cost for the caller's restaurant that month, per employee."""
 
     permission_classes = [IsAdmin]
 
+    @extend_schema(responses=StaffCostReportSerializer)
     def get(self, request):
         year = int(request.query_params.get("year"))
         month = int(request.query_params.get("month"))

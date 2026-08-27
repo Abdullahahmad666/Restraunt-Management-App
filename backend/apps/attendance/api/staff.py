@@ -5,6 +5,7 @@ Mounted at /api/v1/staff/attendance/.
 
 from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django.core.exceptions import ValidationError as DjangoValidationError
+from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, serializers, viewsets
 from rest_framework.exceptions import PermissionDenied as DRFPermissionDenied
 from rest_framework.exceptions import ValidationError as DRFValidationError
@@ -26,6 +27,11 @@ class StaffShiftViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     http_method_names = ["get", "head", "options"]
 
     def get_queryset(self):
+        # drf_spectacular introspects this with an anonymous "fake" request to
+        # build the schema - self.request.user would be AnonymousUser there,
+        # which has no id to filter by.
+        if getattr(self, "swagger_fake_view", False):
+            return models.Shift.objects.none()
         return models.Shift.objects.filter(staff=self.request.user).order_by("-starts_at")
 
 
@@ -37,6 +43,8 @@ class StaffAttendanceLogViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     http_method_names = ["get", "head", "options"]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return models.AttendanceLog.objects.none()
         return models.AttendanceLog.objects.filter(staff=self.request.user).order_by("-clock_in_at")
 
 
@@ -44,6 +52,11 @@ class ScanSerializer(serializers.Serializer):
     token = serializers.UUIDField()
     latitude = serializers.DecimalField(max_digits=9, decimal_places=6)
     longitude = serializers.DecimalField(max_digits=9, decimal_places=6)
+
+
+class ScanResultSerializer(serializers.Serializer):
+    action = serializers.ChoiceField(choices=["check_in", "check_out"])
+    log = BaseAttendanceLogSerializer()
 
 
 class ScanView(APIView):
@@ -57,6 +70,7 @@ class ScanView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(request=ScanSerializer, responses=ScanResultSerializer)
     def post(self, request):
         serializer = ScanSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

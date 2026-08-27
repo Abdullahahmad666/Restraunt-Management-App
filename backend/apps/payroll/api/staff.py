@@ -25,6 +25,8 @@ class StaffPayrollEntryViewSet(
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return models.PayrollEntry.objects.none()
         return models.PayrollEntry.objects.filter(staff=self.request.user).select_related(
             "pay_period"
         )
