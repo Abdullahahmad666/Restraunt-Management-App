@@ -1,0 +1,33 @@
+name: Guard main
+
+# main only ever receives a release PR from stage, or a hotfix. Rulesets cannot
+# restrict a PR's SOURCE branch, so this check does it.
+#
+# Deliberately has no `paths:` filter, so it runs on every PR to main and is
+# therefore safe to mark as a required status check - unlike the path-filtered
+# backend/mobile workflows, which can legitimately never run.
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  source-branch:
+    name: PR source is stage or a hotfix
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the source branch
+        run: |
+          echo "Base: ${{ github.base_ref }}"
+          echo "Head: ${{ github.head_ref }}"
+          case "${{ github.head_ref }}" in
+            stage)
+              echo "Release PR from stage. OK."
+              ;;
+            fix/*)
+              echo "Hotfix branch. OK - remember to merge main back down into stage afterwards."
+              ;;
+            *)
+              echo "::error::PRs into main must come from 'stage' (release) or 'fix/*' (hotfix). Got '${{ github.head_ref }}'. Retarget this PR at stage."
+              exit 1
+              ;;
+          esac

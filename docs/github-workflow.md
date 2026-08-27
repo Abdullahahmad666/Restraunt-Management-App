@@ -8,23 +8,43 @@ before anyone starts feature work.
 **Settings -> General -> Pull Requests**
 
 - [x] Allow squash merging - **set the default commit message to "Pull request title and description"**
-- [ ] Allow merge commits - *off*
+- [x] Allow merge commits - **needed for `stage` -> `main`**
 - [ ] Allow rebase merging - *off*
 - [x] Always suggest updating pull request branches
 - [x] Automatically delete head branches
+- Default branch: **`stage`**
 
-One merge method means one shape of history. Squash gives you one commit per PR
-on `main`, which makes `git log` readable and `git revert` a single command.
+Two merge methods, each with one job:
 
-## 2. Protect `main`
+| Merge | Method | Why |
+| --- | --- | --- |
+| `feature/*` -> `stage` | **squash** | one clean commit per PR |
+| `stage` -> `main` | **merge commit** | keeps shared history so the branches never diverge |
 
-**Settings -> Rules -> Rulesets -> New branch ruleset**
+Squashing `stage` into `main` would put a commit on `main` that exists nowhere
+in `stage`'s history. The two would diverge permanently and every later release
+PR would report conflicts in files nobody touched. Keep squash as the *default*
+so nobody picks the wrong one by accident, and switch to merge commit only on
+the release PR.
 
-- Name: `main protection`
+Making `stage` the default branch is what causes new PRs to target it, and a
+fresh clone to land on it.
+
+## 2. Protect both branches
+
+**Settings -> Rules -> Rulesets -> New branch ruleset** - do this twice.
+
+> **Target the branches by name, not by "Include default branch".**
+>
+> This is the one setting that can silently unprotect a branch. A ruleset
+> targeting "default branch" followed `main` until the default became `stage` -
+> at which point it protects `stage` and leaves `main` wide open, with no
+> warning anywhere. Use **Include by pattern** and type the branch name.
+
+### Ruleset: `stage protection`
+
+- Target branches: **Include by pattern** -> `stage`
 - Enforcement status: **Active**
-- Target branches: **Include default branch**
-
-Enable these rules:
 
 | Rule | Setting |
 | --- | --- |
@@ -38,6 +58,21 @@ Enable these rules:
 | ↳ Require conversation resolution before merging | on |
 | Require status checks to pass | on |
 | ↳ Require branches to be up to date before merging | on |
+
+### Ruleset: `main protection`
+
+- Target branches: **Include by pattern** -> `main`
+- Enforcement status: **Active**
+
+Same as above with one difference:
+
+| Rule | Setting |
+| --- | --- |
+| Require linear history | **off** |
+
+A merge commit is not linear, and `stage` -> `main` has to be a merge commit -
+so requiring linear history here would block every release. `stage` can keep it,
+because feature branches are squashed into it.
 
 ### Code Owners: leave it off until there are two of you
 
@@ -61,6 +96,28 @@ Two related gotchas:
 convention, not a rule. If you genuinely need to bypass it, you can add
 yourself for five minutes and remove yourself after - and that action is
 logged, which is the point.
+
+### Check you did not just unprotect `main`
+
+After any change to the default branch, open both rulesets and confirm the
+target says the literal branch name. Then prove it:
+
+```bash
+git push origin --delete main     # must be REJECTED
+```
+
+If that succeeds, `main` was not protected. Do not force anything - fix the
+ruleset target and try again.
+
+### The one check that is always safe to require
+
+[`.github/workflows/guard-main.yml`](../.github/workflows/guard-main.yml) fails
+any PR into `main` that did not come from `stage` or a `fix/*` branch. Rulesets
+cannot restrict a PR's source branch, so this does it.
+
+It has no `paths:` filter, so it runs on every PR to `main` - which makes it the
+one check you can mark required on `main` without risking the deadlock described
+below.
 
 ### Status checks
 
@@ -96,6 +153,9 @@ rules. Exactly one person needs **Admin**.
 
 If you prefer not to click through the UI (needs `gh` and admin rights):
 
+Run it once per branch, swapping `main` for `stage`. Note
+`required_linear_history` differs: `false` for `main`, `true` for `stage`.
+
 ```bash
 gh api --method PUT repos/:owner/:repo/branches/main/protection \
   --input - <<'JSON'
@@ -122,16 +182,20 @@ JSON
 Then set merge behaviour:
 
 ```bash
-gh repo edit --enable-squash-merge --enable-merge-commit=false \
-  --enable-rebase-merge=false --delete-branch-on-merge
+gh repo edit --enable-squash-merge --enable-merge-commit \
+  --enable-rebase-merge=false --delete-branch-on-merge \
+  --default-branch stage
 ```
+
+Merge commits stay enabled here, unlike the single-branch setup this replaced -
+the release PR needs them.
 
 Add required check names to `contexts` once they have run once.
 
 ## 5. Day-to-day flow
 
 ```
-main
+stage
  │
  ├── feature/ahmad-attendance-scan
  ├── feature/ali-compliance-checks
@@ -139,16 +203,20 @@ main
  └── feature/hamza-admin-dashboard
               │
               ▼
-        Pull Request
+        Pull Request -> stage
               │
         CI + 1 approval + conversations resolved
               │
               ▼
-        Squash merge -> main, branch deleted
+        Squash merge -> stage, branch deleted
+
+        ... then, at a release:
+
+        stage ──► PR ──► main   (merge commit, not squash)
 ```
 
 ```bash
-git switch main && git pull --ff-only
+git switch stage && git pull --ff-only
 git switch -c feature/usman-auth
 # ... work ...
 git add -p && git commit -m "feat(auth): add JWT login endpoint"
@@ -164,7 +232,7 @@ gh pr create --fill                 # or open it in the browser
 - **Merge order matters for shared files.** Whoever touches `settings.py`,
   `package.json` or `config/urls.py` should merge first and tell the others to
   rebase.
-- **Rebase daily.** `git fetch origin && git rebase origin/main`. A conflict
+- **Rebase daily.** `git fetch origin && git rebase origin/stage`. A conflict
   found today is ten minutes; found in a week it is an afternoon.
 - **Review within a working day.** With four people and one required approval,
   a slow reviewer blocks the whole team.
@@ -176,9 +244,14 @@ It will, and that is usually the rule working.
 **"My PR is blocked on a check that never ran."** Path filters. See the note in
 section 2 - remove that check from the required list.
 
-**"main is broken and I need to fix it now."** Open a `fix/` branch and PR like
-always. With one approval and green CI that is about five minutes. Bypassing
-protection to fix a break is how the second break happens.
+**"main is broken and I need to fix it now."** Branch from `main`, PR into
+`main`, merge - then **immediately merge `main` back down into `stage`**, or the
+next release reverts your fix. With one approval and green CI the whole thing is
+about five minutes. Bypassing protection to fix a break is how the second break
+happens.
+
+**"stage is broken."** Same, but branch from and PR into `stage`. No back-merge
+needed, since `stage` flows to `main` anyway.
 
 **"Nobody is around to approve."** The approval requirement is the point. If
 this is genuinely common, the team is too spread out - not the rule too strict.
@@ -186,4 +259,4 @@ Temporarily adding yourself to the bypass list is logged and reviewable; force
 pushing is not.
 
 **"I need to force push my own branch."** You can - protection only covers
-`main`. Use `--force-with-lease`.
+`stage` and `main`. Use `--force-with-lease`.

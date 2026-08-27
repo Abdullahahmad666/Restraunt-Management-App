@@ -32,7 +32,8 @@ Closes #<!-- issue number -->
 ## Checklist
 
 - [ ] Branch is named `feature/<name>-<topic>` (or `fix/`, `chore/`, `docs/`)
-- [ ] Rebased on the latest `main`
+- [ ] Targeting **`stage`**, not `main` (release and hotfix PRs excepted)
+- [ ] Rebased on the latest `stage`
 - [ ] Tests added or updated for the behaviour I changed
 - [ ] `makemigrations` run and the migration committed (backend model changes)
 - [ ] No secrets, tokens, `.env` files or API keys in the diff

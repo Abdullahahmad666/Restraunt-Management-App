@@ -2,18 +2,32 @@
 
 ## The one rule
 
-**Nobody pushes to `main`.** Not for a typo, not for a one-line config change,
-not at 2am before a demo. Every change reaches `main` through a pull request
-that one other person approved and that CI passed.
+**Nobody pushes to `stage` or `main`.** Not for a typo, not for a one-line
+config change, not at 2am before a demo. Every change reaches them through a
+pull request that one other person approved and that CI passed.
 
-Branch protection enforces this, so a direct push will simply be rejected.
+Branch protection enforces this on both, so a direct push is simply rejected.
+
+## The two long-lived branches
+
+```
+feature/abdullah-attendance ─┐
+feature/ali-compliance ──────┼──► PR ──► stage ──► PR ──► main
+feature/usman-scan ──────────┘            │                │
+                                    integration        released
+```
+
+| Branch | What it is |
+| --- | --- |
+| `stage` | where everything integrates. Your PRs go here. **This is the default branch**, so a fresh clone lands on it and new PRs target it automatically. |
+| `main` | the last known-good release. Only ever receives a PR from `stage`. |
 
 ## Branching
 
-Cut every branch from an up-to-date `main`:
+Cut every branch from an up-to-date `stage`, never from `main`:
 
 ```bash
-git switch main
+git switch stage
 git pull --ff-only
 git switch -c feature/ahmad-attendance-scan
 ```
@@ -28,8 +42,9 @@ Naming: `<type>/<yourname>-<topic>`
 | `docs/` | documentation only |
 | `refactor/` | no behaviour change |
 
-There is no long-lived `develop` branch. `main` is always the stable version.
-If we later need release trains, we will add them then - not before.
+`stage` is the integration branch, so `main` only changes at a release. If you
+find yourself wanting to branch from `main`, the exception is a hotfix - see
+below.
 
 ## Commits
 
@@ -48,7 +63,9 @@ Scopes: `auth`, `attendance`, `payroll`, `compliance`, `equipment`, `audit`,
 ## Pull requests
 
 1. Push your branch: `git push -u origin feature/ahmad-attendance-scan`
-2. Open a PR against `main`. The template fills itself in - complete it.
+2. Open a PR against **`stage`**. It is the default branch so this is
+   pre-selected, but check the base on the PR page - a PR aimed at `main` will
+   be rejected by CI.
 3. **Keep it small.** Under ~400 changed lines gets a real review; 2,000 lines
    gets a rubber stamp. Split large work into stacked PRs.
 4. Link the issue: `Closes #12`.
@@ -56,17 +73,48 @@ Scopes: `auth`, `attendance`, `payroll`, `compliance`, `equipment`, `audit`,
 6. Fix CI before asking for review. A red PR is not ready.
 7. Resolve every review conversation - either change the code or reply
    explaining why not. Unresolved conversations block the merge.
-8. **Squash and merge.** One commit per PR on `main`.
+8. **Squash and merge.** One commit per PR on `stage`.
 9. Delete the branch (GitHub does this automatically).
+
+### Releasing: `stage` to `main`
+
+When `stage` is in a state worth keeping, open a PR from `stage` into `main`.
+
+**Use a merge commit, not squash.** Squashing would put a commit on `main` that
+exists nowhere in `stage`'s history; the two would diverge permanently and every
+later release PR would show conflicts in files nobody touched. This is the one
+place we do not squash.
+
+### Hotfixes
+
+A bug on `main` that cannot wait for `stage`:
+
+```bash
+git switch main && git pull --ff-only
+git switch -c fix/abdullah-whatever
+# ... fix, PR into main, merge ...
+```
+
+Then **immediately merge it back down**, or the next release silently reverts it:
+
+```bash
+git switch stage
+git pull --ff-only
+git merge origin/main
+git push
+```
+
+Every merge into `main` that did not come from `stage` gets back-merged. No
+exceptions - this is the most common way this branching model goes wrong.
 
 ### Keeping your branch current
 
-`main` must be mergeable into your branch before GitHub will let you merge:
+`stage` must be mergeable into your branch before GitHub will let you merge:
 
 ```bash
 git switch feature/ahmad-attendance-scan
 git fetch origin
-git rebase origin/main
+git rebase origin/stage
 git push --force-with-lease
 ```
 
@@ -95,7 +143,7 @@ Review conventions:
   expensive than your context switch.
 - Prefix non-blocking comments with `nit:`. Everything else blocks.
 - "Request changes" for correctness and security. "Comment" for preferences.
-- Approving means *you* are comfortable with this on `main`.
+- Approving means *you* are comfortable with this on `stage`.
 
 ## Database and migrations
 
@@ -159,7 +207,7 @@ python manage.py seed_demo                    # development data (refuses in pro
 
 When a feature touches both sides, agree the API contract **before** writing
 code - put the endpoint, request body and response shape in the issue. Then
-build both halves in one PR so `main` is never in a state where the app and
+build both halves in one PR so `stage` is never in a state where the app and
 the API disagree.
 
 If the halves must ship separately, the backend goes first and stays backwards

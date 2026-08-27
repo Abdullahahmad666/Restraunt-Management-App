@@ -1,7 +1,7 @@
 # Mobile - Restaurant Management App
 
-React Native 0.87 + TypeScript. Requires Node >= 22.11. Talks to the Django API in
-[`../backend`](../backend).
+**Expo SDK 57** (React Native 0.86.2) + TypeScript. Requires Node >= 22.11.
+Talks to the Django API in [`../backend`](../backend).
 
 Two audiences in one app: staff scan a barcode to clock in and work through
 their daily food-safety checks; managers review who is on shift, what has been
@@ -13,18 +13,22 @@ checked, and what failed.
 cd mobile
 npm install
 cp .env.example .env
-npm start              # Metro bundler
-npm run android        # or: npm run ios
+npm start
 ```
 
-iOS additionally needs `cd ios && pod install` once after `npm install`.
+Then install **Expo Go** on your phone and scan the QR code. No Android Studio,
+no Xcode, no native build.
 
-> The `android/` and `ios/` native projects are not in this scaffold. Generate
-> them once with `npx @react-native-community/cli init` into a temp directory
-> and copy them in, then commit them - see `../docs/mobile-native-setup.md`.
+Point `EXPO_PUBLIC_API_BASE_URL` in `.env` at your machine's LAN address, not
+`localhost` - on a phone that means the phone. See
+[`../docs/mobile-native-setup.md`](../docs/mobile-native-setup.md).
+
+> There is no `android/` or `ios/` folder and there should not be one in Git.
+> `expo prebuild` generates them from `app.json` on demand, so committing them
+> would let the two disagree - and the folder would win.
 >
-> Until that is done `npm run android` / `npm run ios` will not work, but
-> `npm run lint`, `npm run typecheck` and `npm test` all do.
+> `npm run android` / `npm run ios` work once you have the relevant native
+> toolchain; until then, Expo Go covers everyday development.
 
 ## Layout
 
@@ -57,17 +61,24 @@ iOS additionally needs `cd ios && pod install` once after `npm install`.
 - **No raw `fetch`/`axios` in screens.** Go through `src/api/client.ts` so auth
   refresh and timeouts apply.
 - **`strict: true`.** No `any` in reviewed code.
-- **Config through `src/config/env.ts`.** `.env` values are inlined at build
-  time by react-native-dotenv, so after editing `.env` restart Metro with
-  `npm start -- --reset-cache`.
+- **Config through `src/config/env.ts`.** Only `EXPO_PUBLIC_*` variables reach
+  the app, and Expo inlines them at build time - so they ship inside the bundle
+  and are readable by anyone with the app. Never put a secret there. After
+  editing `.env`, restart with `npx expo start --clear`.
+- **Add packages with `npx expo install`, not `npm install`.** It picks the
+  version matching the SDK; plain npm takes the newest, which is usually wrong
+  for anything with native code.
+- **Check the Expo SDK before adding a native dependency.** Anything outside it
+  breaks Expo Go and forces everyone onto a development build. This is why token
+  storage uses `expo-secure-store` rather than `react-native-keychain`.
 
 ## Not chosen yet
 
-- **A barcode scanning library.** Needs to work on a fixed kiosk device and on
-  staff phones. Deferred until the native projects exist, since every candidate
-  requires native linking and camera permissions.
 - **An offline queue.** Checks get taken in walk-in freezers with no signal.
   See "Decisions still open" in [`../docs/architecture.md`](../docs/architecture.md).
+
+The barcode scanner is settled: `expo-camera` is in the SDK, so it works in
+Expo Go and needs no native linking.
 
 ## Commands
 
@@ -76,4 +87,5 @@ npm run lint
 npm run typecheck
 npm test
 npm run format
+npm run doctor        # expo-doctor: version and config mismatches
 ```
