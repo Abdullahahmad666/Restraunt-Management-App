@@ -6,8 +6,8 @@ from django.db import transaction
 
 from apps.common.roles import Role
 
-from . import calculation
 from .. import models
+from . import calculation
 
 User = get_user_model()
 

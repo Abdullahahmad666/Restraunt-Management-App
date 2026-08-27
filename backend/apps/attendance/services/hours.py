@@ -17,7 +17,10 @@ def hours_worked(*, staff, start: date, end: date) -> Decimal:
     total = (
         models.AttendanceLog.objects.filter(
             staff=staff,
-            status__in=(models.AttendanceLog.Status.CLOSED, models.AttendanceLog.Status.AUTO_CLOSED),
+            status__in=(
+                models.AttendanceLog.Status.CLOSED,
+                models.AttendanceLog.Status.AUTO_CLOSED,
+            ),
             clock_in_at__date__gte=start,
             clock_in_at__date__lte=end,
             clock_out_at__isnull=False,

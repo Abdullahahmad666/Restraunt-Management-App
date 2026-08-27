@@ -25,4 +25,7 @@ admin_router.register("periods", AdminPayPeriodViewSet, basename="pay-period")
 admin_router.register("entries", AdminPayrollEntryViewSet, basename="payroll-entry")
 
 staff_urlpatterns = staff_router.urls
-admin_urlpatterns = [*admin_router.urls, path("cost-report/", StaffCostReportView.as_view(), name="cost-report")]
+admin_urlpatterns = [
+    *admin_router.urls,
+    path("cost-report/", StaffCostReportView.as_view(), name="cost-report"),
+]

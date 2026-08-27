@@ -18,7 +18,11 @@ from .common import BaseAttendanceLogSerializer, BaseShiftSerializer
 class AdminShiftSerializer(BaseShiftSerializer):
     class Meta(BaseShiftSerializer.Meta):
         fields = (*BaseShiftSerializer.Meta.fields, "restaurant", "reminder_sent_at", "created_by")
-        read_only_fields = (*BaseShiftSerializer.Meta.read_only_fields, "reminder_sent_at", "created_by")
+        read_only_fields = (
+            *BaseShiftSerializer.Meta.read_only_fields,
+            "reminder_sent_at",
+            "created_by",
+        )
 
 
 class AdminShiftViewSet(RestaurantScopedQuerysetMixin, AdminViewSet):
@@ -73,7 +77,15 @@ class AdminAttendanceLogViewSet(RestaurantScopedQuerysetMixin, AdminViewSet):
 class AdminVenueQRCodeSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.VenueQRCode
-        fields = ("id", "restaurant", "token", "latitude", "longitude", "radius_meters", "is_active")
+        fields = (
+            "id",
+            "restaurant",
+            "token",
+            "latitude",
+            "longitude",
+            "radius_meters",
+            "is_active",
+        )
         read_only_fields = ("id", "token")
 
 

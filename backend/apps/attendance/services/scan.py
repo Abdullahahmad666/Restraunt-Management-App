@@ -52,7 +52,9 @@ def scan(*, staff, token, latitude, longitude) -> ScanResult:
     Which one happens is decided here, not by the caller - a staff member
     with no open log is checking in, one with an open log is checking out.
     """
-    qr_code = _verify_qr_and_location(staff=staff, token=token, latitude=latitude, longitude=longitude)
+    qr_code = _verify_qr_and_location(
+        staff=staff, token=token, latitude=latitude, longitude=longitude
+    )
     now = timezone.now()
 
     open_log = models.AttendanceLog.objects.filter(
