@@ -2,12 +2,11 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import (
     TokenBlacklistView,
-    TokenObtainPairView,
     TokenRefreshView,
 )
 
 from .admin import AdminStaffViewSet
-from .views import MeView, RegisterView
+from .views import CustomLoginView, MeView, RegisterView
 
 app_name = "users"
 
@@ -15,7 +14,7 @@ app_name = "users"
 # the staff/admin namespace split, because you have no role until you log in.
 urlpatterns = [
     path("register/", RegisterView.as_view(), name="register"),
-    path("login/", TokenObtainPairView.as_view(), name="login"),
+    path("login/", CustomLoginView.as_view(), name="login"),
     path("refresh/", TokenRefreshView.as_view(), name="token-refresh"),
     path("logout/", TokenBlacklistView.as_view(), name="logout"),
     path("me/", MeView.as_view(), name="me"),

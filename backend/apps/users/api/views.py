@@ -1,7 +1,8 @@
 from django.contrib.auth import get_user_model
 from rest_framework import generics, permissions
+from rest_framework_simplejwt.views import TokenObtainPairView
 
-from .serializers import RegisterSerializer, UserSerializer
+from .serializers import CustomTokenObtainPairSerializer, RegisterSerializer, UserSerializer
 
 User = get_user_model()
 
@@ -20,3 +21,8 @@ class MeView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+class CustomLoginView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
+    throttle_scope = "login"
