@@ -7,8 +7,11 @@ from django.utils import timezone
 from .. import models
 
 # How long an open log can run with no matching shift before it is treated
-# as forgotten rather than a genuinely long day.
-AUTO_CLOSE_AFTER = timedelta(hours=12)
+# as forgotten rather than a genuinely long day. Set above the longest
+# plausible unscheduled shift (an 11am-to-1am double shift is 14 hours) so a
+# real, still-working staff member is never auto-closed mid-shift - a shift
+# that IS in the rota uses shift.ends_at instead and never hits this at all.
+AUTO_CLOSE_AFTER = timedelta(hours=16)
 
 
 def auto_close_stale_logs(*, now=None) -> int:

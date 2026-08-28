@@ -55,6 +55,14 @@ class AdminAttendanceLogSerializer(BaseAttendanceLogSerializer):
             "is_manual_override",
         )
 
+    def validate(self, attrs):
+        instance = self.instance
+        clock_in_at = attrs.get("clock_in_at", instance.clock_in_at if instance else None)
+        clock_out_at = attrs.get("clock_out_at", instance.clock_out_at if instance else None)
+        if clock_in_at and clock_out_at and clock_out_at <= clock_in_at:
+            raise serializers.ValidationError("Clock-out must be after clock-in.")
+        return attrs
+
 
 class AdminAttendanceLogViewSet(RestaurantScopedQuerysetMixin, AdminViewSet):
     """Review and correct clock-in/out records for the caller's restaurant."""
@@ -75,6 +83,11 @@ class AdminAttendanceLogViewSet(RestaurantScopedQuerysetMixin, AdminViewSet):
 
 
 class AdminVenueQRCodeSerializer(serializers.ModelSerializer):
+    latitude = serializers.DecimalField(max_digits=9, decimal_places=6, min_value=-90, max_value=90)
+    longitude = serializers.DecimalField(
+        max_digits=9, decimal_places=6, min_value=-180, max_value=180
+    )
+
     class Meta:
         model = models.VenueQRCode
         fields = (

@@ -50,12 +50,14 @@ class StaffAttendanceLogViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
 
 class ScanSerializer(serializers.Serializer):
     token = serializers.UUIDField()
-    latitude = serializers.DecimalField(max_digits=9, decimal_places=6)
-    longitude = serializers.DecimalField(max_digits=9, decimal_places=6)
+    latitude = serializers.DecimalField(max_digits=9, decimal_places=6, min_value=-90, max_value=90)
+    longitude = serializers.DecimalField(
+        max_digits=9, decimal_places=6, min_value=-180, max_value=180
+    )
 
 
 class ScanResultSerializer(serializers.Serializer):
-    action = serializers.ChoiceField(choices=["check_in", "check_out"])
+    action = serializers.ChoiceField(choices=["check_in", "check_out", "already_checked_in"])
     log = BaseAttendanceLogSerializer()
 
 
@@ -63,9 +65,12 @@ class ScanView(APIView):
     """POST the venue QR token plus the phone's current GPS position.
 
     Scans alternate: the first scan of the day clocks a staff member in, the
-    next one clocks them out. There is no separate check-in/check-out
-    endpoint because the app never needs to know which one it is asking for
-    - see apps.attendance.services.scan.
+    next one clocks them out - unless that next scan comes in under
+    scan_service.MIN_TIME_BEFORE_CHECKOUT of the check-in, in which case
+    nothing changes and the response says so (see "already_checked_in"
+    below). There is no separate check-in/check-out endpoint because the app
+    never needs to know which one it's asking for - see
+    apps.attendance.services.scan.
     """
 
     permission_classes = [IsAuthenticated]
