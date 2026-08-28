@@ -56,6 +56,7 @@ class User(AbstractUser, TimeStampedModel):
     email = models.EmailField(_("email address"), unique=True)
     role = models.CharField(max_length=16, choices=Role.choices, default=Role.STAFF)
     phone = models.CharField(max_length=32, blank=True)
+    profile_picture = models.ImageField(upload_to="profile_pictures/", null=True, blank=True)
 
     # Set once the restaurants app defines Restaurant. Kept as a string
     # reference so the two apps do not import each other.

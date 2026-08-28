@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from rest_framework import generics, permissions
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .serializers import CustomTokenObtainPairSerializer, RegisterSerializer, UserSerializer
@@ -18,6 +19,7 @@ class MeView(generics.RetrieveUpdateAPIView):
     """The signed-in user. The mobile app calls this on launch to restore session."""
 
     serializer_class = UserSerializer
+    parser_classes = [MultiPartParser, FormParser]
 
     def get_object(self):
         return self.request.user
