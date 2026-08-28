@@ -1,23 +1,38 @@
 {
   "expo": {
-    "name": "Philly's Compliance",
+    "name": "Invisiko",
     "slug": "phillyz",
     "owner": "invincibles",
     "version": "0.1.0",
     "orientation": "portrait",
-    "scheme": "phillyscompliance",
-    "userInterfaceStyle": "automatic",
+    "scheme": "invisiko",
+    "userInterfaceStyle": "dark",
     "ios": {
-      "bundleIdentifier": "com.phillys.compliance",
-      "supportsTablet": true
+      "bundleIdentifier": "com.invisiko.app",
+      "supportsTablet": true,
+      "userInterfaceStyle": "dark"
     },
     "android": {
-      "package": "com.phillys.compliance",
+      "package": "com.invisiko.app",
+      "userInterfaceStyle": "dark",
       "adaptiveIcon": {
-        "backgroundColor": "#B23A18"
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#08172B"
       }
     },
     "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#08172B",
+          "dark": {
+            "backgroundColor": "#08172B"
+          }
+        }
+      ],
       [
         "expo-secure-store",
         {
@@ -36,6 +51,9 @@
     },
     "updates": {
       "url": "https://u.expo.dev/e0ff8b7a-e714-4d41-a520-a69e184e70c4"
-    }
+    },
+    "icon": "./assets/images/icon.png",
+    "backgroundColor": "#08172B",
+    "primaryColor": "#FE9A02"
   }
 }
