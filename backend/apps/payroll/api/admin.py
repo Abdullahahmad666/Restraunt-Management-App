@@ -5,6 +5,8 @@ Mounted at /api/v1/admin/payroll/.
 
 from decimal import Decimal
 
+from django.contrib.auth import get_user_model
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers
@@ -17,7 +19,14 @@ from apps.common.permissions import IsAdmin
 from apps.payroll import models, selectors
 from apps.payroll.services import calculation, pay_periods
 
-from .common import BasePayrollEntrySerializer
+from .common import (
+    BasePayrollEntrySerializer,
+    StaffSummarySerializer,
+    build_staff_summary_response,
+    parse_summary_range,
+)
+
+User = get_user_model()
 
 
 class AdminStaffPayRateSerializer(serializers.ModelSerializer):
@@ -155,3 +164,21 @@ class StaffCostReportView(APIView):
                 "by_staff": by_staff,
             }
         )
+
+
+class StaffSummaryView(APIView):
+    """GET one staff member's rota, off days, pay rates and pay history in one place.
+
+    ?start=YYYY-MM-DD&end=YYYY-MM-DD bound the shifts/off-days window
+    (default: the last 60 days). The pay history and lifetime totals are
+    always all-time regardless of that window.
+    """
+
+    permission_classes = [IsAdmin]
+
+    @extend_schema(responses=StaffSummarySerializer)
+    def get(self, request, staff_id):
+        staff = get_object_or_404(User, id=staff_id, restaurant=request.user.restaurant)
+        start, end = parse_summary_range(request)
+        summary = selectors.staff_summary(staff=staff, start=start, end=end)
+        return Response(build_staff_summary_response(summary))

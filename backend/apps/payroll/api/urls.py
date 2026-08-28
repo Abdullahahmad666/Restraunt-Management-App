@@ -11,8 +11,9 @@ from .admin import (
     AdminPayrollEntryViewSet,
     AdminStaffPayRateViewSet,
     StaffCostReportView,
+    StaffSummaryView,
 )
-from .staff import StaffPayrollEntryViewSet
+from .staff import MySummaryView, StaffPayrollEntryViewSet
 
 app_name = "payroll"
 
@@ -24,8 +25,12 @@ admin_router.register("rates", AdminStaffPayRateViewSet, basename="pay-rate")
 admin_router.register("periods", AdminPayPeriodViewSet, basename="pay-period")
 admin_router.register("entries", AdminPayrollEntryViewSet, basename="payroll-entry")
 
-staff_urlpatterns = staff_router.urls
+staff_urlpatterns = [
+    *staff_router.urls,
+    path("summary/", MySummaryView.as_view(), name="my-summary"),
+]
 admin_urlpatterns = [
     *admin_router.urls,
     path("cost-report/", StaffCostReportView.as_view(), name="cost-report"),
+    path("staff-summary/<uuid:staff_id>/", StaffSummaryView.as_view(), name="staff-summary"),
 ]

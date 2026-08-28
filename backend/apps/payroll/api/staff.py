@@ -8,12 +8,36 @@ Kept strictly read-only and strictly scoped to the caller's own entries -
 rate changes and pay-period actions stay admin-only, in api/admin.py.
 """
 
+from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, viewsets
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from apps.payroll import models
+from apps.payroll import models, selectors
 
-from .common import BasePayrollEntrySerializer
+from .common import (
+    BasePayrollEntrySerializer,
+    StaffSummarySerializer,
+    build_staff_summary_response,
+    parse_summary_range,
+)
+
+
+class MySummaryView(APIView):
+    """GET the caller's own rota, off days, pay rates and pay history in one place.
+
+    Same shape as the admin staff-summary endpoint, scoped to whoever is
+    logged in - there's no staff_id to pass, it can only ever be "me".
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(responses=StaffSummarySerializer)
+    def get(self, request):
+        start, end = parse_summary_range(request)
+        summary = selectors.staff_summary(staff=request.user, start=start, end=end)
+        return Response(build_staff_summary_response(summary))
 
 
 class StaffPayrollEntryViewSet(
