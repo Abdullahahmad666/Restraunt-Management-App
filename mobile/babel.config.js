@@ -1,26 +1,12 @@
-module.exports = {
-  presets: ['module:@react-native/babel-preset'],
-  plugins: [
-    // Makes `import {API_BASE_URL} from '@env'` read mobile/.env at build time.
-    // React Native has no process.env loader of its own - without this the
-    // values in .env would simply be undefined at runtime.
-    [
-      'module:react-native-dotenv',
-      {
-        moduleName: '@env',
-        path: '.env',
-        safe: false,
-        allowUndefined: true,
-      },
-    ],
-    // Keeps '@/foo' imports working. Must stay last.
-    [
-      'module-resolver',
-      {
-        root: ['./src'],
-        alias: {'@': './src'},
-        extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
-      },
-    ],
-  ],
+module.exports = function (api) {
+  api.cache(true);
+  return {
+    // babel-preset-expo replaces @react-native/babel-preset. It also reads the
+    // `paths` map out of tsconfig.json, so the old babel-plugin-module-resolver
+    // is gone - '@/foo' imports keep working with no extra plugin.
+    //
+    // It handles .env too: any EXPO_PUBLIC_* variable is inlined at build time,
+    // which is why react-native-dotenv and the virtual '@env' module are gone.
+    presets: ['babel-preset-expo'],
+  };
 };

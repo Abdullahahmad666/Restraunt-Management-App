@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {ActivityIndicator, Button, StyleSheet, Text, TextInput, View} from 'react-native';
 
+import {describeApiError} from '../../../api/errors';
 import {tokenStorage} from '../../../api/tokenStorage';
 import {useAuthStore} from '../../../store/authStore';
 import {colors, spacing} from '../../../theme';
@@ -20,8 +21,10 @@ export function LoginScreen(): React.JSX.Element {
       const tokens = await login(email.trim(), password);
       await tokenStorage.setTokens(tokens);
       setUser(await fetchMe());
-    } catch {
-      setError('Could not sign in. Check your email and password.');
+    } catch (err) {
+      // Say what actually failed. "Check your password" when the phone cannot
+      // reach the server sends whoever is debugging it to the wrong place.
+      setError(describeApiError(err, 'Could not sign in.'));
     } finally {
       setSubmitting(false);
     }

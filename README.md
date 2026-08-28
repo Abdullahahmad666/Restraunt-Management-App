@@ -71,8 +71,10 @@ With the backend running: <http://localhost:8000/api/docs/>.
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) before your first PR. The short version:
 
-- Nobody pushes to `main`. Ever.
-- Branch from `main`, open a PR, get one approval, let CI pass, squash-merge.
+- Nobody pushes to `stage` or `main`. Ever.
+- Branch from `stage`, open a PR into `stage`, get one approval, let CI pass,
+  squash-merge. `stage` is the default branch.
+- `main` only ever receives a PR from `stage`, merged with a merge commit.
 - Branch names: `feature/<yourname>-<topic>`, `fix/...`, `chore/...`, `docs/...`.
 
 ## Team
