@@ -2,6 +2,13 @@ import type {NavigatorScreenParams} from '@react-navigation/native';
 
 export type AuthStackParamList = {
   Login: undefined;
+  ForgotPassword: undefined;
+  /**
+   * Reached from the emailed deep link (invisiko://reset-password?uid=..&token=..),
+   * so both params arrive from outside the app and must be treated as untrusted
+   * strings - the server is what validates them.
+   */
+  ResetPassword: {uid?: string; token?: string};
 };
 
 // ---------------------------------------------------------------------------
