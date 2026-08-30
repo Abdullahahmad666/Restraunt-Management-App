@@ -1,5 +1,6 @@
 import React from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
+import {Ionicons} from '@expo/vector-icons';
 
 import {colors, radii, spacing, typography} from '../theme';
 import {ROLES, type Role} from '../types/roles';
@@ -10,55 +11,77 @@ type Props = {
   disabled?: boolean;
 };
 
-const OPTIONS: {role: Role; label: string; caption: string}[] = [
-  {role: ROLES.STAFF, label: 'Staff', caption: 'Scan in, run daily checks'},
-  {role: ROLES.ADMIN, label: 'Admin', caption: 'Manage the team and records'},
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
+
+const OPTIONS: {role: Role; label: string; icon: IconName; caption: string}[] = [
+  {
+    role: ROLES.STAFF,
+    label: 'Staff',
+    icon: 'person-outline',
+    caption: 'Scan in and out, run the daily checks.',
+  },
+  {
+    role: ROLES.ADMIN,
+    label: 'Admin',
+    icon: 'shield-checkmark-outline',
+    caption: 'Manage the team, records and pay.',
+  },
 ];
 
 /**
  * Segmented Staff/Admin selector for signup.
  *
- * Built from Pressables rather than a native segmented control so it can carry
- * a caption per option and be styled to the brand on both platforms - iOS's
- * own control is light-mode-flavoured and does not take a second line.
+ * Built from Pressables rather than a native segmented control so it can be
+ * styled to the brand on both platforms - iOS's own is light-mode-flavoured
+ * and does not take an icon.
  *
- * Choosing Admin does not by itself grant anything: the server requires a
- * matching invite code, because an admin can edit the attendance records that
- * decide what people are paid.
+ * The per-option description sits under the control rather than inside it, and
+ * only the selected one is shown. Two captions stacked inside the segments
+ * forced them to ~68pt and made the whole thing read as a pair of cards rather
+ * than one control; a single line below keeps it compact and says the same
+ * thing, since only the selection matters once a choice is made.
+ *
+ * Choosing Admin grants nothing by itself: the server requires a matching
+ * invite code, because an admin can edit the attendance records that decide
+ * what people are paid.
  */
 export function RoleToggle({value, onChange, disabled = false}: Props): React.JSX.Element {
+  const selected = OPTIONS.find(option => option.role === value) ?? OPTIONS[0]!;
+
   return (
     <View style={styles.wrapper}>
       <Text style={styles.label}>I am signing up as</Text>
 
       <View style={[styles.track, disabled && styles.trackDisabled]} accessibilityRole="radiogroup">
         {OPTIONS.map(option => {
-          const selected = option.role === value;
+          const active = option.role === value;
           return (
             <Pressable
               key={option.role}
               onPress={() => onChange(option.role)}
               disabled={disabled}
               accessibilityRole="radio"
-              accessibilityState={{selected, disabled}}
+              accessibilityState={{selected: active, disabled}}
               accessibilityLabel={`${option.label}. ${option.caption}`}
               style={({pressed}) => [
                 styles.option,
-                selected && styles.optionSelected,
-                pressed && !disabled && !selected && styles.optionPressed,
+                active && styles.optionActive,
+                pressed && !disabled && !active && styles.optionPressed,
               ]}>
-              <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
+              <Ionicons
+                name={option.icon}
+                size={16}
+                color={active ? colors.onPrimary : colors.textMuted}
+              />
+              <Text style={[styles.optionLabel, active && styles.optionLabelActive]}>
                 {option.label}
-              </Text>
-              <Text
-                style={[styles.optionCaption, selected && styles.optionCaptionSelected]}
-                numberOfLines={2}>
-                {option.caption}
               </Text>
             </Pressable>
           );
         })}
       </View>
+
+      <Text style={styles.caption}>{selected.caption}</Text>
     </View>
   );
 }
@@ -71,32 +94,24 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radii.lg,
-    padding: spacing.xs,
-    gap: spacing.xs,
+    borderRadius: radii.md,
+    padding: 3,
+    gap: 3,
   },
   trackDisabled: {opacity: 0.5},
   option: {
     flex: 1,
-    borderRadius: radii.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
-    minHeight: 68,
     justifyContent: 'center',
+    gap: spacing.xs,
+    borderRadius: radii.sm,
+    paddingVertical: spacing.sm,
+    minHeight: 40,
   },
-  optionSelected: {backgroundColor: colors.primary},
+  optionActive: {backgroundColor: colors.primary},
   optionPressed: {backgroundColor: colors.surfaceRaised},
-  optionLabel: {...typography.body, fontWeight: '700', color: colors.text},
-  optionLabelSelected: {color: colors.onPrimary},
-  optionCaption: {
-    ...typography.caption,
-    fontSize: 11,
-    color: colors.textMuted,
-    textAlign: 'center',
-  },
-  // Navy on amber, at the low opacity that reads as secondary without
-  // dropping under the contrast a caption needs to stay legible.
-  optionCaptionSelected: {color: colors.onPrimary, opacity: 0.75},
+  optionLabel: {...typography.body, fontWeight: '700', color: colors.textMuted},
+  optionLabelActive: {color: colors.onPrimary},
+  caption: {...typography.caption, color: colors.textMuted},
 });
