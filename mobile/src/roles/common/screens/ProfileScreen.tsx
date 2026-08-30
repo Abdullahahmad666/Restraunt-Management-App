@@ -1,7 +1,8 @@
-import React from 'react';
-import {ScrollView, StyleSheet, Text, View} from 'react-native';
+import React, {useState} from 'react';
+import {Alert, ScrollView, StyleSheet, Text, View} from 'react-native';
 
 import {BrandHeader} from '../../../components/BrandHeader';
+import {PrimaryButton} from '../../../components/PrimaryButton';
 import {useAuthStore} from '../../../store/authStore';
 import {colors, radii, spacing, typography} from '../../../theme';
 import {ROLES} from '../../../types/roles';
@@ -24,6 +25,26 @@ function Row({label, value}: {label: string; value: string}): React.JSX.Element 
 
 export function ProfileScreen(): React.JSX.Element {
   const user = useAuthStore(state => state.user);
+  const signOut = useAuthStore(state => state.signOut);
+  const [signingOut, setSigningOut] = useState(false);
+
+  function confirmSignOut() {
+    // A misplaced tap on a shared kiosk should not end someone's shift screen,
+    // so this asks first rather than acting immediately.
+    Alert.alert('Sign out?', 'You will need your email and password to sign back in.', [
+      {text: 'Cancel', style: 'cancel'},
+      {
+        text: 'Sign out',
+        style: 'destructive',
+        onPress: async () => {
+          setSigningOut(true);
+          // No cleanup afterwards: signOut flips the navigator and this screen
+          // unmounts, so setting state here would warn.
+          await signOut();
+        },
+      },
+    ]);
+  }
 
   // The navigator only mounts this behind an authenticated session, so a null
   // user means the session was torn down mid-render - sign-out, or a refresh
@@ -74,6 +95,15 @@ export function ProfileScreen(): React.JSX.Element {
           </Text>
         </View>
       ) : null}
+
+      <View style={styles.actions}>
+        <PrimaryButton
+          label="Sign out"
+          variant="danger"
+          onPress={confirmSignOut}
+          loading={signingOut}
+        />
+      </View>
 
       <BrandHeader compact subtitle="" />
     </ScrollView>
@@ -138,4 +168,5 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   warningText: {...typography.caption, color: colors.textMuted},
+  actions: {marginTop: spacing.sm},
 });
