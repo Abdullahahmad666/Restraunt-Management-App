@@ -9,6 +9,7 @@ import {AdminNavigator} from '../roles/admin/navigation/AdminNavigator';
 import {StaffNavigator} from '../roles/staff/navigation/StaffNavigator';
 import {ROLES} from '../types/roles';
 import {navigationTheme} from '../theme';
+import {linking} from './linking';
 import {AuthNavigator} from './AuthNavigator';
 import type {RootStackParamList} from './types';
 
@@ -46,7 +47,7 @@ export function RootNavigator(): React.JSX.Element | null {
   }
 
   return (
-    <NavigationContainer theme={navigationTheme} onReady={onReady}>
+    <NavigationContainer theme={navigationTheme} linking={linking} onReady={onReady}>
       <Stack.Navigator screenOptions={{headerShown: false}}>
         {status !== 'authenticated' || !user ? (
           <Stack.Screen name="Auth" component={AuthNavigator} />
