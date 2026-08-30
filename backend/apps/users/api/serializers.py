@@ -43,9 +43,11 @@ class RegisterSerializer(serializers.ModelSerializer):
     """
 
     password = serializers.CharField(write_only=True, validators=[validate_password])
-    role = serializers.ChoiceField(
-        choices=[Role.STAFF, Role.ADMIN], default=Role.STAFF, write_only=True
-    )
+    # Role.choices rather than a hand-ordered subset: a differently ordered
+    # list of the same members reads as a separate enum to the schema
+    # generator, which then collides with the model's. If a third role is ever
+    # added, decide explicitly whether it is self-registerable.
+    role = serializers.ChoiceField(choices=Role.choices, default=Role.STAFF, write_only=True)
     invite_code = serializers.CharField(
         write_only=True, required=False, allow_blank=True, max_length=16
     )
