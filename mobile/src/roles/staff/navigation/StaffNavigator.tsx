@@ -10,6 +10,7 @@ import {MyPayScreen} from '../screens/MyPayScreen';
 import {ScanResultScreen} from '../screens/ScanResultScreen';
 import {ScanScreen} from '../screens/ScanScreen';
 import {ProfileScreen} from '../../../roles/common/screens/ProfileScreen';
+import {tabScreenOptions} from '../../../theme';
 import type {StaffStackParamList, StaffTabParamList} from '../../../navigation/types';
 
 const Tab = createBottomTabNavigator<StaffTabParamList>();
@@ -17,10 +18,11 @@ const Stack = createNativeStackNavigator<StaffStackParamList>();
 
 function StaffTabs(): React.JSX.Element {
   return (
-    <Tab.Navigator>
+    <Tab.Navigator screenOptions={tabScreenOptions}>
       <Tab.Screen name="Scan" component={ScanScreen} />
       <Tab.Screen name="Checks" component={DailyChecksScreen} options={{title: 'Today'}} />
       <Tab.Screen name="Attendance" component={MyAttendanceScreen} options={{title: 'My hours'}} />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
 }
@@ -40,7 +42,6 @@ export function StaffNavigator(): React.JSX.Element {
       <Stack.Screen name="CheckDetail" component={CheckDetailScreen} />
       <Stack.Screen name="CorrectiveAction" component={CorrectiveActionScreen} />
       <Stack.Screen name="MyPay" component={MyPayScreen} options={{title: 'My pay'}} />
-      <Stack.Screen name="Profile" component={ProfileScreen} options={{title: 'Profile'}} />
     </Stack.Navigator>
   );
 }

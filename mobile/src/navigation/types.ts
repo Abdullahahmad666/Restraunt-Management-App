@@ -20,6 +20,7 @@ export type StaffTabParamList = {
   Scan: undefined;
   Checks: undefined;
   Attendance: undefined;
+  Profile: undefined;
 };
 
 /** Staff tabs plus the screens pushed on top of them. */
@@ -29,7 +30,6 @@ export type StaffStackParamList = {
   CheckDetail: {taskId: string};
   CorrectiveAction: {taskId: string};
   MyPay: undefined;
-  Profile: undefined;
 };
 
 // ---------------------------------------------------------------------------
@@ -40,6 +40,7 @@ export type AdminTabParamList = {
   Attendance: undefined;
   Compliance: undefined;
   Team: undefined;
+  Profile: undefined;
 };
 
 export type AdminStackParamList = {
@@ -51,7 +52,6 @@ export type AdminStackParamList = {
   ComplianceHistory: undefined;
   Equipment: undefined;
   Notifications: undefined;
-  Profile: undefined;
 };
 
 // ---------------------------------------------------------------------------

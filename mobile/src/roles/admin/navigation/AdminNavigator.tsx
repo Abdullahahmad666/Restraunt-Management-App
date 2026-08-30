@@ -14,6 +14,7 @@ import {PayrollScreen} from '../screens/PayrollScreen';
 import {StaffBarcodeScreen} from '../screens/StaffBarcodeScreen';
 import {StaffManagementScreen} from '../screens/StaffManagementScreen';
 import {ProfileScreen} from '../../../roles/common/screens/ProfileScreen';
+import {tabScreenOptions} from '../../../theme';
 import type {AdminStackParamList, AdminTabParamList} from '../../../navigation/types';
 
 const Tab = createBottomTabNavigator<AdminTabParamList>();
@@ -21,7 +22,7 @@ const Stack = createNativeStackNavigator<AdminStackParamList>();
 
 function AdminTabs(): React.JSX.Element {
   return (
-    <Tab.Navigator>
+    <Tab.Navigator screenOptions={tabScreenOptions}>
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen
         name="Attendance"
@@ -34,6 +35,7 @@ function AdminTabs(): React.JSX.Element {
         options={{title: 'Checks'}}
       />
       <Tab.Screen name="Team" component={StaffManagementScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
 }
@@ -50,7 +52,6 @@ export function AdminNavigator(): React.JSX.Element {
       <Stack.Screen name="ComplianceHistory" component={ComplianceHistoryScreen} />
       <Stack.Screen name="Equipment" component={EquipmentScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
-      <Stack.Screen name="Profile" component={ProfileScreen} options={{title: 'Profile'}} />
     </Stack.Navigator>
   );
 }

@@ -96,5 +96,25 @@ export const navigationTheme: Theme = {
   },
 };
 
+/**
+ * Shared bottom-tab options.
+ *
+ * navigationTheme handles the card and header, but the tab bar keeps its own
+ * defaults - the inactive label lands on a grey that is close to unreadable
+ * against this navy, and the top hairline shows as a light line.
+ */
+export const tabScreenOptions = {
+  tabBarActiveTintColor: colors.primary,
+  tabBarInactiveTintColor: colors.textMuted,
+  tabBarStyle: {
+    backgroundColor: colors.surface,
+    borderTopColor: colors.border,
+  },
+  tabBarLabelStyle: {fontSize: 11, fontWeight: '600' as const},
+  headerStyle: {backgroundColor: colors.background},
+  headerTintColor: colors.text,
+  headerShadowVisible: false,
+} as const;
+
 /** The product line. Used on the login screen and in store listings. */
 export const TAGLINE = 'Every shift tracked. Every check logged.';
