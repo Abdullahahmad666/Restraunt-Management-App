@@ -5,8 +5,14 @@ from .base import REST_FRAMEWORK  # noqa: F401
 
 DEBUG = True
 
-# 10.0.2.2 is how the Android emulator reaches the host machine.
-ALLOWED_HOSTS = ["*"]  # local: see fix/abdullah-dev-allowed-hosts
+# Any host. Every developer's machine has a different LAN address, and a phone
+# running the app has to reach the API by that address - so a hardcoded list
+# means each person edits this file, and the ALLOWED_HOSTS they set in .env was
+# being silently ignored.
+#
+# Safe only because this module is never used in a deployed environment:
+# production.py reads ALLOWED_HOSTS from the environment and never widens it.
+ALLOWED_HOSTS = ["*"]
 
 # The browsable API is useful while wiring up the mobile client.
 REST_FRAMEWORK["DEFAULT_RENDERER_CLASSES"] = (
