@@ -1,19 +1,13 @@
 import React from 'react';
-import {StyleSheet, Text, View} from 'react-native';
 
-import {spacing} from '../../../theme';
+import {ComingSoon} from '../../../components/ComingSoon';
 
-/** Fridges, freezers and probes, and their safe ranges. */
+/** Equipment and temperature thresholds. Waiting on the equipment app's backend. */
 export function EquipmentScreen(): React.JSX.Element {
   return (
-    <View style={styles.container}>
-      <Text style={styles.heading}>Equipment</Text>
-      <Text>Fridges, freezers and probes, and their safe ranges.</Text>
-    </View>
+    <ComingSoon
+      title="Equipment"
+      body="The equipment app has no backend yet - once it does, temperature thresholds and service history will show up here."
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  container: {flex: 1, padding: spacing.lg, gap: spacing.sm},
-  heading: {fontSize: 24, fontWeight: '600'},
-});

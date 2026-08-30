@@ -1,19 +1,13 @@
 import React from 'react';
-import {StyleSheet, Text, View} from 'react-native';
 
-import {spacing} from '../../../theme';
+import {ComingSoon} from '../../../components/ComingSoon';
 
-/** Complete one check: record a reading, mark pass or fail. */
+/** One check's task list and pass/fail entry. Waiting on the compliance app's backend. */
 export function CheckDetailScreen(): React.JSX.Element {
   return (
-    <View style={styles.container}>
-      <Text style={styles.heading}>Check Detail</Text>
-      <Text>Complete one check: record a reading, mark pass or fail.</Text>
-    </View>
+    <ComingSoon
+      title="Check detail"
+      body="The compliance app has no backend yet - once it does, this screen will show one check's tasks."
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  container: {flex: 1, padding: spacing.lg, gap: spacing.sm},
-  heading: {fontSize: 24, fontWeight: '600'},
-});

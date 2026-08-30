@@ -17,6 +17,7 @@ export type User = {
   first_name: string;
   last_name: string;
   phone: string;
+  profile_picture: string | null;
   role: Role;
   restaurant: string | null;
 };
@@ -24,6 +25,12 @@ export type User = {
 export type TokenPairResponse = {
   access: string;
   refresh: string;
+};
+
+/** Login additionally embeds a slice of the user - just enough to route on
+ * before the full `fetchMe()` profile comes back. */
+export type LoginResponse = TokenPairResponse & {
+  user: Pick<User, 'id' | 'email' | 'first_name' | 'last_name' | 'role'>;
 };
 
 /** DRF validation errors: {"field": ["message"], "detail": "message"} */

@@ -31,6 +31,17 @@ export function describeApiError(error: unknown, fallback = 'Something went wron
   }
 
   const {status, data} = error.response;
+
+  // The scan endpoint's own errors (bad/inactive QR, outside the geofence,
+  // wrong restaurant) come back as a plain array of strings instead of DRF's
+  // usual {"field": [...]} shape.
+  if (Array.isArray(data)) {
+    const first: unknown = data[0];
+    if (typeof first === 'string') {
+      return first;
+    }
+  }
+
   const body = data as ApiErrorBody | undefined;
 
   if (status === 401) {
