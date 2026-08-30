@@ -102,6 +102,13 @@ export function LoginScreen(): React.JSX.Element {
           loading={submitting}
         />
       </View>
+
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>New here?</Text>
+        <Pressable onPress={() => navigation.navigate('Signup')} disabled={submitting} hitSlop={8}>
+          <Text style={styles.link}>Create an account</Text>
+        </Pressable>
+      </View>
     </AuthScreen>
   );
 }
@@ -110,4 +117,12 @@ const styles = StyleSheet.create({
   form: {gap: spacing.md},
   forgotWrap: {alignSelf: 'flex-end'},
   link: {...typography.caption, color: colors.primary, fontWeight: '600'},
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.xl,
+  },
+  footerText: {...typography.caption, color: colors.textMuted},
 });

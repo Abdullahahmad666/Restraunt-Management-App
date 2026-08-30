@@ -4,6 +4,7 @@ import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {ForgotPasswordScreen} from '../roles/common/screens/ForgotPasswordScreen';
 import {LoginScreen} from '../roles/common/screens/LoginScreen';
 import {ResetPasswordScreen} from '../roles/common/screens/ResetPasswordScreen';
+import {SignupScreen} from '../roles/common/screens/SignupScreen';
 import {colors} from '../theme';
 import type {AuthStackParamList} from './types';
 
@@ -21,6 +22,7 @@ export function AuthNavigator(): React.JSX.Element {
       }}>
       {/* Login owns the branding, so it draws no header of its own. */}
       <Stack.Screen name="Login" component={LoginScreen} options={{headerShown: false}} />
+      <Stack.Screen name="Signup" component={SignupScreen} options={{title: 'Create account'}} />
       <Stack.Screen
         name="ForgotPassword"
         component={ForgotPasswordScreen}
