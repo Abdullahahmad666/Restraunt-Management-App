@@ -5,7 +5,7 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
 
-from .admin import AdminStaffViewSet
+from .admin import AdminInviteCodeViewSet, AdminStaffViewSet
 from .views import ChangePasswordView, CustomLoginView, MeView, RegisterView
 
 app_name = "users"
@@ -32,6 +32,7 @@ urlpatterns = [
 # real, explicit prefix instead of "".
 admin_router = DefaultRouter()
 admin_router.register("staff-accounts", AdminStaffViewSet, basename="staff-account")
+admin_router.register("invite-codes", AdminInviteCodeViewSet, basename="invite-code")
 
 staff_urlpatterns: list = []  # Staff do not manage other accounts.
 admin_urlpatterns = admin_router.urls

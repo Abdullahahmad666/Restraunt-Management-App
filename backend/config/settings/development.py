@@ -6,7 +6,7 @@ from .base import REST_FRAMEWORK  # noqa: F401
 DEBUG = True
 
 # 10.0.2.2 is how the Android emulator reaches the host machine.
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0", "10.0.2.2"]
+ALLOWED_HOSTS = ["*"]  # local: see fix/abdullah-dev-allowed-hosts
 
 # The browsable API is useful while wiring up the mobile client.
 REST_FRAMEWORK["DEFAULT_RENDERER_CLASSES"] = (
