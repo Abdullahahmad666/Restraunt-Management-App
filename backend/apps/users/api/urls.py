@@ -6,7 +6,7 @@ from rest_framework_simplejwt.views import (
 )
 
 from .admin import AdminStaffViewSet
-from .views import CustomLoginView, MeView, RegisterView
+from .views import ChangePasswordView, CustomLoginView, MeView, RegisterView
 
 app_name = "users"
 
@@ -18,6 +18,7 @@ urlpatterns = [
     path("refresh/", TokenRefreshView.as_view(), name="token-refresh"),
     path("logout/", TokenBlacklistView.as_view(), name="logout"),
     path("me/", MeView.as_view(), name="me"),
+    path("change-password/", ChangePasswordView.as_view(), name="change-password"),
 ]
 
 # Role-scoped staff-account management, picked up by config/urls.py's DOMAINS
