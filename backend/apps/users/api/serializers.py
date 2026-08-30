@@ -2,6 +2,7 @@ import random
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
+from django.core.mail import send_mail
 from django.utils import timezone
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -37,9 +38,12 @@ class RegisterSerializer(serializers.ModelSerializer):
         user.email_otp = f"{random.randint(0, 999999):06d}"
         user.email_otp_created_at = timezone.now()
         user.save()
-        print(
-            f"[DEV] OTP for {user.email}: {user.email_otp}"
-        )  # TODO: replace with real email sending
+        send_mail(
+            subject="Verify your email",
+            message=f"Your verification code is: {user.email_otp}",
+            from_email=None,  # uses DEFAULT_FROM_EMAIL
+            recipient_list=[user.email],
+        )
         return user
 
 
@@ -52,6 +56,7 @@ class VerifyEmailSerializer(serializers.Serializer):
             user = User.objects.get(email=attrs["email"])
         except User.DoesNotExist:
             raise serializers.ValidationError("Invalid email or OTP.") from None
+
         if user.is_email_verified:
             raise serializers.ValidationError("Email is already verified.")
 

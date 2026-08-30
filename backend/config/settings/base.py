@@ -196,3 +196,18 @@ LOGGING = {
     },
     "root": {"handlers": ["console"], "level": env("LOG_LEVEL", default="INFO")},
 }
+
+# ---------------------------------------------------------------------------
+# Email
+# ---------------------------------------------------------------------------
+MAILERS = {
+    "default": {
+        "BACKEND": "django.core.mail.backends.smtp.EmailBackend",
+        "HOST": env("EMAIL_HOST", default=""),
+        "PORT": env.int("EMAIL_PORT", default=587),
+        "USE_TLS": env.bool("EMAIL_USE_TLS", default=True),
+        "USERNAME": env("EMAIL_HOST_USER", default=""),
+        "PASSWORD": env("EMAIL_HOST_PASSWORD", default=""),
+    }
+}
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@example.com")
