@@ -29,6 +29,7 @@ export type StaffStackParamList = {
   CheckDetail: {taskId: string};
   CorrectiveAction: {taskId: string};
   MyPay: undefined;
+  Profile: undefined;
 };
 
 // ---------------------------------------------------------------------------
@@ -50,6 +51,7 @@ export type AdminStackParamList = {
   ComplianceHistory: undefined;
   Equipment: undefined;
   Notifications: undefined;
+  Profile: undefined;
 };
 
 // ---------------------------------------------------------------------------

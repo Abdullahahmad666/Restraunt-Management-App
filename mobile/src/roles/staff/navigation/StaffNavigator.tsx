@@ -9,6 +9,7 @@ import {MyAttendanceScreen} from '../screens/MyAttendanceScreen';
 import {MyPayScreen} from '../screens/MyPayScreen';
 import {ScanResultScreen} from '../screens/ScanResultScreen';
 import {ScanScreen} from '../screens/ScanScreen';
+import {ProfileScreen} from '../../../roles/common/screens/ProfileScreen';
 import type {StaffStackParamList, StaffTabParamList} from '../../../navigation/types';
 
 const Tab = createBottomTabNavigator<StaffTabParamList>();
@@ -39,6 +40,7 @@ export function StaffNavigator(): React.JSX.Element {
       <Stack.Screen name="CheckDetail" component={CheckDetailScreen} />
       <Stack.Screen name="CorrectiveAction" component={CorrectiveActionScreen} />
       <Stack.Screen name="MyPay" component={MyPayScreen} options={{title: 'My pay'}} />
+      <Stack.Screen name="Profile" component={ProfileScreen} options={{title: 'Profile'}} />
     </Stack.Navigator>
   );
 }
