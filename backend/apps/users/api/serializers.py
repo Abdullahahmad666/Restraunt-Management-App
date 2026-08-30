@@ -1,6 +1,9 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.tokens import default_token_generator
 from django.db import transaction
+from django.utils.encoding import DjangoUnicodeDecodeError
+from django.utils.http import urlsafe_base64_decode
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -143,3 +146,45 @@ class InviteCodeSerializer(serializers.ModelSerializer):
         if value not in {Role.STAFF, Role.ADMIN}:
             raise serializers.ValidationError("Invite codes are only issued for staff or admin.")
         return value
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    """Step one: ask for a reset link.
+
+    Intentionally does not check whether the address exists. Telling an
+    anonymous caller "no account with that email" turns this into a way to
+    enumerate who works here, and the view answers identically either way.
+    """
+
+    email = serializers.EmailField()
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    """Step two: redeem the token from the email."""
+
+    uid = serializers.CharField()
+    token = serializers.CharField()
+    new_password = serializers.CharField(write_only=True, validators=[validate_password])
+
+    def validate(self, attrs):
+        try:
+            user_id = urlsafe_base64_decode(attrs["uid"]).decode()
+            user = User.objects.get(pk=user_id)
+        except (User.DoesNotExist, ValueError, TypeError, DjangoUnicodeDecodeError):
+            raise serializers.ValidationError(
+                {"token": "This reset link is invalid or has expired."}
+            ) from None
+
+        if not default_token_generator.check_token(user, attrs["token"]):
+            raise serializers.ValidationError(
+                {"token": "This reset link is invalid or has expired."}
+            )
+
+        attrs["user"] = user
+        return attrs
+
+    def save(self):
+        user = self.validated_data["user"]
+        user.set_password(self.validated_data["new_password"])
+        user.save(update_fields=("password",))
+        return user

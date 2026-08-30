@@ -151,7 +151,13 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 25,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_THROTTLE_CLASSES": ("rest_framework.throttling.ScopedRateThrottle",),
-    "DEFAULT_THROTTLE_RATES": {"login": "10/min", "register": "5/hour"},
+    "DEFAULT_THROTTLE_RATES": {
+        "login": "10/min",
+        "register": "5/hour",
+        # Deliberately tight: this endpoint sends mail to an address the
+        # caller supplies, so a loose limit makes it a spam relay.
+        "password_reset": "5/hour",
+    },
     "TEST_REQUEST_DEFAULT_FORMAT": "json",
 }
 
@@ -179,6 +185,15 @@ SPECTACULAR_SETTINGS = {
         "NotificationStatusEnum": "apps.notifications.models.NOTIFICATION_STATUS_CHOICES",
     },
 }
+
+# ---------------------------------------------------------------------------
+# Email
+# ---------------------------------------------------------------------------
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Invisiko <no-reply@invisiko.app>")
+
+#: Where a password-reset email points. The mobile app registers the `invisiko`
+#: scheme, so this opens the reset screen directly rather than a web page.
+PASSWORD_RESET_URL = env("PASSWORD_RESET_URL", default="invisiko://reset-password")
 
 CORS_ALLOWED_ORIGINS = env("CORS_ALLOWED_ORIGINS")
 
