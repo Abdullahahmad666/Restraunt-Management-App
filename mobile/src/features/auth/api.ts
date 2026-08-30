@@ -59,3 +59,40 @@ export async function changePassword(oldPassword: string, newPassword: string): 
     new_password: newPassword,
   });
 }
+
+export type ProfileUpdate = {
+  first_name?: string;
+  last_name?: string;
+  phone?: string;
+};
+
+/** Plain-field edits. JSON, because only the avatar needs multipart. */
+export async function updateProfile(changes: ProfileUpdate): Promise<User> {
+  const {data} = await apiClient.patch<User>(endpoints.auth.me, changes);
+  return data;
+}
+
+/**
+ * Upload a new avatar.
+ *
+ * React Native's FormData takes {uri, name, type} rather than a Blob, and the
+ * Content-Type header must be left unset so the runtime can add the multipart
+ * boundary - setting it by hand produces a body Django cannot parse.
+ */
+export async function uploadAvatar(uri: string): Promise<User> {
+  const extension = uri.split('.').pop()?.toLowerCase() ?? 'jpg';
+  const mime = extension === 'png' ? 'image/png' : 'image/jpeg';
+
+  const form = new FormData();
+  form.append('profile_picture', {
+    uri,
+    name: `avatar.${extension}`,
+    type: mime,
+  } as unknown as Blob);
+
+  const {data} = await apiClient.patch<User>(endpoints.auth.me, form, {
+    headers: {'Content-Type': 'multipart/form-data'},
+    transformRequest: value => value,
+  });
+  return data;
+}

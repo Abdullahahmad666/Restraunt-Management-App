@@ -13,6 +13,7 @@ const someone: User = {
   first_name: 'Alex',
   last_name: 'Morgan',
   phone: '',
+  profile_picture: null,
   role: 'STAFF',
   restaurant: 'r-1',
 };

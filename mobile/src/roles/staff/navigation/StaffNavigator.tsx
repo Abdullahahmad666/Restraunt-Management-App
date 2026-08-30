@@ -10,6 +10,7 @@ import {MyPayScreen} from '../screens/MyPayScreen';
 import {ScanResultScreen} from '../screens/ScanResultScreen';
 import {ScanScreen} from '../screens/ScanScreen';
 import {ProfileScreen} from '../../../roles/common/screens/ProfileScreen';
+import {tabIcon} from '../../../navigation/tabIcon';
 import {tabScreenOptions} from '../../../theme';
 import type {StaffStackParamList, StaffTabParamList} from '../../../navigation/types';
 
@@ -19,10 +20,26 @@ const Stack = createNativeStackNavigator<StaffStackParamList>();
 function StaffTabs(): React.JSX.Element {
   return (
     <Tab.Navigator screenOptions={tabScreenOptions}>
-      <Tab.Screen name="Scan" component={ScanScreen} />
-      <Tab.Screen name="Checks" component={DailyChecksScreen} options={{title: 'Today'}} />
-      <Tab.Screen name="Attendance" component={MyAttendanceScreen} options={{title: 'My hours'}} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen
+        name="Scan"
+        component={ScanScreen}
+        options={{tabBarIcon: tabIcon('scan-outline', 'scan')}}
+      />
+      <Tab.Screen
+        name="Checks"
+        component={DailyChecksScreen}
+        options={{tabBarIcon: tabIcon('checkbox-outline', 'checkbox'), title: 'Today'}}
+      />
+      <Tab.Screen
+        name="Attendance"
+        component={MyAttendanceScreen}
+        options={{tabBarIcon: tabIcon('time-outline', 'time'), title: 'My hours'}}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{tabBarIcon: tabIcon('person-circle-outline', 'person-circle')}}
+      />
     </Tab.Navigator>
   );
 }

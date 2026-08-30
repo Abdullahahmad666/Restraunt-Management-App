@@ -39,7 +39,15 @@
           "configureAndroidBackup": false,
           "faceIDPermission": "Allow $(PRODUCT_NAME) to unlock your saved sign-in."
         }
-      ]
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Invisiko uses your photos so you can set a profile picture.",
+          "cameraPermission": "Invisiko uses the camera so you can take a profile picture."
+        }
+      ],
+      "expo-font"
     ],
     "extra": {
       "eas": {

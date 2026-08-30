@@ -109,12 +109,18 @@ export const tabScreenOptions = {
   tabBarStyle: {
     backgroundColor: colors.surface,
     borderTopColor: colors.border,
+    height: 62,
+    paddingBottom: 8,
+    paddingTop: 6,
   },
   tabBarLabelStyle: {fontSize: 11, fontWeight: '600' as const},
   headerStyle: {backgroundColor: colors.background},
   headerTintColor: colors.text,
   headerShadowVisible: false,
 } as const;
+
+/** Size every tab glyph is drawn at. */
+export const TAB_ICON_SIZE = 22;
 
 /** The product line. Used on the login screen and in store listings. */
 export const TAGLINE = 'Every shift tracked. Every check logged.';

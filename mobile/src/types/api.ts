@@ -17,6 +17,8 @@ export type User = {
   first_name: string;
   last_name: string;
   phone: string;
+  /** Absolute or media-relative URL, or null when never set. */
+  profile_picture: string | null;
   role: Role;
   restaurant: string | null;
 };
