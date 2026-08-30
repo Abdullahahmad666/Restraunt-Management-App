@@ -7,7 +7,7 @@ from django.core.mail import send_mail
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from rest_framework import generics, permissions, status
-from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 
@@ -32,10 +32,16 @@ class RegisterView(generics.CreateAPIView):
 
 
 class MeView(generics.RetrieveUpdateAPIView):
-    """The signed-in user. The mobile app calls this on launch to restore session."""
+    """The signed-in user. The mobile app calls this on launch to restore session.
+
+    JSONParser is listed alongside the multipart ones because most edits here
+    are plain fields - a name or a phone number - and only the avatar needs a
+    file upload. Without it those edits are rejected with a 415 for the sole
+    reason that the endpoint can also accept an image.
+    """
 
     serializer_class = UserSerializer
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
 
     def get_object(self):
         return self.request.user
