@@ -15,7 +15,6 @@ REST_FRAMEWORK["DEFAULT_RENDERER_CLASSES"] = (
 )
 
 # Django 6.1+ configures mail through MAILERS, not EMAIL_BACKEND.
-MAILERS = {"default": {"BACKEND": "django.core.mail.backends.console.EmailBackend"}}
 
 # Metro and the RN dev client use ephemeral ports, so pinning origins locally
 # is more trouble than it is worth.

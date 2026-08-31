@@ -9,6 +9,7 @@ from .serializers import (
     CustomTokenObtainPairSerializer,
     RegisterSerializer,
     UserSerializer,
+    VerifyEmailSerializer,
 )
 
 User = get_user_model()
@@ -19,6 +20,22 @@ class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
     throttle_scope = "register"
+
+
+class VerifyEmailView(generics.GenericAPIView):
+    """Verify a user's email using the OTP sent at registration."""
+
+    serializer_class = VerifyEmailSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data["user"]
+        user.is_email_verified = True
+        user.email_otp = ""
+        user.save()
+        return Response({"detail": "Email verified successfully."}, status=status.HTTP_200_OK)
 
 
 class MeView(generics.RetrieveUpdateAPIView):
