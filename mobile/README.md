@@ -77,8 +77,18 @@ Point `EXPO_PUBLIC_API_BASE_URL` in `.env` at your machine's LAN address, not
 - **An offline queue.** Checks get taken in walk-in freezers with no signal.
   See "Decisions still open" in [`../docs/architecture.md`](../docs/architecture.md).
 
-The barcode scanner is settled: `expo-camera` is in the SDK, so it works in
-Expo Go and needs no native linking.
+The barcode scanner uses `expo-camera` and `expo-location`, both in the SDK, so
+they work in Expo Go and need no native linking. The venue check-in code is
+rendered with `react-native-qrcode-svg` on top of `react-native-svg`.
+
+`package.json` declares these but the versions were pinned by hand (this
+environment had no Node.js to run `expo install`). Run this once after
+pulling, before `npm start`, so Expo can correct them to the exact versions
+SDK 57 expects:
+
+```bash
+npx expo install expo-camera expo-location react-native-svg
+```
 
 ## Commands
 

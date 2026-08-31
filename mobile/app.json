@@ -15,7 +15,13 @@
       "package": "com.phillys.compliance",
       "adaptiveIcon": {
         "backgroundColor": "#B23A18"
-      }
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "plugins": [
       [
@@ -23,6 +29,18 @@
         {
           "configureAndroidBackup": false,
           "faceIDPermission": "Allow $(PRODUCT_NAME) to unlock your saved sign-in."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to use the camera to scan the check-in QR code."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location to confirm you're at the venue when you check in."
         }
       ]
     ],

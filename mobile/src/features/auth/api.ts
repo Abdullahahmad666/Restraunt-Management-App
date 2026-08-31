@@ -1,9 +1,9 @@
 import {apiClient} from '../../api/client';
 import {endpoints} from '../../api/endpoints';
-import type {TokenPairResponse, User} from '../../types/api';
+import type {LoginResponse, User} from '../../types/api';
 
-export async function login(email: string, password: string): Promise<TokenPairResponse> {
-  const {data} = await apiClient.post<TokenPairResponse>(endpoints.auth.login, {email, password});
+export async function login(email: string, password: string): Promise<LoginResponse> {
+  const {data} = await apiClient.post<LoginResponse>(endpoints.auth.login, {email, password});
   return data;
 }
 

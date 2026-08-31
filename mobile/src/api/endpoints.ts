@@ -1,9 +1,19 @@
 /**
  * Every backend path in one place, mirroring backend/config/urls.py.
  *
+ * config/urls.py mounts every domain's staff_urlpatterns/admin_urlpatterns at
+ * a bare "" prefix under /api/v1/staff/ and /api/v1/admin/ - there is no
+ * per-app URL segment, only each router's own resource prefix. So it's
+ * `/staff/shifts/`, not `/staff/attendance/shifts/`. Get this wrong and every
+ * call 404s even though the backend feature is real.
+ *
  * The staff/admin split is not cosmetic - the backend answers a staff token on
  * an /admin/ path with a 403. Calling the wrong namespace is a bug, so the
  * shape here makes the namespace impossible to forget.
+ *
+ * Compliance, Equipment and Audit have no endpoints below: those Django apps
+ * have no models or routes yet (see backend/apps/{compliance,equipment,audit}),
+ * so there is nothing real to call.
  */
 const STAFF = '/staff';
 const ADMIN = '/admin';
@@ -22,53 +32,52 @@ export const endpoints = {
     attendance: {
       // One endpoint for both directions - the server decides which it is
       // from whether an open check-in already exists today.
-      scan: `${STAFF}/attendance/scan/`,
-      myLogs: `${STAFF}/attendance/logs/`,
+      scan: `${STAFF}/scan/`,
+      shifts: `${STAFF}/shifts/`,
+      logs: `${STAFF}/logs/`,
     },
     payroll: {
-      mySummary: `${STAFF}/payroll/summary/`,
+      entries: `${STAFF}/entries/`,
+      entry: (id: string) => `${STAFF}/entries/${id}/`,
+      summary: `${STAFF}/summary/`,
     },
-    compliance: {
-      myTasks: `${STAFF}/compliance/tasks/`,
-      task: (id: string) => `${STAFF}/compliance/tasks/${id}/`,
-      complete: (id: string) => `${STAFF}/compliance/tasks/${id}/complete/`,
-      correctiveAction: (id: string) => `${STAFF}/compliance/tasks/${id}/corrective-action/`,
-    },
-    equipment: {
-      list: `${STAFF}/equipment/`,
+    notifications: {
+      devices: `${STAFF}/devices/`,
+      list: `${STAFF}/notifications/`,
+      markRead: (id: string) => `${STAFF}/notifications/${id}/mark-read/`,
     },
   },
 
   admin: {
-    staff: {
-      list: `${ADMIN}/staff/`,
-      detail: (id: string) => `${ADMIN}/staff/${id}/`,
-      barcode: (id: string) => `${ADMIN}/staff/${id}/barcode/`,
+    staffAccounts: {
+      list: `${ADMIN}/staff-accounts/`,
+      detail: (id: string) => `${ADMIN}/staff-accounts/${id}/`,
     },
     attendance: {
-      live: `${ADMIN}/attendance/live/`,
-      logs: `${ADMIN}/attendance/logs/`,
-      log: (id: string) => `${ADMIN}/attendance/logs/${id}/`,
+      shifts: `${ADMIN}/shifts/`,
+      shift: (id: string) => `${ADMIN}/shifts/${id}/`,
+      logs: `${ADMIN}/logs/`,
+      log: (id: string) => `${ADMIN}/logs/${id}/`,
+      live: `${ADMIN}/logs/live/`,
+      qrCodes: `${ADMIN}/qr-codes/`,
+      qrCode: (id: string) => `${ADMIN}/qr-codes/${id}/`,
+      regenerateQrCode: (id: string) => `${ADMIN}/qr-codes/${id}/regenerate/`,
     },
     payroll: {
-      periods: `${ADMIN}/payroll/periods/`,
-      summary: `${ADMIN}/payroll/summary/`,
-    },
-    compliance: {
-      dashboard: `${ADMIN}/compliance/dashboard/`,
-      tasks: `${ADMIN}/compliance/tasks/`,
-      history: `${ADMIN}/compliance/history/`,
-      templates: `${ADMIN}/compliance/templates/`,
-    },
-    equipment: {
-      list: `${ADMIN}/equipment/`,
-      detail: (id: string) => `${ADMIN}/equipment/${id}/`,
+      rates: `${ADMIN}/rates/`,
+      rate: (id: string) => `${ADMIN}/rates/${id}/`,
+      periods: `${ADMIN}/periods/`,
+      period: (id: string) => `${ADMIN}/periods/${id}/`,
+      closePeriod: (id: string) => `${ADMIN}/periods/${id}/close/`,
+      markPeriodPaid: (id: string) => `${ADMIN}/periods/${id}/mark-paid/`,
+      periodEntries: (id: string) => `${ADMIN}/periods/${id}/entries/`,
+      entries: `${ADMIN}/entries/`,
+      reallocateEntry: (id: string) => `${ADMIN}/entries/${id}/reallocate/`,
+      costReport: `${ADMIN}/cost-report/`,
+      staffSummary: (staffId: string) => `${ADMIN}/staff-summary/${staffId}/`,
     },
     notifications: {
       list: `${ADMIN}/notifications/`,
-    },
-    audit: {
-      list: `${ADMIN}/audit/`,
     },
   },
 } as const;
