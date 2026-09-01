@@ -4,6 +4,14 @@ import type {ScanAction, AttendanceLog} from '../features/attendance/types';
 
 export type AuthStackParamList = {
   Login: undefined;
+  Signup: undefined;
+  ForgotPassword: undefined;
+  /**
+   * Reached from the emailed deep link (invisiko://reset-password?uid=..&token=..),
+   * so both params arrive from outside the app and must be treated as untrusted
+   * strings - the server is what validates them.
+   */
+  ResetPassword: {uid?: string; token?: string};
 };
 
 // ---------------------------------------------------------------------------
@@ -14,6 +22,7 @@ export type StaffTabParamList = {
   Scan: undefined;
   Checks: undefined;
   Attendance: undefined;
+  Profile: undefined;
 };
 
 /** Staff tabs plus the screens pushed on top of them. */
@@ -35,6 +44,7 @@ export type AdminTabParamList = {
   Attendance: undefined;
   Compliance: undefined;
   Team: undefined;
+  Profile: undefined;
 };
 
 export type AdminStackParamList = {

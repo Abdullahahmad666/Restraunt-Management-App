@@ -4,13 +4,16 @@ Swapping AUTH_USER_MODEL after the first migration is painful, so the custom
 user model is defined up front even though it is currently thin.
 """
 
+import secrets
 import uuid
+from datetime import timedelta
 
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from apps.common.models import TimeStampedModel
+from apps.common.models import BaseModel, TimeStampedModel
 from apps.common.roles import Role
 
 
@@ -90,3 +93,95 @@ class User(AbstractUser, TimeStampedModel):
     def is_staff_member(self) -> bool:
         """Distinct from Django's `is_staff`, which controls admin-site access."""
         return self.role in {Role.STAFF, Role.ADMIN}
+
+
+def _generate_code() -> str:
+    """A short code someone can read down the phone without confusion.
+
+    Deliberately excludes 0/O and 1/I/L, which get misheard and mistyped, and
+    uses secrets rather than random - this grants an admin account, so a
+    guessable sequence would be a way in.
+    """
+    alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+    return "".join(secrets.choice(alphabet) for _ in range(8))
+
+
+class InviteCode(BaseModel):
+    """A single-use code that lets someone self-register into a restaurant.
+
+    This exists because signup is public. Without it, a role field on the
+    register endpoint would let anyone create an admin account - and an admin
+    here can edit attendance records, which decide what people are paid. The
+    code moves that decision back to someone who already has the authority.
+
+    Staff codes are a convenience: they attach the new account to a restaurant.
+    A user with no restaurant sees nothing at all (the querysets fail closed),
+    so without a code an account is inert until an admin assigns it.
+    """
+
+    code = models.CharField(max_length=16, unique=True, db_index=True, editable=False)
+    restaurant = models.ForeignKey(
+        "restaurants.Restaurant",
+        on_delete=models.CASCADE,
+        related_name="invite_codes",
+    )
+    role = models.CharField(max_length=16, choices=Role.choices, default=Role.STAFF)
+    created_by = models.ForeignKey(
+        "users.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="invites_created",
+    )
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    used_by = models.OneToOneField(
+        "users.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="invite_used",
+    )
+
+    #: How long a freshly issued code stays valid.
+    DEFAULT_TTL = timedelta(days=14)
+
+    class Meta:
+        ordering = ("-created_at",)
+        indexes = [models.Index(fields=("restaurant", "role"))]
+
+    def __str__(self):
+        return f"{self.code} ({self.role})"
+
+    def save(self, *args, **kwargs):
+        if not self.code:
+            # Retry rather than trust one draw - unique=True is the real
+            # guarantee, this just avoids surfacing a collision to the caller.
+            for _ in range(10):
+                candidate = _generate_code()
+                if not InviteCode.objects.filter(code=candidate).exists():
+                    self.code = candidate
+                    break
+            else:  # pragma: no cover - astronomically unlikely
+                raise RuntimeError("Could not generate a unique invite code.")
+        if not self.expires_at:
+            self.expires_at = timezone.now() + self.DEFAULT_TTL
+        super().save(*args, **kwargs)
+
+    @property
+    def is_expired(self) -> bool:
+        return timezone.now() >= self.expires_at
+
+    @property
+    def is_used(self) -> bool:
+        return self.used_at is not None
+
+    @property
+    def is_usable(self) -> bool:
+        return not self.is_used and not self.is_expired
+
+    def consume(self, user) -> None:
+        """Mark the code spent. Caller is responsible for the surrounding atomic block."""
+        self.used_at = timezone.now()
+        self.used_by = user
+        self.save(update_fields=("used_at", "used_by", "updated_at"))
