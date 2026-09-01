@@ -6,9 +6,13 @@ Mounted at /api/v1/admin/users/.
 from django.contrib.auth import get_user_model
 from django.utils.crypto import get_random_string
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
 from apps.common.api.viewsets import AdminViewSet, RestaurantScopedQuerysetMixin
 from apps.common.roles import Role
+from apps.users.models import InviteCode
+
+from .serializers import InviteCodeSerializer
 
 User = get_user_model()
 
@@ -65,3 +69,30 @@ class AdminStaffViewSet(RestaurantScopedQuerysetMixin, AdminViewSet):
 
     def perform_create(self, serializer):
         serializer.save(restaurant=self.request.user.restaurant, role=Role.STAFF)
+
+
+class AdminInviteCodeViewSet(AdminViewSet):
+    """Admins issue the codes that let someone self-register into their restaurant.
+
+    Scoped to the caller's own restaurant on both read and write, so one
+    restaurant's admin can neither see nor mint codes for another.
+    """
+
+    serializer_class = InviteCodeSerializer
+    queryset = InviteCode.objects.select_related("restaurant")
+    restaurant_field = "restaurant_id"
+    http_method_names = ["get", "post", "delete", "head", "options"]
+
+    def get_queryset(self):
+        restaurant_id = getattr(self.request.user, "restaurant_id", None)
+        if restaurant_id is None:
+            return InviteCode.objects.none()
+        return InviteCode.objects.select_related("restaurant").filter(restaurant_id=restaurant_id)
+
+    def perform_create(self, serializer):
+        restaurant_id = getattr(self.request.user, "restaurant_id", None)
+        if restaurant_id is None:
+            raise ValidationError(
+                "Your account is not attached to a restaurant, so it cannot issue invites."
+            )
+        serializer.save(restaurant_id=restaurant_id, created_by=self.request.user)

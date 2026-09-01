@@ -13,6 +13,9 @@ import {NotificationsScreen} from '../screens/NotificationsScreen';
 import {PayrollScreen} from '../screens/PayrollScreen';
 import {StaffBarcodeScreen} from '../screens/StaffBarcodeScreen';
 import {StaffManagementScreen} from '../screens/StaffManagementScreen';
+import {ProfileScreen} from '../../../roles/common/screens/ProfileScreen';
+import {tabIcon} from '../../../navigation/tabIcon';
+import {tabScreenOptions} from '../../../theme';
 import type {AdminStackParamList, AdminTabParamList} from '../../../navigation/types';
 
 const Tab = createBottomTabNavigator<AdminTabParamList>();
@@ -20,19 +23,32 @@ const Stack = createNativeStackNavigator<AdminStackParamList>();
 
 function AdminTabs(): React.JSX.Element {
   return (
-    <Tab.Navigator>
-      <Tab.Screen name="Dashboard" component={DashboardScreen} />
+    <Tab.Navigator screenOptions={tabScreenOptions}>
+      <Tab.Screen
+        name="Dashboard"
+        component={DashboardScreen}
+        options={{tabBarIcon: tabIcon('grid-outline', 'grid')}}
+      />
       <Tab.Screen
         name="Attendance"
         component={AttendanceLiveScreen}
-        options={{title: 'On shift'}}
+        options={{tabBarIcon: tabIcon('people-outline', 'people'), title: 'On shift'}}
       />
       <Tab.Screen
         name="Compliance"
         component={ComplianceDashboardScreen}
-        options={{title: 'Checks'}}
+        options={{tabBarIcon: tabIcon('checkbox-outline', 'checkbox'), title: 'Checks'}}
       />
-      <Tab.Screen name="Team" component={StaffManagementScreen} />
+      <Tab.Screen
+        name="Team"
+        component={StaffManagementScreen}
+        options={{tabBarIcon: tabIcon('id-card-outline', 'id-card')}}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{tabBarIcon: tabIcon('person-circle-outline', 'person-circle')}}
+      />
     </Tab.Navigator>
   );
 }
