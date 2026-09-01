@@ -59,6 +59,9 @@ class User(AbstractUser, TimeStampedModel):
     email = models.EmailField(_("email address"), unique=True)
     role = models.CharField(max_length=16, choices=Role.choices, default=Role.STAFF)
     phone = models.CharField(max_length=32, blank=True)
+    is_email_verified = models.BooleanField(default=False)
+    email_otp = models.CharField(max_length=6, blank=True)
+    email_otp_created_at = models.DateTimeField(null=True, blank=True)
     profile_picture = models.ImageField(upload_to="profile_pictures/", null=True, blank=True)
 
     # Set once the restaurants app defines Restaurant. Kept as a string

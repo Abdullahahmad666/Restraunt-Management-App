@@ -1,7 +1,11 @@
+import random
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
+from django.core.mail import send_mail
 from django.db import transaction
+from django.utils import timezone
 from django.utils.encoding import DjangoUnicodeDecodeError
 from django.utils.http import urlsafe_base64_decode
 from rest_framework import serializers
@@ -96,12 +100,53 @@ class RegisterSerializer(serializers.ModelSerializer):
         )
         if invite:
             invite.consume(user)
+
+        user.email_otp = f"{random.randint(0, 999999):06d}"
+        user.email_otp_created_at = timezone.now()
+        user.save()
+        send_mail(
+            subject="Verify your email",
+            message=f"Your verification code is: {user.email_otp}",
+            from_email=None,  # uses DEFAULT_FROM_EMAIL
+            recipient_list=[user.email],
+        )
         return user
+
+
+class VerifyEmailSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+    otp = serializers.CharField(required=True, max_length=6)
+
+    def validate(self, attrs):
+        try:
+            user = User.objects.get(email=attrs["email"])
+        except User.DoesNotExist:
+            raise serializers.ValidationError("Invalid email or OTP.") from None
+
+        if user.is_email_verified:
+            raise serializers.ValidationError("Email is already verified.")
+
+        if not user.email_otp or user.email_otp != attrs["otp"]:
+            raise serializers.ValidationError("Invalid email or OTP.")
+
+        # OTP expires after 10 minutes.
+        if (
+            user.email_otp_created_at
+            and (timezone.now() - user.email_otp_created_at).total_seconds() > 600
+        ):
+            raise serializers.ValidationError("OTP has expired. Please request a new one.")
+
+        attrs["user"] = user
+        return attrs
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
+
+        if not self.user.is_email_verified:
+            raise serializers.ValidationError("Please verify your email before logging in.")
+
         data["user"] = {
             "id": str(self.user.id),
             "email": self.user.email,

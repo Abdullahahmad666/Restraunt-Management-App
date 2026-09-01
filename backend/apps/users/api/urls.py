@@ -13,6 +13,7 @@ from .views import (
     PasswordResetConfirmView,
     PasswordResetRequestView,
     RegisterView,
+    VerifyEmailView,
 )
 
 app_name = "users"
@@ -21,6 +22,7 @@ app_name = "users"
 # the staff/admin namespace split, because you have no role until you log in.
 urlpatterns = [
     path("register/", RegisterView.as_view(), name="register"),
+    path("verify-email/", VerifyEmailView.as_view(), name="verify-email"),
     path("login/", CustomLoginView.as_view(), name="login"),
     path("refresh/", TokenRefreshView.as_view(), name="token-refresh"),
     path("logout/", TokenBlacklistView.as_view(), name="logout"),
