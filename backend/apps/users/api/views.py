@@ -2,11 +2,13 @@ from django.contrib.auth import get_user_model
 from rest_framework import generics, permissions, status
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .serializers import (
     ChangePasswordSerializer,
     CustomTokenObtainPairSerializer,
+    GoogleLoginSerializer,
     RegisterSerializer,
     UserSerializer,
     VerifyEmailSerializer,
@@ -64,3 +66,29 @@ class ChangePasswordView(generics.GenericAPIView):
 class CustomLoginView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
     throttle_scope = "login"
+
+
+class GoogleLoginView(generics.GenericAPIView):
+    """Sign in (or sign up) using a Google ID token from the mobile app."""
+
+    serializer_class = GoogleLoginSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data["user"]
+        refresh = RefreshToken.for_user(user)
+        return Response(
+            {
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+                "user": {
+                    "id": str(user.id),
+                    "email": user.email,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "role": user.role,
+                },
+            }
+        )

@@ -211,3 +211,4 @@ MAILERS = {
     }
 }
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@example.com")
+GOOGLE_CLIENT_ID = env("GOOGLE_CLIENT_ID", default="")

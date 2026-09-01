@@ -1,9 +1,12 @@
 import random
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.mail import send_mail
 from django.utils import timezone
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -102,3 +105,34 @@ class ChangePasswordSerializer(serializers.Serializer):
         if not user.check_password(value):
             raise serializers.ValidationError("Old password is incorrect.")
         return value
+
+
+class GoogleLoginSerializer(serializers.Serializer):
+    id_token = serializers.CharField(required=True)
+
+    def validate(self, attrs):
+        try:
+            idinfo = id_token.verify_oauth2_token(
+                attrs["id_token"], google_requests.Request(), settings.GOOGLE_CLIENT_ID
+            )
+        except ValueError:
+            raise serializers.ValidationError("Invalid Google token.") from None
+
+        email = idinfo.get("email")
+        if not email:
+            raise serializers.ValidationError("Google account has no email.")
+
+        user, created = User.objects.get_or_create(
+            email=email,
+            defaults={
+                "first_name": idinfo.get("given_name", ""),
+                "last_name": idinfo.get("family_name", ""),
+                "is_email_verified": True,
+            },
+        )
+        if created:
+            user.set_unusable_password()
+            user.save()
+
+        attrs["user"] = user
+        return attrs
