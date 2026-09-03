@@ -9,11 +9,11 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-
+from django.utils.encoding import DjangoUnicodeDecodeError
 from apps.common.roles import Role
 from apps.restaurants.models import Restaurant
 from apps.users.models import InviteCode
-
+from django.utils.http import urlsafe_base64_decode
 User = get_user_model()
 
 
