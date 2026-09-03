@@ -21,13 +21,39 @@ export type RegisterPayload = {
   password: string;
   first_name?: string;
   last_name?: string;
+  phone?: string;
   role: Role;
-  /** Required for an ADMIN account; optional for STAFF, where it joins a restaurant. */
+  /** An existing restaurant's code. Optional for STAFF (an admin can attach
+   * them later); for ADMIN it's one of two ways in - see restaurant_name. */
   invite_code?: string;
+  /** No code and no restaurant yet: this is what creates one. ADMIN only -
+   * ignored for STAFF, who join an existing restaurant or nothing at all. */
+  restaurant_name?: string;
 };
 
 export async function register(payload: RegisterPayload): Promise<User> {
   const {data} = await apiClient.post<User>(endpoints.auth.register, payload);
+  return data;
+}
+
+/**
+ * Registering doesn't sign anyone in - the backend rejects a login attempt
+ * for an account whose email isn't verified yet, so this must succeed first.
+ */
+export async function verifyEmail(email: string, otp: string): Promise<void> {
+  await apiClient.post(endpoints.auth.verifyEmail, {email, otp});
+}
+
+/** What an invite link may say about itself before anyone has signed in. */
+export type InviteInfo = {
+  restaurant_name: string;
+  invited_by_name: string;
+  role: Role;
+  is_usable: boolean;
+};
+
+export async function fetchInviteInfo(code: string): Promise<InviteInfo> {
+  const {data} = await apiClient.get<InviteInfo>(endpoints.auth.inviteLookup(code));
   return data;
 }
 

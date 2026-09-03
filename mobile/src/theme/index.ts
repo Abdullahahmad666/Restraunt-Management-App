@@ -122,5 +122,11 @@ export const tabScreenOptions = {
 /** Size every tab glyph is drawn at. */
 export const TAB_ICON_SIZE = 22;
 
-/** The product line. Used on the login screen and in store listings. */
-export const TAGLINE = 'Every shift tracked. Every check logged.';
+/**
+ * The product line. Used on the login screen and in store listings.
+ *
+ * Not "an attendance app" - staff, cost and compliance are three separate
+ * screens today (Attendance, Payroll, Compliance) and the tagline should
+ * read that way rather than describing only the first one built.
+ */
+export const TAGLINE = 'Staff, cost and compliance - sorted.';

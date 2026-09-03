@@ -21,6 +21,10 @@ export type User = {
   profile_picture: string | null;
   role: Role;
   restaurant: string | null;
+  /** null when the user has no restaurant yet; otherwise whether a super
+   * admin has approved that restaurant in Django Admin. A newly
+   * self-registered restaurant starts false until reviewed. */
+  restaurant_is_approved: boolean | null;
 };
 
 export type TokenPairResponse = {
