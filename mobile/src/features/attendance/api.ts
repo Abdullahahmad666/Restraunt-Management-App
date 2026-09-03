@@ -6,6 +6,7 @@ import type {
   AdminShift,
   AttendanceLog,
   AttendanceLogCorrection,
+  JobTitle,
   ScanRequest,
   ScanResponse,
   Shift,
@@ -77,11 +78,19 @@ export type CreateShiftInput = {
   staff: string;
   starts_at: string;
   ends_at: string;
+  job_title?: JobTitle | '';
   notes?: string;
 };
 
 export async function createShift(input: CreateShiftInput): Promise<AdminShift> {
   const {data} = await apiClient.post<AdminShift>(endpoints.admin.attendance.shifts, input);
+  return data;
+}
+
+export type UpdateShiftInput = Partial<CreateShiftInput>;
+
+export async function updateShift(id: string, input: UpdateShiftInput): Promise<AdminShift> {
+  const {data} = await apiClient.patch<AdminShift>(endpoints.admin.attendance.shift(id), input);
   return data;
 }
 
