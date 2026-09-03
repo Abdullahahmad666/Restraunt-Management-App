@@ -16,53 +16,131 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='DeviceToken',
+            name="DeviceToken",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('token', models.CharField(max_length=255, unique=True)),
-                ('platform', models.CharField(choices=[('IOS', 'iOS'), ('ANDROID', 'Android')], max_length=16)),
-                ('is_active', models.BooleanField(default=True)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='device_tokens', to=settings.AUTH_USER_MODEL)),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("token", models.CharField(max_length=255, unique=True)),
+                (
+                    "platform",
+                    models.CharField(
+                        choices=[("IOS", "iOS"), ("ANDROID", "Android")], max_length=16
+                    ),
+                ),
+                ("is_active", models.BooleanField(default=True)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="device_tokens",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'abstract': False,
+                "abstract": False,
             },
         ),
         migrations.CreateModel(
-            name='Notification',
+            name="Notification",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('kind', models.CharField(choices=[('SHIFT_REMINDER', 'Shift reminder'), ('MISSED_CHECKOUT', 'Missed checkout'), ('COMPLIANCE_OVERDUE', 'Compliance overdue')], max_length=32)),
-                ('title', models.CharField(max_length=120)),
-                ('body', models.CharField(max_length=255)),
-                ('status', models.CharField(choices=[('PENDING', 'Pending'), ('SENT', 'Sent'), ('FAILED', 'Failed')], default='PENDING', max_length=16)),
-                ('read_at', models.DateTimeField(blank=True, null=True)),
-                ('related_object_type', models.CharField(blank=True, max_length=64)),
-                ('related_object_id', models.UUIDField(blank=True, null=True)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='notifications', to=settings.AUTH_USER_MODEL)),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "kind",
+                    models.CharField(
+                        choices=[
+                            ("SHIFT_REMINDER", "Shift reminder"),
+                            ("MISSED_CHECKOUT", "Missed checkout"),
+                            ("COMPLIANCE_OVERDUE", "Compliance overdue"),
+                        ],
+                        max_length=32,
+                    ),
+                ),
+                ("title", models.CharField(max_length=120)),
+                ("body", models.CharField(max_length=255)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("PENDING", "Pending"),
+                            ("SENT", "Sent"),
+                            ("FAILED", "Failed"),
+                        ],
+                        default="PENDING",
+                        max_length=16,
+                    ),
+                ),
+                ("read_at", models.DateTimeField(blank=True, null=True)),
+                ("related_object_type", models.CharField(blank=True, max_length=64)),
+                ("related_object_id", models.UUIDField(blank=True, null=True)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="notifications",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'ordering': ('-created_at',),
+                "ordering": ("-created_at",),
             },
         ),
         migrations.CreateModel(
-            name='DeliveryAttempt',
+            name="DeliveryAttempt",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('channel', models.CharField(choices=[('PUSH', 'Push'), ('EMAIL', 'Email')], default='PUSH', max_length=16)),
-                ('succeeded', models.BooleanField(default=False)),
-                ('error_message', models.CharField(blank=True, max_length=500)),
-                ('attempted_at', models.DateTimeField(auto_now_add=True)),
-                ('notification', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='delivery_attempts', to='notifications.notification')),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "channel",
+                    models.CharField(
+                        choices=[("PUSH", "Push"), ("EMAIL", "Email")],
+                        default="PUSH",
+                        max_length=16,
+                    ),
+                ),
+                ("succeeded", models.BooleanField(default=False)),
+                ("error_message", models.CharField(blank=True, max_length=500)),
+                ("attempted_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "notification",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="delivery_attempts",
+                        to="notifications.notification",
+                    ),
+                ),
             ],
             options={
-                'ordering': ('-attempted_at',),
+                "ordering": ("-attempted_at",),
             },
         ),
     ]

@@ -9,43 +9,70 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='Restaurant',
+            name="Restaurant",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('name', models.CharField(max_length=200)),
-                ('slug', models.SlugField(blank=True, max_length=220, unique=True)),
-                ('address', models.TextField(blank=True)),
-                ('phone', models.CharField(blank=True, max_length=32)),
-                ('email', models.EmailField(blank=True, max_length=254)),
-                ('timezone', models.CharField(default='UTC', max_length=64)),
-                ('currency', models.CharField(default='PKR', max_length=3)),
-                ('is_active', models.BooleanField(default=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("name", models.CharField(max_length=200)),
+                ("slug", models.SlugField(blank=True, max_length=220, unique=True)),
+                ("address", models.TextField(blank=True)),
+                ("phone", models.CharField(blank=True, max_length=32)),
+                ("email", models.EmailField(blank=True, max_length=254)),
+                ("timezone", models.CharField(default="UTC", max_length=64)),
+                ("currency", models.CharField(default="PKR", max_length=3)),
+                ("is_active", models.BooleanField(default=True)),
             ],
             options={
-                'ordering': ('name',),
+                "ordering": ("name",),
             },
         ),
         migrations.CreateModel(
-            name='Table',
+            name="Table",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('number', models.CharField(max_length=16)),
-                ('seats', models.PositiveSmallIntegerField(default=2)),
-                ('is_active', models.BooleanField(default=True)),
-                ('restaurant', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='tables', to='restaurants.restaurant')),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("number", models.CharField(max_length=16)),
+                ("seats", models.PositiveSmallIntegerField(default=2)),
+                ("is_active", models.BooleanField(default=True)),
+                (
+                    "restaurant",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="tables",
+                        to="restaurants.restaurant",
+                    ),
+                ),
             ],
             options={
-                'ordering': ('restaurant', 'number'),
-                'constraints': [models.UniqueConstraint(fields=('restaurant', 'number'), name='unique_table_number_per_restaurant')],
+                "ordering": ("restaurant", "number"),
+                "constraints": [
+                    models.UniqueConstraint(
+                        fields=("restaurant", "number"),
+                        name="unique_table_number_per_restaurant",
+                    )
+                ],
             },
         ),
     ]

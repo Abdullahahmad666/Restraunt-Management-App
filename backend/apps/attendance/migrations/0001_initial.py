@@ -11,75 +11,198 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('restaurants', '0001_initial'),
+        ("restaurants", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Shift',
+            name="Shift",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('starts_at', models.DateTimeField()),
-                ('ends_at', models.DateTimeField()),
-                ('notes', models.CharField(blank=True, max_length=255)),
-                ('reminder_sent_at', models.DateTimeField(blank=True, null=True)),
-                ('created_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to=settings.AUTH_USER_MODEL)),
-                ('restaurant', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='shifts', to='restaurants.restaurant')),
-                ('staff', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='shifts', to=settings.AUTH_USER_MODEL)),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("starts_at", models.DateTimeField()),
+                ("ends_at", models.DateTimeField()),
+                ("notes", models.CharField(blank=True, max_length=255)),
+                ("reminder_sent_at", models.DateTimeField(blank=True, null=True)),
+                (
+                    "created_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="+",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "restaurant",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="shifts",
+                        to="restaurants.restaurant",
+                    ),
+                ),
+                (
+                    "staff",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="shifts",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'ordering': ('starts_at',),
+                "ordering": ("starts_at",),
             },
         ),
         migrations.CreateModel(
-            name='AttendanceLog',
+            name="AttendanceLog",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('clock_in_at', models.DateTimeField()),
-                ('clock_in_latitude', models.DecimalField(decimal_places=6, max_digits=9)),
-                ('clock_in_longitude', models.DecimalField(decimal_places=6, max_digits=9)),
-                ('clock_out_at', models.DateTimeField(blank=True, null=True)),
-                ('clock_out_latitude', models.DecimalField(blank=True, decimal_places=6, max_digits=9, null=True)),
-                ('clock_out_longitude', models.DecimalField(blank=True, decimal_places=6, max_digits=9, null=True)),
-                ('status', models.CharField(choices=[('OPEN', 'Open'), ('CLOSED', 'Closed'), ('AUTO_CLOSED', 'Auto-closed')], default='OPEN', max_length=16)),
-                ('is_manual_override', models.BooleanField(default=False)),
-                ('edited_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to=settings.AUTH_USER_MODEL)),
-                ('restaurant', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='attendance_logs', to='restaurants.restaurant')),
-                ('staff', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='attendance_logs', to=settings.AUTH_USER_MODEL)),
-                ('shift', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='attendance_logs', to='attendance.shift')),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("clock_in_at", models.DateTimeField()),
+                (
+                    "clock_in_latitude",
+                    models.DecimalField(decimal_places=6, max_digits=9),
+                ),
+                (
+                    "clock_in_longitude",
+                    models.DecimalField(decimal_places=6, max_digits=9),
+                ),
+                ("clock_out_at", models.DateTimeField(blank=True, null=True)),
+                (
+                    "clock_out_latitude",
+                    models.DecimalField(
+                        blank=True, decimal_places=6, max_digits=9, null=True
+                    ),
+                ),
+                (
+                    "clock_out_longitude",
+                    models.DecimalField(
+                        blank=True, decimal_places=6, max_digits=9, null=True
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("OPEN", "Open"),
+                            ("CLOSED", "Closed"),
+                            ("AUTO_CLOSED", "Auto-closed"),
+                        ],
+                        default="OPEN",
+                        max_length=16,
+                    ),
+                ),
+                ("is_manual_override", models.BooleanField(default=False)),
+                (
+                    "edited_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="+",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "restaurant",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="attendance_logs",
+                        to="restaurants.restaurant",
+                    ),
+                ),
+                (
+                    "staff",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="attendance_logs",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "shift",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="attendance_logs",
+                        to="attendance.shift",
+                    ),
+                ),
             ],
             options={
-                'ordering': ('-clock_in_at',),
+                "ordering": ("-clock_in_at",),
             },
         ),
         migrations.CreateModel(
-            name='VenueQRCode',
+            name="VenueQRCode",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('token', models.UUIDField(default=uuid.uuid4, editable=False, unique=True)),
-                ('latitude', models.DecimalField(decimal_places=6, max_digits=9)),
-                ('longitude', models.DecimalField(decimal_places=6, max_digits=9)),
-                ('radius_meters', models.PositiveIntegerField(default=100)),
-                ('is_active', models.BooleanField(default=True)),
-                ('restaurant', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='qr_code', to='restaurants.restaurant')),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "token",
+                    models.UUIDField(default=uuid.uuid4, editable=False, unique=True),
+                ),
+                ("latitude", models.DecimalField(decimal_places=6, max_digits=9)),
+                ("longitude", models.DecimalField(decimal_places=6, max_digits=9)),
+                ("radius_meters", models.PositiveIntegerField(default=100)),
+                ("is_active", models.BooleanField(default=True)),
+                (
+                    "restaurant",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="qr_code",
+                        to="restaurants.restaurant",
+                    ),
+                ),
             ],
             options={
-                'abstract': False,
+                "abstract": False,
             },
         ),
         migrations.AddConstraint(
-            model_name='shift',
-            constraint=models.CheckConstraint(condition=models.Q(('ends_at__gt', models.F('starts_at'))), name='shift_ends_after_it_starts'),
+            model_name="shift",
+            constraint=models.CheckConstraint(
+                condition=models.Q(("ends_at__gt", models.F("starts_at"))),
+                name="shift_ends_after_it_starts",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='attendancelog',
-            constraint=models.UniqueConstraint(condition=models.Q(('status', 'OPEN')), fields=('staff',), name='one_open_attendance_log_per_staff'),
+            model_name="attendancelog",
+            constraint=models.UniqueConstraint(
+                condition=models.Q(("status", "OPEN")),
+                fields=("staff",),
+                name="one_open_attendance_log_per_staff",
+            ),
         ),
     ]

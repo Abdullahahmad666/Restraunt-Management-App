@@ -55,11 +55,7 @@ class InviteCodeLookupView(APIView):
 
         data = {
             "restaurant_name": invite.restaurant.name,
-            "invited_by_name": (
-                invite.created_by.get_full_name()
-                if invite.created_by
-                else None
-            ),
+            "invited_by_name": (invite.created_by.get_full_name() if invite.created_by else None),
             "role": invite.role,
             "is_usable": invite.is_usable,
         }
@@ -113,9 +109,7 @@ class ChangePasswordView(generics.GenericAPIView):
         )
         serializer.is_valid(raise_exception=True)
 
-        request.user.set_password(
-            serializer.validated_data["new_password"]
-        )
+        request.user.set_password(serializer.validated_data["new_password"])
         request.user.save()
 
         return Response(
@@ -165,9 +159,7 @@ class PasswordResetRequestView(generics.GenericAPIView):
     permission_classes = [permissions.AllowAny]
     throttle_scope = "password_reset"
 
-    generic_response = {
-        "detail": "If that email has an account, a reset link is on its way."
-    }
+    generic_response = {"detail": "If that email has an account, a reset link is on its way."}
 
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
@@ -192,10 +184,7 @@ class PasswordResetRequestView(generics.GenericAPIView):
         uid = urlsafe_base64_encode(force_bytes(user.pk))
         token = default_token_generator.make_token(user)
 
-        deep_link = (
-            f"{settings.PASSWORD_RESET_URL}"
-            f"?uid={uid}&token={token}"
-        )
+        deep_link = f"{settings.PASSWORD_RESET_URL}?uid={uid}&token={token}"
 
         try:
             send_mail(

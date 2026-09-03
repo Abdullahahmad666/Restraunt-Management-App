@@ -25,7 +25,10 @@ User = get_user_model()
 @pytest.fixture
 def super_admin(django_user_model):
     return django_user_model.objects.create_user(
-        email="platform-owner@example.com", password="whatever-42", is_superuser=True, is_staff=True
+        email="platform-owner@example.com",
+        password="whatever-42",
+        is_superuser=True,
+        is_staff=True,
     )
 
 
@@ -66,7 +69,10 @@ def test_approving_emails_every_active_admin_on_that_restaurant(
     restaurant_admin, admin_request, pending_restaurant
 ):
     active_admin = User.objects.create_user(
-        email="manager@example.com", password="x", role=Role.ADMIN, restaurant=pending_restaurant
+        email="manager@example.com",
+        password="x",
+        role=Role.ADMIN,
+        restaurant=pending_restaurant,
     )
     User.objects.create_user(
         email="ex-manager@example.com",
@@ -76,7 +82,10 @@ def test_approving_emails_every_active_admin_on_that_restaurant(
         is_active=False,
     )
     User.objects.create_user(
-        email="staffer@example.com", password="x", role=Role.STAFF, restaurant=pending_restaurant
+        email="staffer@example.com",
+        password="x",
+        role=Role.STAFF,
+        restaurant=pending_restaurant,
     )
 
     restaurant_admin.approve_takeaways(
@@ -124,7 +133,10 @@ def test_approving_via_the_change_form_also_notifies(
     """The other path to approval: ticking the box on the restaurant's own
     edit page rather than the bulk list action - same notification either way."""
     User.objects.create_user(
-        email="manager2@example.com", password="x", role=Role.ADMIN, restaurant=pending_restaurant
+        email="manager2@example.com",
+        password="x",
+        role=Role.ADMIN,
+        restaurant=pending_restaurant,
     )
 
     pending_restaurant.is_approved = True

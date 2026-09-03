@@ -32,7 +32,10 @@ def admin(django_user_model, restaurant):
 @pytest.fixture
 def staff_member(django_user_model, restaurant):
     return django_user_model.objects.create_user(
-        email="staffer@example.com", password="x", role=Role.STAFF, restaurant=restaurant
+        email="staffer@example.com",
+        password="x",
+        role=Role.STAFF,
+        restaurant=restaurant,
     )
 
 

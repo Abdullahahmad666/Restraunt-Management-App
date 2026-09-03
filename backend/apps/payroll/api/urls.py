@@ -32,5 +32,9 @@ staff_urlpatterns = [
 admin_urlpatterns = [
     *admin_router.urls,
     path("cost-report/", StaffCostReportView.as_view(), name="cost-report"),
-    path("staff-summary/<uuid:staff_id>/", StaffSummaryView.as_view(), name="staff-summary"),
+    path(
+        "staff-summary/<uuid:staff_id>/",
+        StaffSummaryView.as_view(),
+        name="staff-summary",
+    ),
 ]

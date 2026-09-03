@@ -224,6 +224,8 @@ class ChangePasswordSerializer(serializers.Serializer):
         if not user.check_password(value):
             raise serializers.ValidationError("Old password is incorrect.")
         return value
+
+
 class GoogleLoginSerializer(serializers.Serializer):
     id_token = serializers.CharField(required=True)
 
@@ -291,9 +293,7 @@ class InviteCodeSerializer(serializers.ModelSerializer):
 
     def validate_role(self, value):
         if value not in {Role.STAFF, Role.ADMIN}:
-            raise serializers.ValidationError(
-                "Invite codes are only issued for staff or admin."
-            )
+            raise serializers.ValidationError("Invite codes are only issued for staff or admin.")
         return value
 
 
