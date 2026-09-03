@@ -4,6 +4,7 @@ from rest_framework_simplejwt.views import (
     TokenBlacklistView,
     TokenRefreshView,
 )
+
 from .admin import AdminInviteCodeViewSet, AdminStaffViewSet
 from .views import (
     ChangePasswordView,
