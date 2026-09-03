@@ -68,6 +68,23 @@ export function useCreateShift() {
   });
 }
 
+export function useUpdateShift() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({id, input}: {id: string; input: api.UpdateShiftInput}) =>
+      api.updateShift(id, input),
+    onSuccess: () => queryClient.invalidateQueries({queryKey: ['attendance']}),
+  });
+}
+
+export function useDeleteShift() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: api.deleteShift,
+    onSuccess: () => queryClient.invalidateQueries({queryKey: ['attendance']}),
+  });
+}
+
 export function useVenueQrCodes() {
   return useQuery({queryKey: keys.qrCodes, queryFn: api.venueQrCodes});
 }

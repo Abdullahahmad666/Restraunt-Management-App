@@ -70,6 +70,11 @@ export function DashboardScreen(): React.JSX.Element {
           variant="secondary"
           onPress={() => navigation.navigate('Notifications')}
         />
+        <Button
+          title="My profile"
+          variant="secondary"
+          onPress={() => navigation.navigate('Profile')}
+        />
       </View>
     </Screen>
   );

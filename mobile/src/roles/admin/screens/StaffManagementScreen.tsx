@@ -1,5 +1,5 @@
-import React, {useState} from 'react';
-import {Pressable, StyleSheet, Text, View} from 'react-native';
+import React from 'react';
+import {Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
@@ -10,23 +10,24 @@ import {EmptyState} from '../../../components/EmptyState';
 import {ErrorState} from '../../../components/ErrorState';
 import {LoadingView} from '../../../components/LoadingView';
 import {Screen} from '../../../components/Screen';
-import {TextField} from '../../../components/TextField';
 import {describeApiError} from '../../../api/errors';
-import {useSetRate, useRates} from '../../../features/payroll/hooks';
-import {useCreateStaff, useStaffAccounts, useUpdateStaff} from '../../../features/staff/hooks';
+import {useShifts} from '../../../features/attendance/hooks';
+import {JOB_TITLE_LABELS} from '../../../features/attendance/types';
+import {useStaffAccounts} from '../../../features/staff/hooks';
 import type {StaffAccount} from '../../../features/staff/types';
+import {useAuthStore} from '../../../store/authStore';
 import {colors, spacing} from '../../../theme';
 import {fullName} from '../../../utils/format';
 import type {AdminStackParamList} from '../../../navigation/types';
 
 type Nav = NativeStackNavigationProp<AdminStackParamList>;
 
-/** Admin-only: add staff, edit their details, set pay rates, deactivate accounts. */
+/** The roster: who's on the team, at a glance. Adding, inviting, pay rates
+ * and shifts all live on their own screens now - this one just lists. */
 export function StaffManagementScreen(): React.JSX.Element {
   const navigation = useNavigation<Nav>();
+  const manager = useAuthStore(state => state.user);
   const staff = useStaffAccounts();
-  const [adding, setAdding] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   if (staff.isLoading) {
     return <LoadingView />;
@@ -43,7 +44,7 @@ export function StaffManagementScreen(): React.JSX.Element {
   return (
     <Screen onRefresh={() => staff.refetch()} refreshing={staff.isRefetching}>
       <View style={styles.headerRow}>
-        <Text style={styles.heading}>Team</Text>
+        <Text style={styles.heading}>Staff</Text>
         <Button
           title="Check-in QR"
           variant="secondary"
@@ -51,11 +52,34 @@ export function StaffManagementScreen(): React.JSX.Element {
         />
       </View>
 
-      {adding ? (
-        <AddStaffForm onDone={() => setAdding(false)} onCancel={() => setAdding(false)} />
-      ) : (
-        <Button title="Add staff member" onPress={() => setAdding(true)} />
-      )}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.actionsScroll}>
+        <Button
+          title="On shift now"
+          variant="secondary"
+          onPress={() => navigation.navigate('AttendanceLive')}
+        />
+        <Button
+          title="Invite staff"
+          variant="secondary"
+          onPress={() => navigation.navigate('InviteStaff')}
+        />
+        <Button title="Add staff member" onPress={() => navigation.navigate('AddStaff')} />
+      </ScrollView>
+
+      {manager ? (
+        <Card>
+          <View style={styles.rowHeader}>
+            <View>
+              <Text style={styles.rowTitle}>{fullName(manager)}</Text>
+              <Text style={styles.rowBody}>{manager.email}</Text>
+            </View>
+            <Badge label="Manager" tone="neutral" />
+          </View>
+        </Card>
+      ) : null}
 
       {staff.data?.results.length === 0 ? (
         <EmptyState title="No staff yet" body="Add your first team member above." />
@@ -64,8 +88,7 @@ export function StaffManagementScreen(): React.JSX.Element {
           <StaffRow
             key={member.id}
             member={member}
-            expanded={expandedId === member.id}
-            onToggle={() => setExpandedId(expandedId === member.id ? null : member.id)}
+            onPress={() => navigation.navigate('StaffDetail', {staffId: member.id})}
           />
         ))
       )}
@@ -73,179 +96,53 @@ export function StaffManagementScreen(): React.JSX.Element {
   );
 }
 
-function AddStaffForm({
-  onDone,
-  onCancel,
-}: {
-  onDone: () => void;
-  onCancel: () => void;
-}): React.JSX.Element {
-  const createStaff = useCreateStaff();
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [error, setError] = useState<string | null>(null);
-
-  async function onSubmit() {
-    setError(null);
-    try {
-      await createStaff.mutateAsync({email, first_name: firstName, last_name: lastName, phone});
-      onDone();
-    } catch (err) {
-      setError(describeApiError(err, 'Could not add this staff member.'));
-    }
-  }
-
-  return (
-    <Card>
-      <TextField label="First name" value={firstName} onChangeText={setFirstName} />
-      <TextField label="Last name" value={lastName} onChangeText={setLastName} />
-      <TextField
-        label="Email"
-        autoCapitalize="none"
-        keyboardType="email-address"
-        value={email}
-        onChangeText={setEmail}
-      />
-      <TextField
-        label="Phone (optional)"
-        keyboardType="phone-pad"
-        value={phone}
-        onChangeText={setPhone}
-      />
-      <Text style={styles.note}>
-        No password set here generates one automatically - there's no "forgot password" screen yet,
-        so tell the new starter to ask you for it.
-      </Text>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      <View style={styles.formActions}>
-        <Button title="Cancel" variant="secondary" onPress={onCancel} />
-        <Button
-          title="Add"
-          onPress={onSubmit}
-          loading={createStaff.isPending}
-          disabled={!firstName || !lastName || !email}
-        />
-      </View>
-    </Card>
-  );
-}
-
+/** The role badge is the staff member's next upcoming shift's job title, not
+ * a static field - the same person can cover different roles on different
+ * days (see Shift.job_title), so there is no single fixed "role" to show
+ * other than whatever they're next scheduled for. */
 function StaffRow({
   member,
-  expanded,
-  onToggle,
+  onPress,
 }: {
   member: StaffAccount;
-  expanded: boolean;
-  onToggle: () => void;
+  onPress: () => void;
 }): React.JSX.Element {
-  const navigation = useNavigation<Nav>();
-  const updateStaff = useUpdateStaff();
-  const rates = useRates();
-  const setRate = useSetRate();
-  const [rate1, setRate1] = useState('');
-  const [rate2, setRate2] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const shifts = useShifts({staff: member.id});
 
-  const existingRate = rates.data?.results.find(rate => rate.staff === member.id);
-
-  async function onToggleActive() {
-    try {
-      await updateStaff.mutateAsync({id: member.id, is_active: !member.is_active});
-    } catch (err) {
-      setError(describeApiError(err, 'Could not update this account.'));
-    }
-  }
-
-  async function onSaveRate() {
-    setError(null);
-    try {
-      await setRate.mutateAsync({
-        staff: member.id,
-        rate_1: rate1 || existingRate?.rate_1 || '0',
-        rate_2: rate2 || existingRate?.rate_2 || '0',
-        existingId: existingRate?.id,
-      });
-      setRate1('');
-      setRate2('');
-    } catch (err) {
-      setError(describeApiError(err, 'Could not save pay rates.'));
-    }
-  }
+  const now = Date.now();
+  const nextShift = shifts.data?.results
+    .filter(shift => new Date(shift.starts_at).getTime() >= now)
+    .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())[0];
 
   return (
-    <Card>
-      <Pressable style={styles.rowHeader} onPress={onToggle}>
-        <View>
-          <Text style={styles.rowTitle}>{fullName(member)}</Text>
-          <Text style={styles.rowBody}>{member.email}</Text>
-        </View>
-        <Badge
-          label={member.is_active ? 'Active' : 'Deactivated'}
-          tone={member.is_active ? 'success' : 'neutral'}
-        />
-      </Pressable>
-
-      {expanded ? (
-        <View style={styles.expanded}>
-          <Text style={styles.rowBody}>Phone: {member.phone || 'Not set'}</Text>
-          <Text style={styles.rowBody}>
-            Current rates:{' '}
-            {existingRate ? `£${existingRate.rate_1} / £${existingRate.rate_2}` : 'Not set'}
-          </Text>
-
-          <TextField
-            label="Rate 1 (£/hr)"
-            keyboardType="decimal-pad"
-            placeholder={existingRate?.rate_1 ?? '11.50'}
-            value={rate1}
-            onChangeText={setRate1}
-          />
-          <TextField
-            label="Rate 2 (£/hr)"
-            keyboardType="decimal-pad"
-            placeholder={existingRate?.rate_2 ?? '10.00'}
-            value={rate2}
-            onChangeText={setRate2}
-          />
-          <Button
-            title="Save rates"
-            variant="secondary"
-            onPress={onSaveRate}
-            loading={setRate.isPending}
-          />
-
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-
-          <View style={styles.formActions}>
-            <Button
-              title="Add shift"
-              variant="secondary"
-              onPress={() => navigation.navigate('AttendanceEdit', {staffId: member.id})}
-            />
-            <Button
-              title={member.is_active ? 'Deactivate' : 'Reactivate'}
-              variant="danger"
-              onPress={onToggleActive}
-              loading={updateStaff.isPending}
+    <Pressable onPress={onPress}>
+      <Card>
+        <View style={styles.rowHeader}>
+          <View>
+            <Text style={styles.rowTitle}>{fullName(member)}</Text>
+            <Text style={styles.rowBody}>{member.email}</Text>
+          </View>
+          <View style={styles.badges}>
+            {nextShift?.job_title ? (
+              <Badge label={JOB_TITLE_LABELS[nextShift.job_title]} tone="neutral" />
+            ) : null}
+            <Badge
+              label={member.is_active ? 'Active' : 'Deactivated'}
+              tone={member.is_active ? 'success' : 'neutral'}
             />
           </View>
         </View>
-      ) : null}
-    </Card>
+      </Card>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   headerRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
   heading: {fontSize: 24, fontWeight: '700', color: colors.text},
+  actionsScroll: {flexDirection: 'row', gap: spacing.sm},
   rowHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start'},
   rowTitle: {fontSize: 16, fontWeight: '600', color: colors.text},
   rowBody: {fontSize: 13, color: colors.textMuted},
-  expanded: {marginTop: spacing.sm, gap: spacing.sm},
-  formActions: {flexDirection: 'row', gap: spacing.sm, justifyContent: 'flex-end'},
-  note: {fontSize: 12, color: colors.textMuted},
-  error: {color: colors.danger},
+  badges: {alignItems: 'flex-end', gap: spacing.xs},
 });
