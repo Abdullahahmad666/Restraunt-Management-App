@@ -9,6 +9,7 @@ from .admin import AdminInviteCodeViewSet, AdminStaffViewSet
 from .views import (
     ChangePasswordView,
     CustomLoginView,
+    InviteCodeLookupView,
     MeView,
     PasswordResetConfirmView,
     PasswordResetRequestView,
@@ -23,6 +24,11 @@ app_name = "users"
 urlpatterns = [
     path("register/", RegisterView.as_view(), name="register"),
     path("verify-email/", VerifyEmailView.as_view(), name="verify-email"),
+    path(
+        "invite-codes/<str:code>/",
+        InviteCodeLookupView.as_view(),
+        name="invite-code-lookup",
+    ),
     path("login/", CustomLoginView.as_view(), name="login"),
     path("refresh/", TokenRefreshView.as_view(), name="token-refresh"),
     path("logout/", TokenBlacklistView.as_view(), name="logout"),

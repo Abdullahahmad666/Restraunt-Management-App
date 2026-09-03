@@ -33,6 +33,16 @@ class VenueQRCode(BaseModel):
 class Shift(BaseModel):
     """A rota entry: one staff member scheduled to work one span of time."""
 
+    class JobTitle(models.TextChoices):
+        """What the staff member is covering on this shift - not their account
+        Role (see apps.common.roles), which stays an access level only. The
+        same person can be scheduled as CHEF one day and TILL_OPERATOR the
+        next, so this lives on the shift, not the user."""
+
+        CHEF = "CHEF", "Chef"
+        DRIVER = "DRIVER", "Driver"
+        TILL_OPERATOR = "TILL_OPERATOR", "Till operator"
+
     restaurant = models.ForeignKey(
         "restaurants.Restaurant", on_delete=models.CASCADE, related_name="shifts"
     )
@@ -43,6 +53,7 @@ class Shift(BaseModel):
     )
     starts_at = models.DateTimeField()
     ends_at = models.DateTimeField()
+    job_title = models.CharField(max_length=16, choices=JobTitle.choices, blank=True)
     notes = models.CharField(max_length=255, blank=True)
     # Set by the send_shift_reminders command so a shift is reminded exactly
     # once even if the command's schedule slips slightly.
@@ -136,3 +147,4 @@ class AttendanceLog(BaseModel):
 # ENUM_NAME_OVERRIDES at it - a dotted path through a nested class attribute
 # (AttendanceLog.Status.choices) is not resolvable there.
 ATTENDANCE_LOG_STATUS_CHOICES = AttendanceLog.Status.choices
+SHIFT_JOB_TITLE_CHOICES = Shift.JobTitle.choices

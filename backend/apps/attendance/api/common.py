@@ -27,5 +27,5 @@ class BaseAttendanceLogSerializer(serializers.ModelSerializer):
 class BaseShiftSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Shift
-        fields = ("id", "staff", "starts_at", "ends_at", "notes")
+        fields = ("id", "staff", "starts_at", "ends_at", "job_title", "notes")
         read_only_fields = ("id",)
