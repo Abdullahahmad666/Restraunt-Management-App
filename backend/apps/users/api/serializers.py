@@ -9,6 +9,8 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.encoding import DjangoUnicodeDecodeError
 from django.utils.http import urlsafe_base64_decode
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -224,12 +226,42 @@ class ChangePasswordSerializer(serializers.Serializer):
         return value
 
 
-class InviteCodeSerializer(serializers.ModelSerializer):
-    """Admin-facing view of an invite code."""
+class GoogleLoginSerializer(serializers.Serializer):
+    id_token = serializers.CharField(required=True)
 
+    def validate(self, attrs):
+        try:
+            idinfo = id_token.verify_oauth2_token(
+                attrs["id_token"],
+                google_requests.Request(),
+                settings.GOOGLE_CLIENT_ID,
+            )
+        except ValueError:
+            raise serializers.ValidationError("Invalid Google token.") from None
+
+        email = idinfo.get("email")
+        if not email:
+            raise serializers.ValidationError("Google account has no email.")
+
+        user, created = User.objects.get_or_create(
+            email=email,
+            defaults={
+                "first_name": idinfo.get("given_name", ""),
+                "last_name": idinfo.get("family_name", ""),
+                "is_email_verified": True,
+            },
+        )
+
+        if created:
+            user.set_unusable_password()
+            user.save()
+
+        attrs["user"] = user
+        return attrs
+
+
+class InviteCodeSerializer(serializers.ModelSerializer):
     is_usable = serializers.BooleanField(read_only=True)
-    # What the admin actually shares (WhatsApp, SMS, email) - the raw `code`
-    # is still exposed too, for the rare case of reading it aloud instead.
     invite_link = serializers.SerializerMethodField()
 
     class Meta:
@@ -250,9 +282,6 @@ class InviteCodeSerializer(serializers.ModelSerializer):
             "code",
             "invite_link",
             "restaurant",
-            # Model.save() fills this in from DEFAULT_TTL when unset - without
-            # read_only here, DRF has no default of its own to fall back on
-            # and demands it from the client on every create.
             "expires_at",
             "used_at",
             "is_usable",
@@ -269,10 +298,6 @@ class InviteCodeSerializer(serializers.ModelSerializer):
 
 
 class PublicInviteCodeSerializer(serializers.Serializer):
-    """What an invite link may reveal before anyone has signed in - enough for
-    the join screen to say "Join {restaurant}, invited by {name}" and nothing
-    more. No restaurant id, no email, no code echoed back."""
-
     restaurant_name = serializers.CharField()
     invited_by_name = serializers.CharField()
     role = serializers.ChoiceField(choices=Role.choices)
@@ -280,28 +305,27 @@ class PublicInviteCodeSerializer(serializers.Serializer):
 
 
 class PasswordResetRequestSerializer(serializers.Serializer):
-    """Step one: ask for a reset link.
-
-    Intentionally does not check whether the address exists. Telling an
-    anonymous caller "no account with that email" turns this into a way to
-    enumerate who works here, and the view answers identically either way.
-    """
-
     email = serializers.EmailField()
 
 
 class PasswordResetConfirmSerializer(serializers.Serializer):
-    """Step two: redeem the token from the email."""
-
     uid = serializers.CharField()
     token = serializers.CharField()
-    new_password = serializers.CharField(write_only=True, validators=[validate_password])
+    new_password = serializers.CharField(
+        write_only=True,
+        validators=[validate_password],
+    )
 
     def validate(self, attrs):
         try:
             user_id = urlsafe_base64_decode(attrs["uid"]).decode()
             user = User.objects.get(pk=user_id)
-        except (User.DoesNotExist, ValueError, TypeError, DjangoUnicodeDecodeError):
+        except (
+            User.DoesNotExist,
+            ValueError,
+            TypeError,
+            DjangoUnicodeDecodeError,
+        ):
             raise serializers.ValidationError(
                 {"token": "This reset link is invalid or has expired."}
             ) from None

@@ -75,7 +75,8 @@ class Table(BaseModel):
         ordering = ("restaurant", "number")
         constraints = [
             models.UniqueConstraint(
-                fields=("restaurant", "number"), name="unique_table_number_per_restaurant"
+                fields=("restaurant", "number"),
+                name="unique_table_number_per_restaurant",
             )
         ]
 

@@ -6,13 +6,21 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('attendance', '0001_initial'),
+        ("attendance", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='shift',
-            name='job_title',
-            field=models.CharField(blank=True, choices=[('CHEF', 'Chef'), ('DRIVER', 'Driver'), ('TILL_OPERATOR', 'Till operator')], max_length=16),
+            model_name="shift",
+            name="job_title",
+            field=models.CharField(
+                blank=True,
+                choices=[
+                    ("CHEF", "Chef"),
+                    ("DRIVER", "Driver"),
+                    ("TILL_OPERATOR", "Till operator"),
+                ],
+                max_length=16,
+            ),
         ),
     ]

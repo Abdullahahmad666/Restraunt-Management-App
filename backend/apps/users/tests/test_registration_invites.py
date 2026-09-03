@@ -398,7 +398,10 @@ INVITE_LOOKUP = "v1:users:invite-code-lookup"
 
 def test_invite_lookup_returns_restaurant_and_inviter(client, restaurant, django_user_model):
     admin = django_user_model.objects.create_user(
-        email="manager@example.com", password=PASSWORD, first_name="Priya", last_name="Shah"
+        email="manager@example.com",
+        password=PASSWORD,
+        first_name="Priya",
+        last_name="Shah",
     )
     invite = make_invite(restaurant, role=Role.STAFF, created_by=admin)
 
@@ -472,7 +475,10 @@ def test_invite_serializer_builds_a_shareable_link(restaurant, settings):
 # ---------------------------------------------------------------------------
 def test_an_admin_can_issue_a_staff_invite_through_the_api(client, restaurant, django_user_model):
     admin = django_user_model.objects.create_user(
-        email="owner@example.com", password=PASSWORD, role=Role.ADMIN, restaurant=restaurant
+        email="owner@example.com",
+        password=PASSWORD,
+        role=Role.ADMIN,
+        restaurant=restaurant,
     )
     client.force_authenticate(user=admin)
 

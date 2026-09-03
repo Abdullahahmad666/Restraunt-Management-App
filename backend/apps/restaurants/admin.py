@@ -50,7 +50,12 @@ class RestaurantAdmin(admin.ModelAdmin):
         restaurant.approved_by = approved_by
         if save:
             restaurant.save(
-                update_fields=["is_approved", "approved_at", "approved_by", "updated_at"]
+                update_fields=[
+                    "is_approved",
+                    "approved_at",
+                    "approved_by",
+                    "updated_at",
+                ]
             )
         self._notify_managers(restaurant)
 

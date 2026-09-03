@@ -93,7 +93,9 @@ class AttendanceLog(BaseModel):
         AUTO_CLOSED = "AUTO_CLOSED", "Auto-closed"
 
     restaurant = models.ForeignKey(
-        "restaurants.Restaurant", on_delete=models.CASCADE, related_name="attendance_logs"
+        "restaurants.Restaurant",
+        on_delete=models.CASCADE,
+        related_name="attendance_logs",
     )
     staff = models.ForeignKey(
         settings.AUTH_USER_MODEL,

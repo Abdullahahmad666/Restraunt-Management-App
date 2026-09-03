@@ -16,7 +16,15 @@ class UserAdmin(BaseUserAdmin):
         ("Role", {"fields": ("role", "restaurant")}),
         (
             "Permissions",
-            {"fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions")},
+            {
+                "fields": (
+                    "is_active",
+                    "is_staff",
+                    "is_superuser",
+                    "groups",
+                    "user_permissions",
+                )
+            },
         ),
         ("Dates", {"fields": ("last_login", "date_joined")}),
     )

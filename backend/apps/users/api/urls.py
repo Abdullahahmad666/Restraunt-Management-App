@@ -9,6 +9,7 @@ from .admin import AdminInviteCodeViewSet, AdminStaffViewSet
 from .views import (
     ChangePasswordView,
     CustomLoginView,
+    GoogleLoginView,
     InviteCodeLookupView,
     MeView,
     PasswordResetConfirmView,
@@ -30,6 +31,7 @@ urlpatterns = [
         name="invite-code-lookup",
     ),
     path("login/", CustomLoginView.as_view(), name="login"),
+    path("google-login/", GoogleLoginView.as_view(), name="google-login"),
     path("refresh/", TokenRefreshView.as_view(), name="token-refresh"),
     path("logout/", TokenBlacklistView.as_view(), name="logout"),
     path("me/", MeView.as_view(), name="me"),

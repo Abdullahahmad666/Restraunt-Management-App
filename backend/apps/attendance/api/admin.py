@@ -17,7 +17,12 @@ from .common import BaseAttendanceLogSerializer, BaseShiftSerializer
 
 class AdminShiftSerializer(BaseShiftSerializer):
     class Meta(BaseShiftSerializer.Meta):
-        fields = (*BaseShiftSerializer.Meta.fields, "restaurant", "reminder_sent_at", "created_by")
+        fields = (
+            *BaseShiftSerializer.Meta.fields,
+            "restaurant",
+            "reminder_sent_at",
+            "created_by",
+        )
         read_only_fields = (
             *BaseShiftSerializer.Meta.read_only_fields,
             # Both set server-side in perform_create/the reminder command, not
