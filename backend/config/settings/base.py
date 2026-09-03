@@ -157,6 +157,9 @@ REST_FRAMEWORK = {
         # Deliberately tight: this endpoint sends mail to an address the
         # caller supplies, so a loose limit makes it a spam relay.
         "password_reset": "5/hour",
+        # Looser than the others: the join screen calls this on every load,
+        # including re-opens, so it needs headroom register/login don't.
+        "invite_lookup": "30/min",
     },
     "TEST_REQUEST_DEFAULT_FORMAT": "json",
 }
@@ -181,6 +184,7 @@ SPECTACULAR_SETTINGS = {
     # name instead.
     "ENUM_NAME_OVERRIDES": {
         "AttendanceLogStatusEnum": "apps.attendance.models.ATTENDANCE_LOG_STATUS_CHOICES",
+        "ShiftJobTitleEnum": "apps.attendance.models.SHIFT_JOB_TITLE_CHOICES",
         "PayPeriodStatusEnum": "apps.payroll.models.PAY_PERIOD_STATUS_CHOICES",
         "NotificationStatusEnum": "apps.notifications.models.NOTIFICATION_STATUS_CHOICES",
     },
@@ -194,6 +198,10 @@ DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Invisiko <no-reply@invis
 #: Where a password-reset email points. The mobile app registers the `invisiko`
 #: scheme, so this opens the reset screen directly rather than a web page.
 PASSWORD_RESET_URL = env("PASSWORD_RESET_URL", default="invisiko://reset-password")
+
+#: Where a staff invite link points. An admin shares this (via WhatsApp, SMS,
+#: whatever) rather than reading a code aloud - see InviteCodeSerializer.
+INVITE_URL = env("INVITE_URL", default="invisiko://join")
 
 CORS_ALLOWED_ORIGINS = env("CORS_ALLOWED_ORIGINS")
 
@@ -218,11 +226,17 @@ LOGGING = {
 MAILERS = {
     "default": {
         "BACKEND": "django.core.mail.backends.smtp.EmailBackend",
-        "HOST": env("EMAIL_HOST", default=""),
-        "PORT": env.int("EMAIL_PORT", default=587),
-        "USE_TLS": env.bool("EMAIL_USE_TLS", default=True),
-        "USERNAME": env("EMAIL_HOST_USER", default=""),
-        "PASSWORD": env("EMAIL_HOST_PASSWORD", default=""),
+        # Django 6.1's MAILERS reads backend kwargs from OPTIONS (lowercase
+        # keys matching EmailBackend.__init__), not top-level uppercase ones -
+        # those are silently dropped, leaving host=None and an InvalidMailer
+        # the moment anything actually tries to send.
+        "OPTIONS": {
+            "host": env("EMAIL_HOST", default=""),
+            "port": env.int("EMAIL_PORT", default=587),
+            "use_tls": env.bool("EMAIL_USE_TLS", default=True),
+            "username": env("EMAIL_HOST_USER", default=""),
+            "password": env("EMAIL_HOST_PASSWORD", default=""),
+        },
     }
 }
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@example.com")

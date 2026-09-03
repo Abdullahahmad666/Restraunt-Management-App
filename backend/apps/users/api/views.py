@@ -4,18 +4,24 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
+from django.shortcuts import get_object_or_404
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
+from drf_spectacular.utils import extend_schema
 from rest_framework import generics, permissions, status
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
+
+from apps.users.models import InviteCode
 
 from .serializers import (
     ChangePasswordSerializer,
     CustomTokenObtainPairSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
+    PublicInviteCodeSerializer,
     RegisterSerializer,
     UserSerializer,
     VerifyEmailSerializer,
@@ -30,6 +36,37 @@ class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
     throttle_scope = "register"
+
+
+class InviteCodeLookupView(APIView):
+    """Public: what an invite link is for, before anyone has signed in.
+
+    The join screen calls this the moment it opens (from the `code` in the
+    deep link) so it can greet someone by name and restaurant rather than
+    showing a bare form. 404 on an unknown code - there is nothing sensitive
+    to protect by pretending otherwise - but an expired or already-used code
+    still resolves, with is_usable: false, so the screen can say why rather
+    than just failing.
+    """
+
+    permission_classes = [permissions.AllowAny]
+    throttle_scope = "invite_lookup"
+
+    @extend_schema(responses=PublicInviteCodeSerializer)
+    def get(self, request, code):
+        invite = get_object_or_404(
+            InviteCode.objects.select_related("restaurant", "created_by"),
+            code=code.strip().upper(),
+        )
+        data = {
+            "restaurant_name": invite.restaurant.name,
+            "invited_by_name": invite.created_by.get_full_name() if invite.created_by else None,
+            "role": invite.role,
+            "is_usable": invite.is_usable,
+        }
+        if not data["invited_by_name"]:
+            data["invited_by_name"] = "your manager"
+        return Response(PublicInviteCodeSerializer(data).data)
 
 
 class VerifyEmailView(generics.GenericAPIView):

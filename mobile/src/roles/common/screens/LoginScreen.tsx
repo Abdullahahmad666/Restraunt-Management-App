@@ -105,7 +105,10 @@ export function LoginScreen(): React.JSX.Element {
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>New here?</Text>
-        <Pressable onPress={() => navigation.navigate('Signup')} disabled={submitting} hitSlop={8}>
+        <Pressable
+          onPress={() => navigation.navigate('SetupTakeaway')}
+          disabled={submitting}
+          hitSlop={8}>
           <Text style={styles.link}>Create an account</Text>
         </Pressable>
       </View>

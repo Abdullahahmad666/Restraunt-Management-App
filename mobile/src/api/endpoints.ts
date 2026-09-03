@@ -22,6 +22,7 @@ export const endpoints = {
   // Role-agnostic: you have no role until you have logged in.
   auth: {
     register: '/auth/register/',
+    verifyEmail: '/auth/verify-email/',
     login: '/auth/login/',
     refresh: '/auth/refresh/',
     logout: '/auth/logout/',
@@ -29,6 +30,9 @@ export const endpoints = {
     changePassword: '/auth/change-password/',
     passwordReset: '/auth/password-reset/',
     passwordResetConfirm: '/auth/password-reset/confirm/',
+    // Public - the join screen calls this before anyone has signed in, to
+    // greet whoever tapped the invite link by restaurant and inviter name.
+    inviteLookup: (code: string) => `/auth/invite-codes/${code}/`,
   },
 
   staff: {
@@ -55,6 +59,10 @@ export const endpoints = {
     staffAccounts: {
       list: `${ADMIN}/staff-accounts/`,
       detail: (id: string) => `${ADMIN}/staff-accounts/${id}/`,
+    },
+    inviteCodes: {
+      list: `${ADMIN}/invite-codes/`,
+      detail: (id: string) => `${ADMIN}/invite-codes/${id}/`,
     },
     attendance: {
       shifts: `${ADMIN}/shifts/`,

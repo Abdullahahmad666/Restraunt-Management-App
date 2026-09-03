@@ -2,11 +2,23 @@
 
 export type AttendanceStatus = 'OPEN' | 'CLOSED';
 
+/** What a staff member is covering on a given shift - independent of their
+ * account Role (STAFF/ADMIN, an access level). The same person can be
+ * scheduled as CHEF one day and TILL_OPERATOR the next. */
+export type JobTitle = 'CHEF' | 'DRIVER' | 'TILL_OPERATOR';
+
+export const JOB_TITLE_LABELS: Record<JobTitle, string> = {
+  CHEF: 'Chef',
+  DRIVER: 'Driver',
+  TILL_OPERATOR: 'Till operator',
+};
+
 export type Shift = {
   id: string;
   staff: string;
   starts_at: string;
   ends_at: string;
+  job_title: JobTitle | '';
   notes: string;
 };
 

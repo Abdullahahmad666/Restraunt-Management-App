@@ -7,6 +7,7 @@ import {useAuthStore} from '../store/authStore';
 import {useRestoreSession} from '../features/auth/useRestoreSession';
 import {AdminNavigator} from '../roles/admin/navigation/AdminNavigator';
 import {StaffNavigator} from '../roles/staff/navigation/StaffNavigator';
+import {PendingApprovalScreen} from '../roles/common/screens/PendingApprovalScreen';
 import {ROLES} from '../types/roles';
 import {navigationTheme} from '../theme';
 import {linking} from './linking';
@@ -51,6 +52,8 @@ export function RootNavigator(): React.JSX.Element | null {
       <Stack.Navigator screenOptions={{headerShown: false}}>
         {status !== 'authenticated' || !user ? (
           <Stack.Screen name="Auth" component={AuthNavigator} />
+        ) : user.role === ROLES.ADMIN && user.restaurant_is_approved === false ? (
+          <Stack.Screen name="PendingApproval" component={PendingApprovalScreen} />
         ) : user.role === ROLES.ADMIN ? (
           <Stack.Screen name="Admin" component={AdminNavigator} />
         ) : (
