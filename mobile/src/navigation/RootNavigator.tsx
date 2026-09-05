@@ -1,4 +1,4 @@
-import React, {useCallback} from 'react';
+import React, {useEffect} from 'react';
 import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import * as SplashScreen from 'expo-splash-screen';
@@ -32,14 +32,16 @@ export function RootNavigator(): React.JSX.Element | null {
 
   const settled = status !== 'idle' && status !== 'loading';
 
-  // Hide the splash only once we know where we are going, and only after the
-  // first frame of that destination is laid out - otherwise the splash lifts
-  // onto an empty view for a frame.
-  const onReady = useCallback(() => {
-    if (settled) {
-      SplashScreen.hideAsync().catch(() => {});
-    }
-  }, [settled]);
+  // Hand off to BrandSplash as soon as JS is running, rather than holding the
+  // native splash until the session check finishes.
+  //
+  // In a real build the two are pixel-matched - same mark, same navy - so this
+  // is invisible. In Expo Go it is the difference between navy and white:
+  // Expo Go substitutes its own light splash for the configured one, and
+  // holding it up just means staring at white for longer.
+  useEffect(() => {
+    SplashScreen.hideAsync().catch(() => {});
+  }, []);
 
   // A branded screen rather than null. Returning null relies on the native
   // splash still covering the window, which only holds in a real build - Expo
@@ -49,7 +51,7 @@ export function RootNavigator(): React.JSX.Element | null {
   }
 
   return (
-    <NavigationContainer theme={navigationTheme} linking={linking} onReady={onReady}>
+    <NavigationContainer theme={navigationTheme} linking={linking}>
       <Stack.Navigator screenOptions={{headerShown: false}}>
         {status !== 'authenticated' || !user ? (
           <Stack.Screen name="Auth" component={AuthNavigator} />
