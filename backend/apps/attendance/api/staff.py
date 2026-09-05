@@ -15,6 +15,7 @@ from rest_framework.views import APIView
 
 from apps.attendance import models
 from apps.attendance.services import scan as scan_service
+from apps.common.api.fields import LatitudeField, LongitudeField
 
 from .common import BaseAttendanceLogSerializer, BaseShiftSerializer
 
@@ -50,10 +51,10 @@ class StaffAttendanceLogViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
 
 class ScanSerializer(serializers.Serializer):
     token = serializers.UUIDField()
-    latitude = serializers.DecimalField(max_digits=9, decimal_places=6, min_value=-90, max_value=90)
-    longitude = serializers.DecimalField(
-        max_digits=9, decimal_places=6, min_value=-180, max_value=180
-    )
+    # Rounded rather than rejected - a phone posts the precision its GPS gives,
+    # which is far more than six decimal places. See CoordinateField.
+    latitude = LatitudeField()
+    longitude = LongitudeField()
 
 
 class ScanResultSerializer(serializers.Serializer):

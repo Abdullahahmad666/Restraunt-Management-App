@@ -10,6 +10,7 @@ import {Button} from '../../../components/Button';
 import {describeApiError} from '../../../api/errors';
 import {useScan} from '../../../features/attendance/hooks';
 import {colors, spacing} from '../../../theme';
+import {roundCoordinate} from '../../../utils/coords';
 import type {StaffStackParamList} from '../../../navigation/types';
 
 type Nav = NativeStackNavigationProp<StaffStackParamList>;
@@ -42,8 +43,8 @@ export function ScanScreen(): React.JSX.Element {
 
       const result = await scanMutation.mutateAsync({
         token,
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
+        latitude: roundCoordinate(position.coords.latitude),
+        longitude: roundCoordinate(position.coords.longitude),
       });
 
       navigation.navigate('ScanResult', {action: result.action, log: result.log});
