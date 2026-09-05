@@ -3,6 +3,7 @@ import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import * as SplashScreen from 'expo-splash-screen';
 
+import {BrandSplash} from '../components/BrandSplash';
 import {useAuthStore} from '../store/authStore';
 import {useRestoreSession} from '../features/auth/useRestoreSession';
 import {AdminNavigator} from '../roles/admin/navigation/AdminNavigator';
@@ -40,11 +41,11 @@ export function RootNavigator(): React.JSX.Element | null {
     }
   }, [settled]);
 
-  // Returning null keeps the native splash on screen. It is already the brand
-  // navy with the logo, so there is nothing better we could draw here - and no
-  // spinner means no flash of a different background.
+  // A branded screen rather than null. Returning null relies on the native
+  // splash still covering the window, which only holds in a real build - Expo
+  // Go hides its own splash as soon as JS starts, so null renders as white.
   if (!settled) {
-    return null;
+    return <BrandSplash />;
   }
 
   return (
