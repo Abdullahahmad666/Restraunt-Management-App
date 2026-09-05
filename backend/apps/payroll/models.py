@@ -74,7 +74,8 @@ class PayPeriod(BaseModel):
         ordering = ("-starts_on",)
         constraints = [
             models.UniqueConstraint(
-                fields=("restaurant", "starts_on", "ends_on"), name="unique_pay_period_span"
+                fields=("restaurant", "starts_on", "ends_on"),
+                name="unique_pay_period_span",
             )
         ]
 
@@ -94,7 +95,9 @@ class PayrollEntry(BaseModel):
 
     pay_period = models.ForeignKey(PayPeriod, on_delete=models.CASCADE, related_name="entries")
     staff = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="payroll_entries"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="payroll_entries",
     )
 
     hours_worked = models.DecimalField(max_digits=6, decimal_places=2, default=Decimal("0"))

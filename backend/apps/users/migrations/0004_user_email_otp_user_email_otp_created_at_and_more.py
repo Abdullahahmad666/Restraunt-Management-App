@@ -6,23 +6,23 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('users', '0003_invitecode'),
+        ("users", "0003_invitecode"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='user',
-            name='email_otp',
+            model_name="user",
+            name="email_otp",
             field=models.CharField(blank=True, max_length=6),
         ),
         migrations.AddField(
-            model_name='user',
-            name='email_otp_created_at',
+            model_name="user",
+            name="email_otp_created_at",
             field=models.DateTimeField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name='user',
-            name='is_email_verified',
+            model_name="user",
+            name="is_email_verified",
             field=models.BooleanField(default=False),
         ),
     ]

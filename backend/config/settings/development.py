@@ -1,7 +1,7 @@
 """Local development settings. Never used in a deployed environment."""
 
 from .base import *  # noqa: F403
-from .base import REST_FRAMEWORK  # noqa: F401
+from .base import REST_FRAMEWORK, env  # noqa: F401
 
 DEBUG = True
 
@@ -20,7 +20,14 @@ REST_FRAMEWORK["DEFAULT_RENDERER_CLASSES"] = (
     "rest_framework.renderers.BrowsableAPIRenderer",
 )
 
-# Django 6.1+ configures mail through MAILERS, not EMAIL_BACKEND.
+# Django 6.1+ configures mail through MAILERS, not EMAIL_BACKEND. base.py
+# already points this at real SMTP driven by EMAIL_HOST/etc in .env, which is
+# fine here too - only fall back to the console backend (prints instead of
+# sending) when a developer hasn't put SMTP credentials in their own .env, so
+# nobody without Gmail credentials gets InvalidMailer the moment anything
+# tries to send an email (registration, password reset).
+if not env("EMAIL_HOST", default=""):
+    MAILERS = {"default": {"BACKEND": "django.core.mail.backends.console.EmailBackend"}}
 
 # Metro and the RN dev client use ephemeral ports, so pinning origins locally
 # is more trouble than it is worth.

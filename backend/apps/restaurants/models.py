@@ -5,6 +5,7 @@ hangs off one, and permissions are ultimately "does this user's restaurant match
 this object's restaurant".
 """
 
+from django.conf import settings
 from django.db import models
 from django.utils.text import slugify
 
@@ -21,6 +22,22 @@ class Restaurant(BaseModel):
     currency = models.CharField(max_length=3, default="PKR")
     is_active = models.BooleanField(default=True)
 
+    # Set False the moment a manager self-registers a brand new takeaway (see
+    # RegisterSerializer) - a public endpoint anyone can call to create a
+    # tenant needs a human gate before that tenant is actually usable. There
+    # is no in-app reviewer for this: it is reviewed and toggled from Django
+    # Admin by whoever runs the platform (see RestaurantAdmin's "Approve"
+    # action), not through the REST API at all.
+    is_approved = models.BooleanField(default=False)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+
     class Meta:
         ordering = ("name",)
 
@@ -29,8 +46,21 @@ class Restaurant(BaseModel):
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = slugify(self.name)[:220]
+            self.slug = self._unique_slug()
         super().save(*args, **kwargs)
+
+    def _unique_slug(self) -> str:
+        """slug is unique, but name is not - "The Kitchen" and "Golden Spice"
+        are common enough that two unrelated restaurants sharing a name is a
+        real scenario, not an edge case, now that registration lets anyone
+        create one by typing a name. Number the slug rather than fail."""
+        base = slugify(self.name)[:220]
+        slug = base
+        suffix = 1
+        while Restaurant.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+            suffix += 1
+            slug = f"{base}-{suffix}"[:220]
+        return slug
 
 
 class Table(BaseModel):
@@ -45,7 +75,8 @@ class Table(BaseModel):
         ordering = ("restaurant", "number")
         constraints = [
             models.UniqueConstraint(
-                fields=("restaurant", "number"), name="unique_table_number_per_restaurant"
+                fields=("restaurant", "number"),
+                name="unique_table_number_per_restaurant",
             )
         ]
 

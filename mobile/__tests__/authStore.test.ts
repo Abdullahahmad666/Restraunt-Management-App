@@ -16,6 +16,7 @@ const someone: User = {
   profile_picture: null,
   role: 'STAFF',
   restaurant: 'r-1',
+  restaurant_is_approved: true,
 };
 
 describe('authStore.signOut', () => {

@@ -88,5 +88,8 @@ class ScanView(APIView):
             raise DRFPermissionDenied(str(exc)) from exc
 
         return Response(
-            {"action": result.action, "log": BaseAttendanceLogSerializer(result.log).data}
+            {
+                "action": result.action,
+                "log": BaseAttendanceLogSerializer(result.log).data,
+            }
         )

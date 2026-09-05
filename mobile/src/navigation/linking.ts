@@ -7,13 +7,15 @@ import type {RootStackParamList} from './types';
  * Deep links into the app.
  *
  * The password-reset email sends `invisiko://reset-password?uid=..&token=..`,
- * matching `scheme` in app.json. Without this config the link opens the app and
- * lands on the login screen, which looks like the email is broken.
+ * and an admin's shared invite sends `invisiko://join?code=..`, both matching
+ * `scheme` in app.json. Without this config either link opens the app and
+ * lands on the welcome screen, which looks like the link is broken.
  *
- * Reset lives under the Auth stack because it is reached while signed out. If a
- * signed-in user opens the link, React Navigation cannot route to a screen that
- * is not mounted and the link is ignored - which is the right outcome: someone
- * already signed in should use Change password, not a reset link.
+ * Both live under the Auth stack because they are reached while signed out. If
+ * a signed-in user opens one, React Navigation cannot route to a screen that
+ * is not mounted and the link is ignored - the right outcome for reset (use
+ * Change password instead) and, for join, unreachable in practice: nobody
+ * signed in should still have "join a restaurant" to do.
  */
 export const linking: LinkingOptions<RootStackParamList> = {
   prefixes: [
@@ -26,7 +28,7 @@ export const linking: LinkingOptions<RootStackParamList> = {
       Auth: {
         screens: {
           Login: 'login',
-          Signup: 'signup',
+          SetupTakeaway: 'setup',
           ForgotPassword: 'forgot-password',
           ResetPassword: {
             path: 'reset-password',
@@ -36,6 +38,12 @@ export const linking: LinkingOptions<RootStackParamList> = {
               uid: (value: string) => value,
               token: (value: string) => value,
             },
+          },
+          Join: {
+            path: 'join',
+            // code arrives from a shared link, so it is an untrusted string -
+            // the invite lookup and, ultimately, the server are what validate it.
+            parse: {code: (value: string) => value},
           },
         },
       },
