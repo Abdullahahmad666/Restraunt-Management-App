@@ -54,8 +54,9 @@ export function AddStaffScreen(): React.JSX.Element {
         onChangeText={setPhone}
       />
       <Text style={styles.note}>
-        No password set here generates one automatically - there's no "forgot password" screen yet,
-        so tell the new starter to ask you for it.
+        They will be emailed a link to set their own password, so you never have to handle it. The
+        link expires after a few hours - if they miss it, they can use "Forgot password?" on the
+        sign-in screen.
       </Text>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}

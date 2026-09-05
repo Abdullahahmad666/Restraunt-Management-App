@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
-import {StyleSheet, Text, View} from 'react-native';
+import {Linking, StyleSheet, Text, View} from 'react-native';
 import {CameraView, useCameraPermissions, type BarcodeScanningResult} from 'expo-camera';
+import {Ionicons} from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
@@ -9,6 +10,7 @@ import {Button} from '../../../components/Button';
 import {describeApiError} from '../../../api/errors';
 import {useScan} from '../../../features/attendance/hooks';
 import {colors, spacing} from '../../../theme';
+import {roundCoordinate} from '../../../utils/coords';
 import type {StaffStackParamList} from '../../../navigation/types';
 
 type Nav = NativeStackNavigationProp<StaffStackParamList>;
@@ -41,8 +43,8 @@ export function ScanScreen(): React.JSX.Element {
 
       const result = await scanMutation.mutateAsync({
         token,
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
+        latitude: roundCoordinate(position.coords.latitude),
+        longitude: roundCoordinate(position.coords.longitude),
       });
 
       navigation.navigate('ScanResult', {action: result.action, log: result.log});
@@ -60,12 +62,41 @@ export function ScanScreen(): React.JSX.Element {
   }
 
   if (!permission.granted) {
+    // canAskAgain false means the OS will not show the prompt again, so
+    // calling requestPermission is a button that visibly does nothing. The
+    // only route left is the app's own settings page.
+    const blocked = !permission.canAskAgain;
+
     return (
-      <View style={styles.container}>
-        <Text style={styles.message}>
-          Camera access is needed to scan the check-in code at the venue.
+      <View style={styles.permission}>
+        <View style={styles.permissionIcon}>
+          <Ionicons name="camera-outline" size={36} color={colors.primary} />
+        </View>
+
+        <Text style={styles.permissionTitle}>Camera access needed</Text>
+
+        <Text style={styles.permissionBody}>
+          {blocked
+            ? 'Camera access is turned off for Invisiko. Turn it on in Settings to scan your barcode at the start and end of a shift.'
+            : 'Invisiko uses the camera to scan your barcode when you start and finish a shift. It is only used while this screen is open, and nothing is recorded.'}
         </Text>
-        <Button title="Grant camera access" onPress={requestPermission} />
+
+        <View style={styles.permissionActions}>
+          <Button
+            title={blocked ? 'Open Settings' : 'Allow camera access'}
+            onPress={() => {
+              if (blocked) {
+                Linking.openSettings();
+              } else {
+                requestPermission();
+              }
+            }}
+          />
+        </View>
+
+        <Text style={styles.permissionNote}>
+          No camera? Ask your manager to record the shift for you.
+        </Text>
       </View>
     );
   }
@@ -92,6 +123,39 @@ const styles = StyleSheet.create({
   camera: {flex: 1},
   footer: {padding: spacing.lg, gap: spacing.sm},
   message: {padding: spacing.lg, fontSize: 15, color: colors.textMuted},
+  permission: {
+    flex: 1,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xl,
+    gap: spacing.sm,
+  },
+  permissionIcon: {
+    width: 76,
+    height: 76,
+    borderRadius: 999,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+  },
+  permissionTitle: {fontSize: 20, fontWeight: '700', color: colors.text},
+  permissionBody: {
+    fontSize: 15,
+    color: colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  permissionActions: {alignSelf: 'stretch', marginTop: spacing.lg},
+  permissionNote: {
+    fontSize: 13,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: spacing.md,
+  },
   hint: {textAlign: 'center', color: colors.textMuted},
   error: {textAlign: 'center', color: colors.danger, fontWeight: '600'},
 });

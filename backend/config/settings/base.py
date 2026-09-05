@@ -193,6 +193,10 @@ SPECTACULAR_SETTINGS = {
 # ---------------------------------------------------------------------------
 # Email
 # ---------------------------------------------------------------------------
+#: The address outgoing mail is sent FROM - one account belonging to the app,
+#: not anything a user supplies. Gmail's SMTP will only accept a From that
+#: matches the authenticated EMAIL_HOST_USER (or one of its verified aliases);
+#: anything else is rewritten or rejected, so keep the two in step.
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Invisiko <no-reply@invisiko.app>")
 
 #: Where a password-reset email points. The mobile app registers the `invisiko`
@@ -239,5 +243,4 @@ MAILERS = {
         },
     }
 }
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@example.com")
 GOOGLE_CLIENT_ID = env("GOOGLE_CLIENT_ID", default="")

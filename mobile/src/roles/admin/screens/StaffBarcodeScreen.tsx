@@ -17,6 +17,7 @@ import {
 } from '../../../features/attendance/hooks';
 import {useAuthStore} from '../../../store/authStore';
 import {colors, spacing} from '../../../theme';
+import {roundCoordinate} from '../../../utils/coords';
 
 /**
  * The venue's single check-in QR code, printed and displayed at the door.
@@ -105,8 +106,10 @@ function CreateQrCodeForm(): React.JSX.Element {
       return;
     }
     const position = await Location.getCurrentPositionAsync({});
-    setLatitude(String(position.coords.latitude));
-    setLongitude(String(position.coords.longitude));
+    // Six decimals is what the column holds, and showing more in the field
+    // than gets stored just invites a mismatch when it is read back.
+    setLatitude(String(roundCoordinate(position.coords.latitude)));
+    setLongitude(String(roundCoordinate(position.coords.longitude)));
   }
 
   async function onSubmit() {
