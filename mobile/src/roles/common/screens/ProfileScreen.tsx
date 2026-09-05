@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {Image, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {Image, Linking, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {Ionicons} from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -54,6 +54,7 @@ export function ProfileScreen(): React.JSX.Element {
   const [photoSheet, setPhotoSheet] = useState(false);
   const [signOutOpen, setSignOutOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [settingsPrompt, setSettingsPrompt] = useState<string | null>(null);
 
   // The navigator only mounts this behind a session, so a null user means the
   // session was torn down mid-render. The navigator is already swapping this
@@ -95,6 +96,7 @@ export function ProfileScreen(): React.JSX.Element {
   async function pickPhoto(source: 'camera' | 'library') {
     setPhotoSheet(false);
     setError(null);
+    setSettingsPrompt(null);
 
     // Permission is requested at the moment of use rather than on mount: a
     // prompt that appears before anyone asked for the camera is the one people
@@ -105,10 +107,15 @@ export function ProfileScreen(): React.JSX.Element {
         : await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (!permission.granted) {
-      setError(
+      // Telling someone to visit Settings without taking them there is a dead
+      // end - especially once the OS has stopped asking, when there is no
+      // other route back.
+      const what = source === 'camera' ? 'Camera' : 'Photo';
+      setError(`${what} access is off for Invisiko.`);
+      setSettingsPrompt(
         source === 'camera'
-          ? 'Camera access is off for Invisiko. Turn it on in Settings to take a photo.'
-          : 'Photo access is off for Invisiko. Turn it on in Settings to choose a picture.',
+          ? 'Turn on camera access to take a profile photo.'
+          : 'Turn on photo access to choose a profile photo.',
       );
       return;
     }
@@ -188,6 +195,17 @@ export function ProfileScreen(): React.JSX.Element {
       </View>
 
       <FormError message={error} />
+
+      {settingsPrompt ? (
+        <View style={styles.settingsBox}>
+          <Text style={styles.settingsText}>{settingsPrompt}</Text>
+          <PrimaryButton
+            label="Open Settings"
+            variant="secondary"
+            onPress={() => Linking.openSettings()}
+          />
+        </View>
+      ) : null}
 
       <View style={styles.card}>
         <View style={styles.cardHead}>
@@ -396,4 +414,13 @@ const styles = StyleSheet.create({
   },
   warningText: {...typography.caption, color: colors.textMuted, flex: 1},
   actions: {marginTop: spacing.sm},
+  settingsBox: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  settingsText: {...typography.caption, color: colors.textMuted},
 });
