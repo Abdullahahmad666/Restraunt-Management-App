@@ -13,7 +13,7 @@ import type {AdminStackParamList} from '../../../navigation/types';
 
 type Nav = NativeStackNavigationProp<AdminStackParamList>;
 
-/** The manual alternative to an invite link - an admin fills in someone's
+/** The manual alternative to an invite code - an admin fills in someone's
  * details directly rather than waiting for them to sign up themselves. */
 export function AddStaffScreen(): React.JSX.Element {
   const navigation = useNavigation<Nav>();
