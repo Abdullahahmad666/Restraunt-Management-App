@@ -9,6 +9,7 @@ import {EmptyState} from '../../../components/EmptyState';
 import {ErrorState} from '../../../components/ErrorState';
 import {LoadingView} from '../../../components/LoadingView';
 import {Screen} from '../../../components/Screen';
+import {ScreenHeader} from '../../../components/ScreenHeader';
 import {describeApiError} from '../../../api/errors';
 import {useLiveLogs, useShifts} from '../../../features/attendance/hooks';
 import {useStaffAccounts} from '../../../features/staff/hooks';
@@ -48,8 +49,15 @@ export function AttendanceLiveScreen(): React.JSX.Element {
 
   return (
     <Screen onRefresh={() => live.refetch()} refreshing={live.isRefetching}>
+      <ScreenHeader
+        icon="pulse"
+        title="On shift now"
+        subtitle={logs.length === 1 ? '1 person is checked in' : `${logs.length} people checked in`}
+      />
+
       {logs.length === 0 ? (
         <EmptyState
+          icon="moon"
           title="Nobody is checked in"
           body="Staff on shift will show up here as soon as they scan in."
         />

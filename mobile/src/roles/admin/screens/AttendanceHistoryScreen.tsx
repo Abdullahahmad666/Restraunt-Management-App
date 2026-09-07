@@ -1,19 +1,22 @@
 import React, {useState} from 'react';
-import {Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {useNavigation, useRoute, type RouteProp} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
 import {Badge} from '../../../components/Badge';
 import {Card} from '../../../components/Card';
+import {Chip, ChipRow} from '../../../components/Chip';
 import {EmptyState} from '../../../components/EmptyState';
 import {ErrorState} from '../../../components/ErrorState';
 import {LoadingView} from '../../../components/LoadingView';
 import {Screen} from '../../../components/Screen';
+import {ScreenHeader} from '../../../components/ScreenHeader';
+import {SectionLabel} from '../../../components/SectionLabel';
 import {describeApiError} from '../../../api/errors';
 import {useAttendanceLogs} from '../../../features/attendance/hooks';
 import type {AttendanceStatus} from '../../../features/attendance/types';
 import {useStaffAccounts} from '../../../features/staff/hooks';
-import {colors, radii, spacing} from '../../../theme';
+import {colors, typography} from '../../../theme';
 import {formatDateTime, fullName} from '../../../utils/format';
 import type {AdminStackParamList} from '../../../navigation/types';
 
@@ -40,37 +43,41 @@ export function AttendanceHistoryScreen(): React.JSX.Element {
 
   return (
     <Screen onRefresh={() => logs.refetch()} refreshing={logs.isRefetching}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
-        <Pressable
-          onPress={() => setStaffFilter(undefined)}
-          style={[styles.chip, !staffFilter && styles.chipActive]}>
-          <Text style={[styles.chipLabel, !staffFilter && styles.chipLabelActive]}>Everyone</Text>
-        </Pressable>
-        {staff.data?.results.map(member => (
-          <Pressable
-            key={member.id}
-            onPress={() => setStaffFilter(member.id)}
-            style={[styles.chip, staffFilter === member.id && styles.chipActive]}>
-            <Text style={[styles.chipLabel, staffFilter === member.id && styles.chipLabelActive]}>
-              {fullName(member)}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+      <ScreenHeader
+        icon="time"
+        title="Attendance"
+        subtitle="Past shifts, and any corrections made to them."
+      />
 
-      <View style={styles.chipRow}>
-        {STATUS_FILTERS.map(filter => (
-          <Pressable
-            key={filter.label}
-            onPress={() => setStatusFilter(filter.value)}
-            style={[styles.chip, statusFilter === filter.value && styles.chipActive]}>
-            <Text
-              style={[styles.chipLabel, statusFilter === filter.value && styles.chipLabelActive]}>
-              {filter.label}
-            </Text>
-          </Pressable>
+      {/*
+        Wrapping rows rather than the horizontal scroll strip this replaces.
+        A filter that sits off the right edge is one nobody knows exists, and
+        a scroll strip gives no hint there is more of it.
+      */}
+      <SectionLabel label="Who" />
+      <ChipRow>
+        <Chip label="Everyone" selected={!staffFilter} onPress={() => setStaffFilter(undefined)} />
+        {staff.data?.results.map(member => (
+          <Chip
+            key={member.id}
+            label={fullName(member)}
+            selected={staffFilter === member.id}
+            onPress={() => setStaffFilter(member.id)}
+          />
         ))}
-      </View>
+      </ChipRow>
+
+      <SectionLabel label="Status" />
+      <ChipRow>
+        {STATUS_FILTERS.map(filter => (
+          <Chip
+            key={filter.label}
+            label={filter.label}
+            selected={statusFilter === filter.value}
+            onPress={() => setStatusFilter(filter.value)}
+          />
+        ))}
+      </ChipRow>
 
       {logs.isLoading ? (
         <LoadingView />
@@ -110,20 +117,8 @@ export function AttendanceHistoryScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  chipRow: {flexDirection: 'row', gap: spacing.xs},
-  chip: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.lg,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    marginRight: spacing.xs,
-  },
-  chipActive: {backgroundColor: colors.primary, borderColor: colors.primary},
-  chipLabel: {fontSize: 13, color: colors.text},
-  chipLabelActive: {color: '#FFFFFF', fontWeight: '600'},
   rowHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
-  rowTitle: {fontSize: 15, fontWeight: '600', color: colors.text},
-  rowBody: {fontSize: 14, color: colors.textMuted},
+  rowTitle: {...typography.body, fontWeight: '600', color: colors.text},
+  rowBody: {...typography.caption, fontSize: 14, color: colors.textMuted},
   rowNote: {fontSize: 12, color: colors.warning, fontWeight: '600'},
 });

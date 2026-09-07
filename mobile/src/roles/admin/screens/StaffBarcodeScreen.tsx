@@ -8,6 +8,7 @@ import {Card} from '../../../components/Card';
 import {ErrorState} from '../../../components/ErrorState';
 import {LoadingView} from '../../../components/LoadingView';
 import {Screen} from '../../../components/Screen';
+import {ScreenHeader} from '../../../components/ScreenHeader';
 import {TextField} from '../../../components/TextField';
 import {describeApiError} from '../../../api/errors';
 import {
@@ -16,7 +17,7 @@ import {
   useVenueQrCodes,
 } from '../../../features/attendance/hooks';
 import {useAuthStore} from '../../../store/authStore';
-import {colors, spacing} from '../../../theme';
+import {colors, spacing, typography} from '../../../theme';
 import {roundCoordinate} from '../../../utils/coords';
 
 /**
@@ -132,7 +133,11 @@ function CreateQrCodeForm(): React.JSX.Element {
 
   return (
     <Screen scroll>
-      <Text style={styles.heading}>No check-in code yet</Text>
+      <ScreenHeader
+        icon="qr-code"
+        title="No check-in code yet"
+        subtitle="One code for the venue, not one per person."
+      />
       <Text style={styles.hint}>
         Set the venue's position - staff must be within this radius to check in.
       </Text>
@@ -179,9 +184,8 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   qrWrap: {backgroundColor: '#FFFFFF', padding: spacing.lg, borderRadius: 12},
-  heading: {fontSize: 20, fontWeight: '700', color: colors.text},
-  hint: {fontSize: 14, color: colors.textMuted, textAlign: 'center'},
-  row: {fontSize: 14, color: colors.text},
+  hint: {...typography.caption, fontSize: 14, color: colors.textMuted, textAlign: 'center'},
+  row: {...typography.caption, fontSize: 14, color: colors.text},
   warning: {fontSize: 12, color: colors.warning, textAlign: 'center'},
   error: {color: colors.danger, textAlign: 'center'},
 });

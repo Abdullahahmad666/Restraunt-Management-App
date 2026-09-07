@@ -9,6 +9,7 @@ import {Card} from '../../../components/Card';
 import {ErrorState} from '../../../components/ErrorState';
 import {LoadingView} from '../../../components/LoadingView';
 import {Screen} from '../../../components/Screen';
+import {ScreenHeader} from '../../../components/ScreenHeader';
 import {TextField} from '../../../components/TextField';
 import {describeApiError} from '../../../api/errors';
 import {
@@ -19,7 +20,7 @@ import {
   useUpdateLog,
 } from '../../../features/attendance/hooks';
 import {JOB_TITLE_LABELS, type JobTitle} from '../../../features/attendance/types';
-import {colors, spacing} from '../../../theme';
+import {colors, spacing, typography} from '../../../theme';
 import {formatTime} from '../../../utils/format';
 import type {AdminStackParamList} from '../../../navigation/types';
 
@@ -74,8 +75,11 @@ function EditLog({logId, onDone}: {logId: string; onDone: () => void}): React.JS
 
   return (
     <Screen scroll>
-      <Text style={styles.heading}>Correct record</Text>
-      <Text style={styles.hint}>Currently: {new Date(log.clock_in_at).toLocaleString()}</Text>
+      <ScreenHeader
+        icon="create"
+        title="Correct record"
+        subtitle={`Currently: ${new Date(log.clock_in_at).toLocaleString()}`}
+      />
 
       <TextField
         label="New check-in (leave blank to keep)"
@@ -199,7 +203,7 @@ function AddShift({staffId, onDone}: {staffId: string; onDone: () => void}): Rea
 
   return (
     <Screen scroll>
-      <Text style={styles.heading}>Add shifts</Text>
+      <ScreenHeader icon="calendar" title="Add shifts" />
       <Text style={styles.hint}>
         Pick the day or days this person is working, then set one start and end time to apply to all
         of them.
@@ -335,7 +339,6 @@ function TimePickerField({
 }
 
 const styles = StyleSheet.create({
-  heading: {fontSize: 22, fontWeight: '700', color: colors.text},
   hint: {fontSize: 13, color: colors.textMuted},
   label: {fontSize: 13, fontWeight: '600', color: colors.textMuted},
   error: {color: colors.danger},
@@ -351,7 +354,7 @@ const styles = StyleSheet.create({
     minWidth: 52,
   },
   dayChipWeekday: {fontSize: 12, color: colors.textMuted},
-  dayChipNum: {fontSize: 16, fontWeight: '700', color: colors.text},
+  dayChipNum: {...typography.body, fontWeight: '700', color: colors.text},
 
   chipRow: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm},
   chip: {
@@ -361,7 +364,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
   },
-  chipText: {fontSize: 14, color: colors.text},
+  chipText: {...typography.caption, fontSize: 14, color: colors.text},
   chipSelected: {backgroundColor: colors.primary, borderColor: colors.primary},
   chipTextSelected: {color: '#FFFFFF', fontWeight: '700'},
 
@@ -374,11 +377,11 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     alignItems: 'center',
   },
-  timeButtonText: {fontSize: 16, color: colors.text, fontWeight: '600'},
+  timeButtonText: {...typography.body, fontWeight: '600', color: colors.text},
 
   existing: {gap: spacing.sm},
   shiftRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
-  rowTitle: {fontSize: 16, fontWeight: '600', color: colors.text},
+  rowTitle: {...typography.body, fontWeight: '600', color: colors.text},
   rowBody: {fontSize: 13, color: colors.textMuted},
   removeLink: {fontSize: 13, color: colors.danger, fontWeight: '600'},
 });

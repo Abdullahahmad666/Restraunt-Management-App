@@ -6,7 +6,7 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {Badge} from '../../../components/Badge';
 import {Button} from '../../../components/Button';
 import {Card} from '../../../components/Card';
-import {colors, spacing} from '../../../theme';
+import {colors, spacing, typography} from '../../../theme';
 import {formatTime} from '../../../utils/format';
 import type {StaffStackParamList} from '../../../navigation/types';
 
@@ -52,7 +52,7 @@ export function ScanResultScreen(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   container: {flex: 1, padding: spacing.lg, gap: spacing.md, justifyContent: 'center'},
-  heading: {fontSize: 26, fontWeight: '700', color: colors.text},
-  body: {fontSize: 15, color: colors.textMuted},
-  row: {fontSize: 15, color: colors.text},
+  heading: {...typography.title, color: colors.text},
+  body: {...typography.body, fontSize: 15, color: colors.textMuted},
+  row: {...typography.body, fontSize: 15, color: colors.text},
 });

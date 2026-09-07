@@ -8,6 +8,8 @@ import {EmptyState} from '../../../components/EmptyState';
 import {ErrorState} from '../../../components/ErrorState';
 import {LoadingView} from '../../../components/LoadingView';
 import {Screen} from '../../../components/Screen';
+import {ScreenHeader} from '../../../components/ScreenHeader';
+import {SectionLabel} from '../../../components/SectionLabel';
 import {TextField} from '../../../components/TextField';
 import {describeApiError} from '../../../api/errors';
 import {
@@ -20,7 +22,7 @@ import {
 } from '../../../features/payroll/hooks';
 import type {PayPeriod, PayPeriodStatus} from '../../../features/payroll/types';
 import {useAuthStore} from '../../../store/authStore';
-import {colors, spacing} from '../../../theme';
+import {colors, spacing, typography} from '../../../theme';
 import {formatCurrency, formatDate, formatHours} from '../../../utils/format';
 
 const STATUS_TONE: Record<PayPeriodStatus, 'neutral' | 'success' | 'warning'> = {
@@ -36,7 +38,11 @@ export function PayrollScreen(): React.JSX.Element {
 
   return (
     <Screen onRefresh={() => periods.refetch()} refreshing={periods.isRefetching}>
-      <Text style={styles.heading}>Pay periods</Text>
+      <ScreenHeader
+        icon="cash"
+        title="Payroll"
+        subtitle="Open a period, close it, then mark it paid."
+      />
       <NewPeriodForm />
 
       {periods.isLoading ? (
@@ -47,7 +53,7 @@ export function PayrollScreen(): React.JSX.Element {
           onRetry={() => periods.refetch()}
         />
       ) : periods.data?.results.length === 0 ? (
-        <EmptyState title="No pay periods yet" body="Open the first one above." />
+        <EmptyState icon="calendar" title="No pay periods yet" body="Open the first one above." />
       ) : (
         periods.data?.results.map(period => (
           <PeriodRow
@@ -59,7 +65,7 @@ export function PayrollScreen(): React.JSX.Element {
         ))
       )}
 
-      <Text style={styles.heading}>Monthly cost report</Text>
+      <SectionLabel label="Monthly cost report" />
       <CostReportCard />
     </Screen>
   );
@@ -223,9 +229,8 @@ function CostReportCard(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  heading: {fontSize: 18, fontWeight: '700', color: colors.text, marginTop: spacing.sm},
   rowHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
-  rowTitle: {fontSize: 15, fontWeight: '600', color: colors.text},
+  rowTitle: {...typography.body, fontWeight: '600', color: colors.text},
   entryRow: {fontSize: 13, color: colors.textMuted},
   expanded: {marginTop: spacing.sm, gap: spacing.sm},
   formActions: {flexDirection: 'row', gap: spacing.sm},
