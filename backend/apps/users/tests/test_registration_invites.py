@@ -451,17 +451,32 @@ def test_invite_lookup_falls_back_when_the_inviter_has_no_name_on_file(client, r
 
 
 # ---------------------------------------------------------------------------
-# invite_link on the admin-facing serializer
+# The admin-facing serializer: the code is the whole invite
 # ---------------------------------------------------------------------------
-def test_invite_serializer_builds_a_shareable_link(restaurant, settings):
+def test_invite_serializer_serves_the_code(restaurant):
     from apps.users.api.serializers import InviteCodeSerializer
 
-    settings.INVITE_URL = "invisiko://join"
     invite = make_invite(restaurant, role=Role.STAFF)
 
     data = InviteCodeSerializer(invite).data
 
-    assert data["invite_link"] == f"invisiko://join?code={invite.code}"
+    assert data["code"] == invite.code
+    assert data["is_usable"] is True
+
+
+def test_invite_serializer_serves_no_link(restaurant):
+    """A deep link is not something an invite can rely on.
+
+    `invisiko://join?code=..` does nothing on a phone without the app - the
+    only kind of phone an invite is ever sent to - so every share had to carry
+    the bare code as well. Serving a link alongside it only invited someone to
+    share the half that does not work.
+    """
+    from apps.users.api.serializers import InviteCodeSerializer
+
+    data = InviteCodeSerializer(make_invite(restaurant, role=Role.STAFF)).data
+
+    assert "invite_link" not in data
 
 
 # ---------------------------------------------------------------------------
@@ -485,5 +500,5 @@ def test_an_admin_can_issue_a_staff_invite_through_the_api(client, restaurant, d
     response = client.post(reverse("v1:admin:users:invite-code-list"), {"role": Role.STAFF})
 
     assert response.status_code == 201, response.data
-    assert response.data["invite_link"].endswith(response.data["code"])
+    assert response.data["code"]
     assert response.data["expires_at"] is not None

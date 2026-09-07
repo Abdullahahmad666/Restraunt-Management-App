@@ -203,10 +203,6 @@ DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Invisiko <no-reply@invis
 #: scheme, so this opens the reset screen directly rather than a web page.
 PASSWORD_RESET_URL = env("PASSWORD_RESET_URL", default="invisiko://reset-password")
 
-#: Where a staff invite link points. An admin shares this (via WhatsApp, SMS,
-#: whatever) rather than reading a code aloud - see InviteCodeSerializer.
-INVITE_URL = env("INVITE_URL", default="invisiko://join")
-
 CORS_ALLOWED_ORIGINS = env("CORS_ALLOWED_ORIGINS")
 
 # ---------------------------------------------------------------------------

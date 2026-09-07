@@ -261,15 +261,24 @@ class GoogleLoginSerializer(serializers.Serializer):
 
 
 class InviteCodeSerializer(serializers.ModelSerializer):
+    """The admin's view of an invite: the code and nothing else.
+
+    There used to be a prebuilt `invisiko://join?code=..` link here too. It was
+    never the thing that worked: a custom scheme does nothing on a phone that
+    does not have the app yet, which is precisely who an invite is aimed at,
+    and nothing at all in Expo Go. Every share therefore had to carry the code
+    anyway, and the link beside it was one more thing to explain. The code is
+    eight characters someone can read out over the phone - that is the whole
+    invite now.
+    """
+
     is_usable = serializers.BooleanField(read_only=True)
-    invite_link = serializers.SerializerMethodField()
 
     class Meta:
         model = InviteCode
         fields = (
             "id",
             "code",
-            "invite_link",
             "role",
             "restaurant",
             "expires_at",
@@ -280,16 +289,12 @@ class InviteCodeSerializer(serializers.ModelSerializer):
         read_only_fields = (
             "id",
             "code",
-            "invite_link",
             "restaurant",
             "expires_at",
             "used_at",
             "is_usable",
             "created_at",
         )
-
-    def get_invite_link(self, obj) -> str:
-        return f"{settings.INVITE_URL}?code={obj.code}"
 
     def validate_role(self, value):
         if value not in {Role.STAFF, Role.ADMIN}:
