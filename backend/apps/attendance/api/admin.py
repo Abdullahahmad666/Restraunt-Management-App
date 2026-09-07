@@ -10,6 +10,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.attendance import models, selectors
+from apps.common.api.fields import LatitudeField, LongitudeField
 from apps.common.api.viewsets import AdminViewSet, RestaurantScopedQuerysetMixin
 
 from .common import BaseAttendanceLogSerializer, BaseShiftSerializer
@@ -92,10 +93,10 @@ class AdminAttendanceLogViewSet(RestaurantScopedQuerysetMixin, AdminViewSet):
 
 
 class AdminVenueQRCodeSerializer(serializers.ModelSerializer):
-    latitude = serializers.DecimalField(max_digits=9, decimal_places=6, min_value=-90, max_value=90)
-    longitude = serializers.DecimalField(
-        max_digits=9, decimal_places=6, min_value=-180, max_value=180
-    )
+    # Same reason as the scan endpoint: the admin's phone supplies the venue
+    # position from its own GPS, at whatever precision it happens to have.
+    latitude = LatitudeField()
+    longitude = LongitudeField()
 
     class Meta:
         model = models.VenueQRCode

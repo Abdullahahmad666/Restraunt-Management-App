@@ -1,5 +1,5 @@
 import React from 'react';
-import {Image, StyleSheet, Text, View} from 'react-native';
+import {Image, Pressable, StyleSheet, Text, View} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
@@ -48,6 +48,19 @@ export function WelcomeScreen(): React.JSX.Element {
             variant="secondary"
             onPress={() => navigation.navigate('Login')}
           />
+
+          {/*
+            Staff invited by a manager land here when the invite link did not
+            open the app - a custom scheme does nothing without the app
+            installed, which is exactly the person an invite is aimed at.
+            They can type the code that came with it instead.
+          */}
+          <Pressable
+            onPress={() => navigation.navigate('Join', {})}
+            hitSlop={8}
+            style={styles.inviteLink}>
+            <Text style={styles.inviteText}>Have an invite code?</Text>
+          </Pressable>
         </View>
       </View>
     </View>
@@ -55,6 +68,8 @@ export function WelcomeScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
+  inviteLink: {alignSelf: 'center', paddingVertical: spacing.sm},
+  inviteText: {fontSize: 14, fontWeight: '600', color: colors.primary},
   screen: {flex: 1, backgroundColor: colors.background},
   hero: {flex: 1, alignItems: 'center', justifyContent: 'center'},
   logo: {width: 160, height: 160},

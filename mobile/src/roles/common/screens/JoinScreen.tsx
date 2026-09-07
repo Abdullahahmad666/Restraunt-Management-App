@@ -50,11 +50,12 @@ function fieldErrors(error: unknown): Record<string, string> {
 }
 
 /**
- * Reached only by tapping an admin's shared invite link - there is no way to
- * navigate here from inside the app, on purpose. Staff never type a code or
- * pick a restaurant; both travel invisibly in the link, and this screen's
- * whole job is to turn that into "Your name, email, password" and nothing
- * else.
+ * Reached by tapping an admin's shared invite link, or from Welcome for
+ * anyone whose link did not open the app - a custom scheme does nothing on a
+ * phone without the app installed, and nothing in Expo Go at all.
+ *
+ * Either way the restaurant is never chosen by hand: it comes from the code,
+ * so this screen's job is "Your name, email, password" and nothing else.
  */
 export function JoinScreen(): React.JSX.Element {
   const navigation = useNavigation<Nav>();
@@ -62,7 +63,15 @@ export function JoinScreen(): React.JSX.Element {
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
 
-  const code = params?.code;
+  // The code arrives either in the link or typed by hand. Typing has to be
+  // possible: the link uses a custom scheme, so it does nothing on a phone
+  // that does not have the app yet - which is most of an invite's audience -
+  // and it does nothing in Expo Go at all, since Expo Go cannot claim the
+  // scheme. Without this the shared "enter this code" instruction was a lie.
+  const [typedCode, setTypedCode] = useState('');
+  const [submittedCode, setSubmittedCode] = useState(params?.code ?? '');
+
+  const code = submittedCode || undefined;
   const invite = useInviteInfo(code);
 
   const [yourName, setYourName] = useState('');
@@ -114,17 +123,43 @@ export function JoinScreen(): React.JSX.Element {
     }
   }
 
-  // Opened directly, or the link got mangled somewhere along the way - not
-  // "invalid code" (the server hasn't been asked yet), just nothing to ask it.
+  // No code yet - not "invalid code", the server has not been asked anything.
+  // Ask for one rather than dead-ending.
   if (!code) {
+    const trimmed = typedCode.trim().toUpperCase();
     return (
       <AuthScreen>
-        <BrandHeader compact subtitle="Invite link needed" />
+        <BrandHeader compact subtitle="Join your team" />
         <Text style={styles.intro}>
-          You need an invite link from your manager to join their team. Ask them to send you one
-          from the Team screen.
+          Enter the invite code your manager sent you. It is eight characters, and comes with the
+          invite link.
         </Text>
-        <PrimaryButton label="Back to sign in" onPress={() => navigation.navigate('Login')} />
+
+        <View style={styles.form}>
+          <Field
+            label="Invite code"
+            placeholder="ABCD2345"
+            autoCapitalize="characters"
+            autoCorrect={false}
+            autoFocus
+            maxLength={16}
+            returnKeyType="go"
+            value={typedCode}
+            onChangeText={setTypedCode}
+            onSubmitEditing={() => trimmed && setSubmittedCode(trimmed)}
+          />
+
+          <PrimaryButton
+            label="Continue"
+            onPress={() => setSubmittedCode(trimmed)}
+            disabled={trimmed.length === 0}
+          />
+          <PrimaryButton
+            label="Back to sign in"
+            variant="secondary"
+            onPress={() => navigation.navigate('Login')}
+          />
+        </View>
       </AuthScreen>
     );
   }
@@ -143,7 +178,20 @@ export function JoinScreen(): React.JSX.Element {
             : "This invite link couldn't be found. It may have expired."}{' '}
           Ask your manager to send you a new one.
         </Text>
-        <PrimaryButton label="Back to sign in" onPress={() => navigation.navigate('Login')} />
+        <View style={styles.form}>
+          <PrimaryButton
+            label="Try a different code"
+            onPress={() => {
+              setSubmittedCode('');
+              setTypedCode('');
+            }}
+          />
+          <PrimaryButton
+            label="Back to sign in"
+            variant="secondary"
+            onPress={() => navigation.navigate('Login')}
+          />
+        </View>
       </AuthScreen>
     );
   }

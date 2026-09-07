@@ -1,12 +1,7 @@
 import logging
 
-from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.contrib.auth.tokens import default_token_generator
-from django.core.mail import send_mail
 from django.shortcuts import get_object_or_404
-from django.utils.encoding import force_bytes
-from django.utils.http import urlsafe_base64_encode
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, permissions, status
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
@@ -15,6 +10,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
+from apps.users.emails import send_password_reset_email
 from apps.users.models import InviteCode
 
 from .serializers import (
@@ -173,42 +169,12 @@ class PasswordResetRequestView(generics.GenericAPIView):
         ).first()
 
         if user is not None:
-            self._send_reset_email(user)
+            send_password_reset_email(user)
 
         return Response(
             self.generic_response,
             status=status.HTTP_200_OK,
         )
-
-    def _send_reset_email(self, user):
-        uid = urlsafe_base64_encode(force_bytes(user.pk))
-        token = default_token_generator.make_token(user)
-
-        deep_link = f"{settings.PASSWORD_RESET_URL}?uid={uid}&token={token}"
-
-        try:
-            send_mail(
-                subject="Reset your Invisiko password",
-                message="\n\n".join(
-                    [
-                        f"Hello {user.first_name or user.email},",
-                        (
-                            "Use the link below to choose a new password. "
-                            "It expires in a few hours and can only be used once."
-                        ),
-                        deep_link,
-                        (
-                            "If you did not ask for this, you can ignore "
-                            "this email - your password has not changed."
-                        ),
-                    ]
-                ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                fail_silently=False,
-            )
-        except Exception:
-            logger.exception("Failed to send a password reset email")
 
 
 class PasswordResetConfirmView(generics.GenericAPIView):

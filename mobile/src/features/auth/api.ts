@@ -1,4 +1,7 @@
+import axios from 'axios';
+
 import {apiClient} from '../../api/client';
+import {env} from '../../config/env';
 import {endpoints} from '../../api/endpoints';
 import type {LoginResponse, Role, User} from '../../types/api';
 
@@ -12,8 +15,28 @@ export async function fetchMe(): Promise<User> {
   return data;
 }
 
+/**
+ * Blacklist a refresh token server-side.
+ *
+ * Uses bare axios rather than apiClient on purpose. Through the shared client a
+ * 401 here triggers the response interceptor, which refreshes - rotating the
+ * very token this request is trying to blacklist, and producing a second,
+ * confusing 401 in the server log right after the first.
+ *
+ * A rejection is swallowed because the goal is "this token can no longer be
+ * used". If the server says the token is already invalid, that goal is met -
+ * failing here would only stop someone signing out on their own device.
+ */
 export async function logout(refresh: string): Promise<void> {
-  await apiClient.post(endpoints.auth.logout, {refresh});
+  try {
+    await axios.post(
+      `${env.apiBaseUrl}${endpoints.auth.logout}`,
+      {refresh},
+      {timeout: env.apiTimeoutMs, headers: {'Content-Type': 'application/json'}},
+    );
+  } catch {
+    // Already expired, already blacklisted, or unreachable - all fine.
+  }
 }
 
 export type RegisterPayload = {

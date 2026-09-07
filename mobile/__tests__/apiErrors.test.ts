@@ -51,11 +51,30 @@ describe('describeApiError', () => {
     expect(message).toBe('Nope.');
   });
 
+  it('passes non_field_errors through without a field name', () => {
+    // The unverified-email message arrives this way and reads as a sentence.
+    const message = describeApiError(
+      axiosError({
+        status: 400,
+        data: {non_field_errors: ['Please verify your email before logging in.']},
+      }),
+    );
+    expect(message).toBe('Please verify your email before logging in.');
+  });
+
+  it('names the field for a field-level error', () => {
+    // "This field is required." on a six-input form says nothing on its own.
+    const message = describeApiError(
+      axiosError({status: 400, data: {invite_code: ['This field is required.']}}),
+    );
+    expect(message).toBe('Invite code: This field is required.');
+  });
+
   it('surfaces the first DRF field error', () => {
     const message = describeApiError(
       axiosError({status: 400, data: {email: ['Enter a valid email address.']}}),
     );
-    expect(message).toBe('Enter a valid email address.');
+    expect(message).toBe('Email: Enter a valid email address.');
   });
 
   it('falls back for a non-axios throw', () => {

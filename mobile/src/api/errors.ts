@@ -11,6 +11,12 @@ import type {ApiErrorBody} from '../types/api';
  * to a `catch` block but need completely different actions, and guessing wrong
  * costs whoever is debugging it an afternoon.
  */
+/** invite_code -> "Invite code", so a field name can be shown to a person. */
+function humanise(field: string): string {
+  const spaced = field.replace(/_/g, ' ').trim();
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
 export function describeApiError(error: unknown, fallback = 'Something went wrong.'): string {
   if (!axios.isAxiosError(error)) {
     return fallback;
@@ -57,13 +63,28 @@ export function describeApiError(error: unknown, fallback = 'Something went wron
     return `The server hit an error (${status}). This is a bug, not something you did.`;
   }
 
-  // 400-level: surface the field message DRF actually sent rather than inventing one.
+  // 400-level: surface what DRF actually said rather than inventing a message.
   if (body?.detail) {
     return body.detail;
   }
+
+  // non_field_errors is the whole-form case - "Please verify your email before
+  // logging in" arrives here - and needs no field name in front of it.
+  const formLevel = body?.non_field_errors;
+  if (Array.isArray(formLevel) && typeof formLevel[0] === 'string') {
+    return formLevel[0];
+  }
+
   const firstField = body && Object.entries(body).find(([, v]) => Array.isArray(v) && v.length);
   if (firstField) {
-    return (firstField[1] as string[])[0] ?? fallback;
+    const [field, messages] = firstField;
+    const message = (messages as string[])[0];
+    if (!message) {
+      return fallback;
+    }
+    // Name the field, because a bare "This field is required." on a form with
+    // six inputs tells someone nothing about which one to look at.
+    return `${humanise(field)}: ${message}`;
   }
 
   return fallback;

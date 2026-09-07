@@ -4,12 +4,13 @@ Mounted at /api/v1/admin/users/.
 """
 
 from django.contrib.auth import get_user_model
-from django.utils.crypto import get_random_string
+from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from apps.common.api.viewsets import AdminViewSet, RestaurantScopedQuerysetMixin
 from apps.common.roles import Role
+from apps.users.emails import send_account_setup_email
 from apps.users.models import InviteCode
 
 from .serializers import InviteCodeSerializer
@@ -19,6 +20,11 @@ User = get_user_model()
 
 class AdminStaffSerializer(serializers.ModelSerializer):
     """Creating a staff account here is how an admin adds a new employee.
+
+    Leaving `password` out - the normal case - emails the new person a link to
+    set their own, so the admin never handles it. Passing one explicitly is
+    supported for the occasions where an admin genuinely needs to hand over
+    credentials in person.
 
     Pay rates are set separately in the payroll app - this endpoint only
     owns the account itself (name, contact details, role, active flag).
@@ -41,9 +47,28 @@ class AdminStaffSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ("id", "created_at")
 
+    @transaction.atomic
     def create(self, validated_data):
-        password = validated_data.pop("password", None) or get_random_string(16)
-        return User.objects.create_user(password=password, **validated_data)
+        password = validated_data.pop("password", None)
+        user = User.objects.create_user(password=password or None, **validated_data)
+
+        if password:
+            # An admin set one explicitly. Their problem to communicate, and
+            # they clearly meant to.
+            return user
+
+        # Otherwise the new person sets their own via an emailed link, and
+        # nobody else ever knows it. The alternative - generating a password
+        # here - either strands the account, because there was no way to tell
+        # them what it is, or makes it a secret two people share. In an app
+        # where an account signs off attendance records that decide pay, that
+        # is not a detail.
+        user.set_unusable_password()
+        user.save(update_fields=["password"])
+
+        restaurant = getattr(user, "restaurant", None)
+        send_account_setup_email(user, restaurant_name=restaurant.name if restaurant else None)
+        return user
 
     def update(self, instance, validated_data):
         password = validated_data.pop("password", None)
