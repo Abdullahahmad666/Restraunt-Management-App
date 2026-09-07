@@ -1,4 +1,4 @@
-/** Calls to /admin/invite-codes/ - issuing and revoking staff invite links. */
+/** Calls to /admin/invite-codes/ - issuing and revoking staff invite codes. */
 import {apiClient} from '../../api/client';
 import {endpoints} from '../../api/endpoints';
 import {ROLES} from '../../types/roles';

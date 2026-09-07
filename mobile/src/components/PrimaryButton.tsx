@@ -39,7 +39,7 @@ export function PrimaryButton({
         variant === 'primary' && styles.primary,
         variant === 'secondary' && styles.secondary,
         variant === 'danger' && styles.danger,
-        pressed && !inactive && styles.pressed,
+        pressed && !inactive && (variant === 'primary' ? styles.pressedFilled : styles.pressed),
         inactive && styles.inactive,
       ]}>
       {loading ? (
@@ -77,6 +77,9 @@ const styles = StyleSheet.create({
     borderColor: colors.danger,
   },
   pressed: {opacity: 0.85},
+  // The filled variant darkens rather than fades: fading the app's one
+  // strong control looks like it is disabling itself mid-tap.
+  pressedFilled: {backgroundColor: colors.primaryPressed},
   inactive: {opacity: 0.5},
   label: {...typography.body, fontWeight: '700'},
   labelOnPrimary: {color: colors.onPrimary},

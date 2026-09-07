@@ -164,17 +164,31 @@ def test_a_valid_admin_code_creates_an_admin_in_that_restaurant(
     assert invite.is_used and invite.used_by_id == user.id
 
 
-def test_staff_can_register_with_no_code_but_get_no_restaurant(client, django_user_model):
-    """Allowed, but inert: every queryset is restaurant-scoped and fails closed."""
+def test_staff_cannot_register_without_a_code(client, django_user_model):
+    """An account with no restaurant can sign in and then see nothing.
+
+    Every staff queryset is restaurant-scoped and fails closed, so this used to
+    hand someone a working login onto an empty app with no way out but an admin
+    editing them in Django admin. Refusing is the kinder answer, and matches the
+    only real route in: an invite from a manager.
+    """
     response = client.post(
         reverse(REGISTER),
         {"email": "newbie@example.com", "password": PASSWORD},
     )
-    assert response.status_code == 201, response.data
+    assert response.status_code == 400
+    assert "invite_code" in response.data
+    assert not django_user_model.objects.filter(email="newbie@example.com").exists()
 
-    user = django_user_model.objects.get(email="newbie@example.com")
-    assert user.role == Role.STAFF
-    assert user.restaurant_id is None
+
+def test_a_blank_code_is_refused_the_same_way(client):
+    """The app sends "" for an untouched field - it must not read as "no code"."""
+    response = client.post(
+        reverse(REGISTER),
+        {"email": "newbie@example.com", "password": PASSWORD, "invite_code": ""},
+    )
+    assert response.status_code == 400
+    assert "invite_code" in response.data
 
 
 def test_a_staff_code_attaches_the_account_to_the_restaurant(client, restaurant, django_user_model):
@@ -373,8 +387,9 @@ def test_an_invite_code_takes_precedence_over_a_restaurant_name(
 
 
 def test_staff_cannot_start_a_new_restaurant_with_a_name_alone(client, django_user_model):
-    """restaurant_name is an admin-only path - staff joins via a code or not
-    at all, never by typing a takeaway name into existence."""
+    """restaurant_name is an admin-only path - staff join via a code, never by
+    typing a takeaway name into existence. Sending one is not an invite, so it
+    is refused for the same reason sending nothing is."""
     response = client.post(
         reverse(REGISTER),
         {
@@ -384,10 +399,10 @@ def test_staff_cannot_start_a_new_restaurant_with_a_name_alone(client, django_us
             "restaurant_name": "Golden Spice",
         },
     )
-    assert response.status_code == 201, response.data
-
-    user = django_user_model.objects.get(email="confused@example.com")
-    assert user.restaurant_id is None
+    assert response.status_code == 400
+    assert "invite_code" in response.data
+    assert not Restaurant.objects.filter(name="Golden Spice").exists()
+    assert not django_user_model.objects.filter(email="confused@example.com").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -451,17 +466,32 @@ def test_invite_lookup_falls_back_when_the_inviter_has_no_name_on_file(client, r
 
 
 # ---------------------------------------------------------------------------
-# invite_link on the admin-facing serializer
+# The admin-facing serializer: the code is the whole invite
 # ---------------------------------------------------------------------------
-def test_invite_serializer_builds_a_shareable_link(restaurant, settings):
+def test_invite_serializer_serves_the_code(restaurant):
     from apps.users.api.serializers import InviteCodeSerializer
 
-    settings.INVITE_URL = "invisiko://join"
     invite = make_invite(restaurant, role=Role.STAFF)
 
     data = InviteCodeSerializer(invite).data
 
-    assert data["invite_link"] == f"invisiko://join?code={invite.code}"
+    assert data["code"] == invite.code
+    assert data["is_usable"] is True
+
+
+def test_invite_serializer_serves_no_link(restaurant):
+    """A deep link is not something an invite can rely on.
+
+    `invisiko://join?code=..` does nothing on a phone without the app - the
+    only kind of phone an invite is ever sent to - so every share had to carry
+    the bare code as well. Serving a link alongside it only invited someone to
+    share the half that does not work.
+    """
+    from apps.users.api.serializers import InviteCodeSerializer
+
+    data = InviteCodeSerializer(make_invite(restaurant, role=Role.STAFF)).data
+
+    assert "invite_link" not in data
 
 
 # ---------------------------------------------------------------------------
@@ -485,5 +515,5 @@ def test_an_admin_can_issue_a_staff_invite_through_the_api(client, restaurant, d
     response = client.post(reverse("v1:admin:users:invite-code-list"), {"role": Role.STAFF})
 
     assert response.status_code == 201, response.data
-    assert response.data["invite_link"].endswith(response.data["code"])
+    assert response.data["code"]
     assert response.data["expires_at"] is not None

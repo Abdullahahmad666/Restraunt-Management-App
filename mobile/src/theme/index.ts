@@ -39,6 +39,10 @@ export const colors = {
   primaryPressed: '#D98202',
   primaryDisabled: '#6B4A12',
   onPrimary: brand.navy,
+  // Amber at low opacity: the ground behind an amber glyph in an IconBadge.
+  // Solid amber behind every icon would turn a list of rows into a wall of
+  // accent colour and leave nothing for the actual call to action.
+  primarySoft: 'rgba(254, 154, 2, 0.14)',
 
   // Status. Lightened from their usual values - mid-tone greens and reds go
   // muddy against a dark ground.
@@ -69,11 +73,77 @@ export const radii = {
   pill: 999,
 } as const;
 
+/**
+ * One type scale, used everywhere.
+ *
+ * The four entries this replaces covered so little that nine screens each
+ * wrote their own heading instead - 18, 20, 22, 24 and 26pt, in two different
+ * weights - and the app read as a set of unrelated pages rather than one
+ * product. Sizes step deliberately here; if a screen wants something that is
+ * not on the scale, the scale is wrong rather than the screen special.
+ *
+ * Every entry carries its own lineHeight. Leaving it to the platform is what
+ * makes dense screens look cramped and headings look loose, and it differs
+ * between iOS and Android, so the two never quite matched.
+ */
 export const typography = {
-  title: {fontSize: 28, fontWeight: '700'},
-  heading: {fontSize: 22, fontWeight: '600'},
-  body: {fontSize: 16, fontWeight: '400'},
-  caption: {fontSize: 13, fontWeight: '400'},
+  /** Reserved for a screen's single hero number or the welcome headline. */
+  display: {fontSize: 32, lineHeight: 38, fontWeight: '700', letterSpacing: -0.5},
+  /** The title on an auth screen. */
+  title: {fontSize: 28, lineHeight: 34, fontWeight: '700', letterSpacing: -0.4},
+  /** What a screen opens with - see ScreenHeader. */
+  heading: {fontSize: 22, lineHeight: 28, fontWeight: '700', letterSpacing: -0.3},
+  /** A card title, or a section of a longer screen. */
+  subheading: {fontSize: 17, lineHeight: 22, fontWeight: '600', letterSpacing: -0.2},
+  body: {fontSize: 16, lineHeight: 22, fontWeight: '400'},
+  /** Supporting copy under a heading, and list-row secondary text. */
+  caption: {fontSize: 13, lineHeight: 18, fontWeight: '400'},
+  /**
+   * Small, upper-case, widely tracked - a section label above a group of
+   * rows. The tracking is what stops it reading as shouted body text.
+   */
+  overline: {fontSize: 11, lineHeight: 14, fontWeight: '700', letterSpacing: 1.1},
+} as const;
+
+/**
+ * Lift, for the few things that should sit above the page.
+ *
+ * A dark theme gets almost nothing from a black drop shadow, so depth here is
+ * mostly the `surface` -> `surfaceRaised` step in the palette. These exist for
+ * the cases where that is not enough on its own: the thumb of a segmented
+ * control, a sheet over content. Used sparingly on purpose - shadows on every
+ * card is exactly the look this is trying to avoid.
+ */
+export const elevation = {
+  low: {
+    shadowColor: '#000000',
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    shadowOffset: {width: 0, height: 2},
+    elevation: 2,
+  },
+  medium: {
+    shadowColor: '#000000',
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    shadowOffset: {width: 0, height: 6},
+    elevation: 6,
+  },
+} as const;
+
+/**
+ * Glyph sizes. Named by role rather than number so an icon beside a label is
+ * always the size that matches that label's type.
+ */
+export const iconSize = {
+  /** Inline with caption text - a chevron, a small status mark. */
+  sm: 16,
+  /** Inline with body text, and the glyph inside a small IconBadge. */
+  md: 20,
+  /** The glyph inside a standard IconBadge. */
+  lg: 24,
+  /** A screen's empty state or permission prompt. */
+  xl: 40,
 } as const;
 
 /**

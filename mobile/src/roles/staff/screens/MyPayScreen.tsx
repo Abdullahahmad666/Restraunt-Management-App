@@ -7,10 +7,11 @@ import {EmptyState} from '../../../components/EmptyState';
 import {ErrorState} from '../../../components/ErrorState';
 import {LoadingView} from '../../../components/LoadingView';
 import {Screen} from '../../../components/Screen';
+import {SectionLabel} from '../../../components/SectionLabel';
 import {describeApiError} from '../../../api/errors';
 import {useMySummary} from '../../../features/payroll/hooks';
 import type {PayPeriodStatus} from '../../../features/payroll/types';
-import {colors, spacing} from '../../../theme';
+import {colors, typography} from '../../../theme';
 import {formatCurrency, formatDate, formatHours} from '../../../utils/format';
 
 const STATUS_TONE: Record<PayPeriodStatus, 'neutral' | 'success' | 'warning'> = {
@@ -59,9 +60,13 @@ export function MyPayScreen(): React.JSX.Element {
         <Text style={styles.rowBody}>Pending: {formatCurrency(totals.total_pay_pending)}</Text>
       </Card>
 
-      <Text style={styles.sectionTitle}>Pay periods</Text>
+      <SectionLabel label="Pay periods" />
       {pay_periods.length === 0 ? (
-        <EmptyState title="No pay periods yet" body="They'll appear here once one is opened." />
+        <EmptyState
+          icon="cash"
+          title="No pay periods yet"
+          body="They'll appear here once one is opened."
+        />
       ) : (
         pay_periods.map(entry => (
           <Card key={entry.id}>
@@ -87,9 +92,8 @@ export function MyPayScreen(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   cardTitle: {fontSize: 14, fontWeight: '700', color: colors.text},
-  sectionTitle: {fontSize: 14, fontWeight: '700', color: colors.textMuted, marginTop: spacing.sm},
   rowHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
-  rowTitle: {fontSize: 15, fontWeight: '600', color: colors.text},
-  rowBody: {fontSize: 14, color: colors.textMuted},
+  rowTitle: {...typography.body, fontWeight: '600', color: colors.text},
+  rowBody: {...typography.caption, fontSize: 14, color: colors.textMuted},
   rowNote: {fontSize: 12, color: colors.textMuted},
 });

@@ -9,7 +9,7 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {Button} from '../../../components/Button';
 import {describeApiError} from '../../../api/errors';
 import {useScan} from '../../../features/attendance/hooks';
-import {colors, spacing} from '../../../theme';
+import {colors, spacing, typography} from '../../../theme';
 import {roundCoordinate} from '../../../utils/coords';
 import type {StaffStackParamList} from '../../../navigation/types';
 
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: spacing.sm,
   },
-  permissionTitle: {fontSize: 20, fontWeight: '700', color: colors.text},
+  permissionTitle: {...typography.subheading, fontSize: 20, color: colors.text},
   permissionBody: {
     fontSize: 15,
     color: colors.textMuted,

@@ -6,6 +6,7 @@ import {ComingSoon} from '../../../components/ComingSoon';
 export function DailyChecksScreen(): React.JSX.Element {
   return (
     <ComingSoon
+      icon="checkbox"
       title="Daily checks"
       body="The compliance app has no backend yet - once it does, today's checklist will show up here."
     />

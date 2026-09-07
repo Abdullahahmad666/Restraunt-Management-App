@@ -1,4 +1,4 @@
-/** react-query wrappers: list, issue and revoke staff invite links. */
+/** react-query wrappers: list, issue and revoke staff invite codes. */
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 
 import * as api from './api';

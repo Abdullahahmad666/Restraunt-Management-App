@@ -14,10 +14,18 @@ def client():
 
 
 def test_register_then_login(client):
+    # Staff need an invite code to register at all (see
+    # test_registration_invites), so this goes in through the one self-serve
+    # route: an owner setting up their own takeaway.
     register_url = reverse("v1:users:register")
     response = client.post(
         register_url,
-        {"email": "waiter@example.com", "password": "an-ok-password-42"},
+        {
+            "email": "waiter@example.com",
+            "password": "an-ok-password-42",
+            "role": "ADMIN",
+            "restaurant_name": "The Test Kitchen",
+        },
     )
     assert response.status_code == 201, response.data
 

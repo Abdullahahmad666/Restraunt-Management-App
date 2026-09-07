@@ -1,19 +1,21 @@
 import React, {useState} from 'react';
-import {StyleSheet, Text, View} from 'react-native';
+import {StyleSheet, Text} from 'react-native';
 import {useNavigation, useRoute, type RouteProp} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
+import {Avatar} from '../../../components/Avatar';
 import {Badge} from '../../../components/Badge';
 import {Button} from '../../../components/Button';
 import {Card} from '../../../components/Card';
 import {ErrorState} from '../../../components/ErrorState';
 import {LoadingView} from '../../../components/LoadingView';
 import {Screen} from '../../../components/Screen';
+import {ScreenHeader} from '../../../components/ScreenHeader';
 import {TextField} from '../../../components/TextField';
 import {describeApiError} from '../../../api/errors';
 import {useSetRate, useRates} from '../../../features/payroll/hooks';
 import {useStaffAccounts, useUpdateStaff} from '../../../features/staff/hooks';
-import {colors} from '../../../theme';
+import {colors, typography} from '../../../theme';
 import {fullName} from '../../../utils/format';
 import type {AdminStackParamList} from '../../../navigation/types';
 
@@ -71,16 +73,20 @@ export function StaffDetailScreen(): React.JSX.Element {
 
   return (
     <Screen scroll>
-      <View style={styles.headerRow}>
-        <View>
-          <Text style={styles.heading}>{fullName(member)}</Text>
-          <Text style={styles.hint}>{member.email}</Text>
-        </View>
-        <Badge
-          label={member.is_active ? 'Active' : 'Deactivated'}
-          tone={member.is_active ? 'success' : 'neutral'}
-        />
-      </View>
+      {/* The avatar takes the icon slot, because the subject here is a person
+          rather than a category - and it is the same mark this person has in
+          the roster, so the push reads as opening that row. */}
+      <ScreenHeader
+        leading={<Avatar name={fullName(member)} />}
+        title={fullName(member)}
+        subtitle={member.email}
+        action={
+          <Badge
+            label={member.is_active ? 'Active' : 'Deactivated'}
+            tone={member.is_active ? 'success' : 'neutral'}
+          />
+        }
+      />
 
       <Text style={styles.hint}>Phone: {member.phone || 'Not set'}</Text>
 
@@ -135,9 +141,7 @@ export function StaffDetailScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  headerRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start'},
-  heading: {fontSize: 22, fontWeight: '700', color: colors.text},
-  hint: {fontSize: 13, color: colors.textMuted},
-  cardTitle: {fontSize: 16, fontWeight: '600', color: colors.text},
-  error: {color: colors.danger},
+  hint: {...typography.caption, color: colors.textMuted},
+  cardTitle: {...typography.subheading, color: colors.text},
+  error: {...typography.caption, color: colors.danger},
 });

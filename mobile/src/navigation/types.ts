@@ -81,8 +81,8 @@ export type AdminStackParamList = {
   // The manual add-staff form, pulled out of the Staff tab's roster so that
   // screen stays a plain list.
   AddStaff: undefined;
-  // Generates and shows one invite link, on its own page - no roster, no
-  // clutter, just the link plus share/copy.
+  // Generates and shows one invite code, on its own page - no roster, no
+  // clutter, just the code plus copy/share.
   InviteStaff: undefined;
   // One staff member: their info, pay rates, and a way into their shifts.
   StaffDetail: {staffId: string};

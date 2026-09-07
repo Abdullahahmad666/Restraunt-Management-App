@@ -58,12 +58,12 @@ class RegisterSerializer(serializers.ModelSerializer):
     just believed `role=ADMIN` would hand anyone edit access to attendance
     records and payroll, so one of those two is always required.
 
-    A STAFF code is optional and only attaches the account to a restaurant.
-    Skipping it produces a valid but inert account: every queryset is scoped to
-    the caller's restaurant and fails closed when there is not one. In
-    practice staff should always arrive with a code, carried invisibly by the
-    invite link they tapped (see InviteCodeLookupView) rather than typed by
-    hand - but the field itself doesn't know or enforce how it got here.
+    A STAFF code is required, because a staff account without a restaurant is
+    inert: every queryset is scoped to the caller's restaurant and fails closed
+    when there is not one. Letting someone register anyway produced an account
+    that could sign in and then see nothing at all, with no way out except an
+    admin finding them in Django admin. An invite code is the only route in for
+    staff, so ask for it up front rather than issuing a dead end.
     """
 
     password = serializers.CharField(write_only=True, validators=[validate_password])
@@ -132,7 +132,16 @@ class RegisterSerializer(serializers.ModelSerializer):
                 )
             attrs["_new_restaurant_name"] = restaurant_name
         else:
-            attrs["_new_restaurant_name"] = None
+            # Nothing to attach a staff account to, and nothing this serializer
+            # could invent - staff never bring their own restaurant.
+            raise serializers.ValidationError(
+                {
+                    "invite_code": (
+                        "Enter the invite code your manager sent you. Staff accounts are "
+                        "created from an invite."
+                    )
+                }
+            )
 
         return attrs
 
@@ -261,15 +270,24 @@ class GoogleLoginSerializer(serializers.Serializer):
 
 
 class InviteCodeSerializer(serializers.ModelSerializer):
+    """The admin's view of an invite: the code and nothing else.
+
+    There used to be a prebuilt `invisiko://join?code=..` link here too. It was
+    never the thing that worked: a custom scheme does nothing on a phone that
+    does not have the app yet, which is precisely who an invite is aimed at,
+    and nothing at all in Expo Go. Every share therefore had to carry the code
+    anyway, and the link beside it was one more thing to explain. The code is
+    eight characters someone can read out over the phone - that is the whole
+    invite now.
+    """
+
     is_usable = serializers.BooleanField(read_only=True)
-    invite_link = serializers.SerializerMethodField()
 
     class Meta:
         model = InviteCode
         fields = (
             "id",
             "code",
-            "invite_link",
             "role",
             "restaurant",
             "expires_at",
@@ -280,16 +298,12 @@ class InviteCodeSerializer(serializers.ModelSerializer):
         read_only_fields = (
             "id",
             "code",
-            "invite_link",
             "restaurant",
             "expires_at",
             "used_at",
             "is_usable",
             "created_at",
         )
-
-    def get_invite_link(self, obj) -> str:
-        return f"{settings.INVITE_URL}?code={obj.code}"
 
     def validate_role(self, value):
         if value not in {Role.STAFF, Role.ADMIN}:

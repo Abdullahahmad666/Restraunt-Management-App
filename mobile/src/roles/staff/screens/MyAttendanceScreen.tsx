@@ -8,10 +8,11 @@ import {EmptyState} from '../../../components/EmptyState';
 import {ErrorState} from '../../../components/ErrorState';
 import {LoadingView} from '../../../components/LoadingView';
 import {Screen} from '../../../components/Screen';
+import {SectionLabel} from '../../../components/SectionLabel';
 import {describeApiError} from '../../../api/errors';
 import {useMyLogs, useMyShifts} from '../../../features/attendance/hooks';
 import {useSignOut} from '../../../features/auth/useSignOut';
-import {colors, spacing} from '../../../theme';
+import {colors, typography} from '../../../theme';
 import {formatDateTime} from '../../../utils/format';
 
 /** This staff member's own upcoming rota and clock-in/out history. */
@@ -46,9 +47,13 @@ export function MyAttendanceScreen(): React.JSX.Element {
 
   return (
     <Screen onRefresh={refresh} refreshing={shifts.isRefetching || logs.isRefetching}>
-      <Text style={styles.sectionTitle}>Upcoming shifts</Text>
+      <SectionLabel label="Upcoming shifts" />
       {upcomingShifts.length === 0 ? (
-        <EmptyState title="No shifts scheduled" body="Check back once the rota is published." />
+        <EmptyState
+          icon="calendar"
+          title="No shifts scheduled"
+          body="Check back once the rota is published."
+        />
       ) : (
         upcomingShifts.map(shift => (
           <Card key={shift.id}>
@@ -60,9 +65,13 @@ export function MyAttendanceScreen(): React.JSX.Element {
         ))
       )}
 
-      <Text style={styles.sectionTitle}>Recent scans</Text>
+      <SectionLabel label="Recent scans" />
       {recentLogs.length === 0 ? (
-        <EmptyState title="No scans yet" body="Your check-ins and check-outs will show up here." />
+        <EmptyState
+          icon="scan"
+          title="No scans yet"
+          body="Your check-ins and check-outs will show up here."
+        />
       ) : (
         recentLogs.map(log => (
           <Card key={log.id}>
@@ -89,9 +98,8 @@ export function MyAttendanceScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  sectionTitle: {fontSize: 14, fontWeight: '700', color: colors.textMuted, marginTop: spacing.sm},
   rowHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
-  rowTitle: {fontSize: 15, fontWeight: '600', color: colors.text},
-  rowBody: {fontSize: 14, color: colors.textMuted},
+  rowTitle: {...typography.body, fontWeight: '600', color: colors.text},
+  rowBody: {...typography.caption, fontSize: 14, color: colors.textMuted},
   rowNote: {fontSize: 12, color: colors.warning, fontWeight: '600'},
 });

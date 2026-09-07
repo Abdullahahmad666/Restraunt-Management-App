@@ -6,6 +6,7 @@ import {ComingSoon} from '../../../components/ComingSoon';
 export function CheckDetailScreen(): React.JSX.Element {
   return (
     <ComingSoon
+      icon="clipboard"
       title="Check detail"
       body="The compliance app has no backend yet - once it does, this screen will show one check's tasks."
     />

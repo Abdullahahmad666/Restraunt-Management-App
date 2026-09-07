@@ -1,125 +1,172 @@
-import React, {useEffect, useState} from 'react';
-import {Share, StyleSheet, Text, View} from 'react-native';
+import React, {useCallback, useEffect, useState} from 'react';
+import {Pressable, Share, StyleSheet, Text, View} from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 
 import {Button} from '../../../components/Button';
 import {ErrorState} from '../../../components/ErrorState';
 import {LoadingView} from '../../../components/LoadingView';
 import {Screen} from '../../../components/Screen';
+import {ScreenHeader} from '../../../components/ScreenHeader';
 import {describeApiError} from '../../../api/errors';
 import {useCreateStaffInvite} from '../../../features/invites/hooks';
-import {colors, spacing} from '../../../theme';
+import {colors, radii, spacing, typography} from '../../../theme';
+import type {InviteCode} from '../../../features/invites/types';
+
+/** Long enough to read as deliberate feedback, short enough that the control
+ * is back to its normal label before anyone reaches for it again. */
+const CONFIRMATION_MS = 2000;
 
 /**
- * Nothing but the link: no roster, no forms. A fresh invite is generated the
- * moment this screen opens - one code per visit, matching how it's shared
- * (to one person at a time, see InviteCode.used_by being a one-to-one).
+ * One code, one new team member. A fresh invite is minted when the screen
+ * opens - InviteCode.used_by is a one-to-one, so a code is spent by the first
+ * person who redeems it and sharing the same one twice would only disappoint
+ * the second.
+ *
+ * There is no link here. `invisiko://join?code=..` does nothing on a phone
+ * that does not have the app installed - the only kind of phone an invite is
+ * ever sent to - so it was always the code doing the work.
  */
 export function InviteStaffScreen(): React.JSX.Element {
   const createInvite = useCreateStaffInvite();
-  const [copied, setCopied] = useState(false);
+  const [confirmation, setConfirmation] = useState<'code' | 'message' | null>(null);
 
-  useEffect(() => {
-    createInvite.mutate();
-    // Only ever once, when the screen opens - re-running on every render
-    // would mint a fresh code each time.
+  // Held here rather than read off the mutation, so asking for a second code
+  // leaves the first one on screen until its replacement arrives instead of
+  // dropping the whole page back to a spinner.
+  const [invite, setInvite] = useState<InviteCode | null>(null);
+
+  const generate = useCallback(() => {
+    setConfirmation(null);
+    createInvite.mutate(undefined, {onSuccess: setInvite});
+    // createInvite is rebuilt every render; depending on it would make this
+    // callback - and the mount effect below - fire on every render, minting a
+    // code each time.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (createInvite.isPending || createInvite.isIdle) {
-    return <LoadingView />;
-  }
+  useEffect(generate, [generate]);
 
-  if (createInvite.isError) {
-    return (
+  // Timers outlive the screen, so clear the pending one rather than let it
+  // set state on something that has been unmounted.
+  useEffect(() => {
+    if (!confirmation) {
+      return;
+    }
+    const timer = setTimeout(() => setConfirmation(null), CONFIRMATION_MS);
+    return () => clearTimeout(timer);
+  }, [confirmation]);
+
+  if (!invite) {
+    return createInvite.isError ? (
       <ErrorState
         message={describeApiError(createInvite.error, 'Could not create an invite.')}
-        onRetry={() => createInvite.mutate()}
+        onRetry={generate}
       />
+    ) : (
+      <LoadingView />
     );
   }
 
-  const link = createInvite.data.invite_link;
-  const code = createInvite.data.code;
+  const code = invite.code;
+  const expiresOn = new Date(invite.expires_at).toLocaleDateString(undefined, {
+    dateStyle: 'medium',
+  });
 
-  /**
-   * The link uses a custom scheme, so tapping it does nothing on a phone that
-   * does not have the app yet - which is most of the audience for an invite.
-   * Sending the code alongside it means that is an inconvenience rather than a
-   * dead end: install the app, tap Join, type the code.
-   */
+  /** Sent whole over WhatsApp or SMS: what the code is, and what to do with
+   * it. Someone who has never heard of Invisiko needs that middle step. */
   const shareMessage = [
-    "You're invited to join the team on Invisiko.",
+    "You've been invited to join the team on Invisiko.",
     '',
-    `Already have the app? Tap this: ${link}`,
+    `Your invite code is ${code}`,
     '',
-    `Otherwise install Invisiko, tap "Join a team" and enter this code: ${code}`,
+    'Install Invisiko, choose "Join a team" and enter the code.',
   ].join('\n');
 
-  async function onCopy() {
-    await Clipboard.setStringAsync(shareMessage);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  async function copy(text: string, which: 'code' | 'message') {
+    await Clipboard.setStringAsync(text);
+    setConfirmation(which);
   }
 
   return (
     <Screen>
-      <Text style={styles.heading}>Invite a staff member</Text>
+      <ScreenHeader
+        icon="ticket"
+        title="Invite a staff member"
+        subtitle="One code, one person, used once."
+      />
       <Text style={styles.hint}>
-        Send this to one new team member. They create their own account and join your team
-        automatically - it can only be used once.
+        Send this code to one new team member. They enter it when creating their account and join
+        your team automatically. It expires on {expiresOn}.
       </Text>
 
-      <View style={styles.codeBox}>
+      {/*
+        The code itself is the button. Reading eight characters off a screen
+        and retyping them into WhatsApp is exactly the sort of thing that gets
+        one character wrong, so tapping what you are looking at copies it.
+      */}
+      <Pressable
+        onPress={() => copy(code, 'code')}
+        accessibilityRole="button"
+        accessibilityLabel={`Invite code ${code.split('').join(' ')}. Tap to copy.`}
+        style={({pressed}) => [styles.codeCard, pressed && styles.pressed]}>
         <Text style={styles.codeLabel}>Invite code</Text>
         <Text style={styles.code} selectable>
           {code}
         </Text>
-        <Text style={styles.codeHint}>
-          Works even if the link does not - they can type this on the Join screen.
+        <Text style={[styles.tapHint, confirmation === 'code' && styles.tapHintDone]}>
+          {confirmation === 'code' ? 'Copied to clipboard' : 'Tap to copy'}
         </Text>
-      </View>
+      </Pressable>
 
-      <View style={styles.linkBox}>
-        <Text style={styles.linkText} selectable>
-          {link}
-        </Text>
-      </View>
-
+      {/* Button sizes itself to its label, so each is given an equal half of
+          the row rather than the pair huddling in the middle. */}
       <View style={styles.actions}>
-        <Button
-          title="Share"
-          variant="secondary"
-          onPress={() =>
-            Share.share({
-              message: shareMessage,
-            })
-          }
-        />
-        <Button title={copied ? 'Copied!' : 'Copy'} onPress={onCopy} />
+        <View style={styles.action}>
+          <Button
+            title={confirmation === 'message' ? 'Copied!' : 'Copy message'}
+            variant="secondary"
+            onPress={() => copy(shareMessage, 'message')}
+          />
+        </View>
+        <View style={styles.action}>
+          <Button title="Share code" onPress={() => Share.share({message: shareMessage})} />
+        </View>
       </View>
+
+      {/* Inviting two people in a row is common and each needs their own code.
+          Without this the only way to get a second is to leave and come back. */}
+      <Pressable
+        onPress={generate}
+        disabled={createInvite.isPending}
+        hitSlop={8}
+        style={({pressed}) => [styles.newCode, pressed && styles.pressed]}>
+        <Text style={[styles.newCodeText, createInvite.isPending && styles.newCodeTextBusy]}>
+          {createInvite.isPending ? 'Generating…' : 'Need another? Generate a new code'}
+        </Text>
+      </Pressable>
+
+      {/* A failed retry must not look like nothing happened - the code above
+          is still the old one, and still valid. */}
+      {createInvite.isError ? (
+        <Text style={styles.error}>
+          {describeApiError(createInvite.error, 'Could not create a new code.')}
+        </Text>
+      ) : null}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  heading: {fontSize: 22, fontWeight: '700', color: colors.text},
-  hint: {fontSize: 14, color: colors.textMuted},
-  linkBox: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    padding: spacing.md,
-  },
-  linkText: {fontSize: 14, color: colors.text},
-  codeBox: {
-    backgroundColor: colors.surface,
+  hint: {...typography.caption, fontSize: 14, lineHeight: 20, color: colors.textMuted},
+  pressed: {opacity: 0.8},
+  codeCard: {
+    backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
     borderColor: colors.primary,
-    borderRadius: 8,
-    padding: spacing.md,
-    gap: 4,
+    borderRadius: radii.lg,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.md,
+    gap: spacing.xs,
     alignItems: 'center',
   },
   codeLabel: {
@@ -129,11 +176,22 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   code: {
-    fontSize: 28,
+    fontSize: 34,
     fontWeight: '700',
     color: colors.primary,
-    letterSpacing: 4,
+    // Wide tracking so no two characters run together for someone copying
+    // them down by hand.
+    letterSpacing: 6,
+    // letterSpacing pads the right of the last character too, which throws
+    // the block off-centre by that much without this.
+    marginLeft: 6,
   },
-  codeHint: {fontSize: 12, color: colors.textMuted, textAlign: 'center'},
+  tapHint: {...typography.caption, fontSize: 12, color: colors.textMuted},
+  tapHintDone: {color: colors.success, fontWeight: '600'},
   actions: {flexDirection: 'row', gap: spacing.sm},
+  action: {flex: 1},
+  newCode: {alignSelf: 'center', paddingVertical: spacing.sm},
+  newCodeText: {...typography.caption, fontSize: 14, fontWeight: '600', color: colors.primary},
+  newCodeTextBusy: {color: colors.textMuted},
+  error: {...typography.caption, color: colors.danger, textAlign: 'center'},
 });

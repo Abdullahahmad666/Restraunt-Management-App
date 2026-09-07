@@ -5,6 +5,7 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import axios from 'axios';
 
 import {describeApiError} from '../../../api/errors';
+import {AccountTypeToggle} from '../../../components/AccountTypeToggle';
 import {AuthScreen} from '../../../components/AuthScreen';
 import {BrandHeader} from '../../../components/BrandHeader';
 import {Field} from '../../../components/Field';
@@ -50,12 +51,13 @@ function fieldErrors(error: unknown): Record<string, string> {
 }
 
 /**
- * Reached by tapping an admin's shared invite link, or from Welcome for
- * anyone whose link did not open the app - a custom scheme does nothing on a
- * phone without the app installed, and nothing in Expo Go at all.
+ * How every staff account gets made. An invite code from a manager is the
+ * only route in - the register endpoint refuses a staff sign-up without one,
+ * because an account with no restaurant can sign in and then see nothing.
  *
- * Either way the restaurant is never chosen by hand: it comes from the code,
- * so this screen's job is "Your name, email, password" and nothing else.
+ * The restaurant is never chosen by hand: it comes from the code, so once
+ * that checks out this screen's job is "Your name, email, password" and
+ * nothing else.
  */
 export function JoinScreen(): React.JSX.Element {
   const navigation = useNavigation<Nav>();
@@ -63,11 +65,10 @@ export function JoinScreen(): React.JSX.Element {
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
 
-  // The code arrives either in the link or typed by hand. Typing has to be
-  // possible: the link uses a custom scheme, so it does nothing on a phone
-  // that does not have the app yet - which is most of an invite's audience -
-  // and it does nothing in Expo Go at all, since Expo Go cannot claim the
-  // scheme. Without this the shared "enter this code" instruction was a lie.
+  // Typed by hand, normally. A code can still arrive in the route params from
+  // an `invisiko://join?code=..` deep link, but nothing generates those any
+  // more: a custom scheme does nothing on a phone without the app - the only
+  // kind an invite is sent to - and nothing at all in Expo Go.
   const [typedCode, setTypedCode] = useState('');
   const [submittedCode, setSubmittedCode] = useState(params?.code ?? '');
 
@@ -129,10 +130,17 @@ export function JoinScreen(): React.JSX.Element {
     const trimmed = typedCode.trim().toUpperCase();
     return (
       <AuthScreen>
+        {/* `replace` rather than `navigate`: the two sign-up routes are one
+            choice, so switching should not leave this screen on the stack. */}
+        <AccountTypeToggle
+          value="join"
+          onChange={type => type === 'setup' && navigation.replace('SetupTakeaway')}
+        />
+
         <BrandHeader compact subtitle="Join your team" />
         <Text style={styles.intro}>
-          Enter the invite code your manager sent you. It is eight characters, and comes with the
-          invite link.
+          Enter the invite code your manager sent you. It is eight characters - letters and numbers
+          - and can only be used once.
         </Text>
 
         <View style={styles.form}>
@@ -175,7 +183,7 @@ export function JoinScreen(): React.JSX.Element {
         <Text style={styles.intro}>
           {invite.data && !invite.data.is_usable
             ? `This invite from ${invite.data.invited_by_name} has already been used or has expired.`
-            : "This invite link couldn't be found. It may have expired."}{' '}
+            : "We couldn't find that code. Check it for typos - it may also have expired."}{' '}
           Ask your manager to send you a new one.
         </Text>
         <View style={styles.form}>

@@ -6,6 +6,7 @@ import {ComingSoon} from '../../../components/ComingSoon';
 export function ComplianceHistoryScreen(): React.JSX.Element {
   return (
     <ComingSoon
+      icon="document-text"
       title="Compliance history"
       body="The compliance app has no backend yet - once it does, past checks and corrective actions will show up here."
     />

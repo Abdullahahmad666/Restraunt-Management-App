@@ -7,10 +7,11 @@ import {EmptyState} from '../../../components/EmptyState';
 import {ErrorState} from '../../../components/ErrorState';
 import {LoadingView} from '../../../components/LoadingView';
 import {Screen} from '../../../components/Screen';
+import {ScreenHeader} from '../../../components/ScreenHeader';
 import {describeApiError} from '../../../api/errors';
 import {useAllNotifications} from '../../../features/notifications/hooks';
 import type {NotificationStatus} from '../../../features/notifications/types';
-import {colors} from '../../../theme';
+import {colors, typography} from '../../../theme';
 import {formatDateTime} from '../../../utils/format';
 
 const STATUS_TONE: Record<NotificationStatus, 'neutral' | 'success' | 'danger'> = {
@@ -39,8 +40,15 @@ export function NotificationsScreen(): React.JSX.Element {
 
   return (
     <Screen onRefresh={() => notifications.refetch()} refreshing={notifications.isRefetching}>
+      <ScreenHeader
+        icon="notifications"
+        title="Notifications"
+        subtitle="Shift reminders and alerts sent to your team."
+      />
+
       {items.length === 0 ? (
         <EmptyState
+          icon="notifications-off"
           title="No notifications yet"
           body="Shift reminders and alerts will show up here."
         />
@@ -59,7 +67,7 @@ export function NotificationsScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  title: {fontSize: 15, fontWeight: '600', color: colors.text},
-  body: {fontSize: 14, color: colors.textMuted},
+  title: {...typography.body, fontWeight: '600', color: colors.text},
+  body: {...typography.caption, fontSize: 14, color: colors.textMuted},
   timestamp: {fontSize: 12, color: colors.textMuted},
 });

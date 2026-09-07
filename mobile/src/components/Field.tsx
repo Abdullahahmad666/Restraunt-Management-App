@@ -1,7 +1,7 @@
 import {forwardRef, useState} from 'react';
 import {Pressable, StyleSheet, Text, TextInput, type TextInputProps, View} from 'react-native';
-import {Ionicons} from '@expo/vector-icons';
 
+import {Icon} from './Icon';
 import {colors, radii, spacing, typography} from '../theme';
 
 type Props = TextInputProps & {
@@ -67,9 +67,8 @@ export const Field = forwardRef<TextInput, Props>(function FieldInput(
             accessibilityRole="button"
             accessibilityLabel={revealed ? 'Hide password' : 'Show password'}
             style={styles.reveal}>
-            <Ionicons
+            <Icon
               name={revealed ? 'eye-off-outline' : 'eye-outline'}
-              size={20}
               color={revealed ? colors.primary : colors.textMuted}
             />
           </Pressable>

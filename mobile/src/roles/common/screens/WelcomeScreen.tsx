@@ -50,16 +50,17 @@ export function WelcomeScreen(): React.JSX.Element {
           />
 
           {/*
-            Staff invited by a manager land here when the invite link did not
-            open the app - a custom scheme does nothing without the app
-            installed, which is exactly the person an invite is aimed at.
-            They can type the code that came with it instead.
+            "Create an account" opens the owner form, which is the wrong one
+            for most people who tap it - staff outnumber owners heavily. Both
+            screens carry AccountTypeToggle so a wrong turn is one tap to fix,
+            and this shortcut means someone holding a code from their manager
+            never has to take the wrong turn at all.
           */}
           <Pressable
             onPress={() => navigation.navigate('Join', {})}
             hitSlop={8}
             style={styles.inviteLink}>
-            <Text style={styles.inviteText}>Have an invite code?</Text>
+            <Text style={styles.inviteText}>Joining a team? Use your invite code</Text>
           </Pressable>
         </View>
       </View>
@@ -69,18 +70,12 @@ export function WelcomeScreen(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   inviteLink: {alignSelf: 'center', paddingVertical: spacing.sm},
-  inviteText: {fontSize: 14, fontWeight: '600', color: colors.primary},
+  inviteText: {...typography.caption, fontSize: 14, fontWeight: '600', color: colors.primary},
   screen: {flex: 1, backgroundColor: colors.background},
   hero: {flex: 1, alignItems: 'center', justifyContent: 'center'},
   logo: {width: 160, height: 160},
   bottom: {padding: spacing.lg, paddingBottom: spacing.xl},
-  headline: {
-    ...typography.title,
-    fontSize: 32,
-    lineHeight: 38,
-    color: colors.text,
-    marginBottom: spacing.xl,
-  },
+  headline: {...typography.display, color: colors.text, marginBottom: spacing.xl},
   headlineAccent: {color: colors.primary},
   actions: {gap: spacing.sm},
 });
