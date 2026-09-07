@@ -6,9 +6,10 @@ import {Button} from '../../../components/Button';
 import {ErrorState} from '../../../components/ErrorState';
 import {LoadingView} from '../../../components/LoadingView';
 import {Screen} from '../../../components/Screen';
+import {ScreenHeader} from '../../../components/ScreenHeader';
 import {describeApiError} from '../../../api/errors';
 import {useCreateStaffInvite} from '../../../features/invites/hooks';
-import {colors, radii, spacing} from '../../../theme';
+import {colors, radii, spacing, typography} from '../../../theme';
 import type {InviteCode} from '../../../features/invites/types';
 
 /** Long enough to read as deliberate feedback, short enough that the control
@@ -88,10 +89,14 @@ export function InviteStaffScreen(): React.JSX.Element {
 
   return (
     <Screen>
-      <Text style={styles.heading}>Invite a staff member</Text>
+      <ScreenHeader
+        icon="ticket"
+        title="Invite a staff member"
+        subtitle="One code, one person, used once."
+      />
       <Text style={styles.hint}>
         Send this code to one new team member. They enter it when creating their account and join
-        your team automatically. It works once, and expires on {expiresOn}.
+        your team automatically. It expires on {expiresOn}.
       </Text>
 
       {/*
@@ -152,8 +157,7 @@ export function InviteStaffScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  heading: {fontSize: 22, fontWeight: '700', color: colors.text},
-  hint: {fontSize: 14, color: colors.textMuted, lineHeight: 20},
+  hint: {...typography.caption, fontSize: 14, lineHeight: 20, color: colors.textMuted},
   pressed: {opacity: 0.8},
   codeCard: {
     backgroundColor: colors.surfaceRaised,
@@ -182,12 +186,12 @@ const styles = StyleSheet.create({
     // the block off-centre by that much without this.
     marginLeft: 6,
   },
-  tapHint: {fontSize: 12, color: colors.textMuted},
+  tapHint: {...typography.caption, fontSize: 12, color: colors.textMuted},
   tapHintDone: {color: colors.success, fontWeight: '600'},
   actions: {flexDirection: 'row', gap: spacing.sm},
   action: {flex: 1},
   newCode: {alignSelf: 'center', paddingVertical: spacing.sm},
-  newCodeText: {fontSize: 14, fontWeight: '600', color: colors.primary},
+  newCodeText: {...typography.caption, fontSize: 14, fontWeight: '600', color: colors.primary},
   newCodeTextBusy: {color: colors.textMuted},
-  error: {fontSize: 13, color: colors.danger, textAlign: 'center'},
+  error: {...typography.caption, color: colors.danger, textAlign: 'center'},
 });

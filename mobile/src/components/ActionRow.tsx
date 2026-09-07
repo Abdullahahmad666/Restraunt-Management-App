@@ -2,6 +2,7 @@ import React from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 
 import {Icon, IconBadge, type IconName} from './Icon';
+import {SectionLabel} from './SectionLabel';
 import {colors, radii, spacing, typography} from '../theme';
 
 type ActionRowProps = {
@@ -83,7 +84,7 @@ export function ActionRowGroup({
 
   return (
     <View style={styles.groupBlock}>
-      {label ? <Text style={styles.groupLabel}>{label}</Text> : null}
+      {label ? <SectionLabel label={label} /> : null}
       <View style={styles.group}>
         {rows.map((row, index) => (
           // Index is a safe key here: these are a fixed, hand-written list per
@@ -115,12 +116,6 @@ const styles = StyleSheet.create({
   value: {...typography.caption, fontWeight: '600', color: colors.primary},
 
   groupBlock: {gap: spacing.sm},
-  groupLabel: {
-    ...typography.overline,
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    paddingHorizontal: spacing.xs,
-  },
   group: {
     backgroundColor: colors.surface,
     borderWidth: 1,

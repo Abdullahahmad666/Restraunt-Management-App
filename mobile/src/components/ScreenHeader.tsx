@@ -10,6 +10,11 @@ type ScreenHeaderProps = {
   subtitle?: string;
   /** Names the screen at a glance, and gives the block a left anchor. */
   icon?: IconName;
+  /**
+   * Takes the icon's place when the subject is a person rather than a
+   * category - an Avatar, typically. Wins over `icon` if both are given.
+   */
+  leading?: React.ReactNode;
   /** Sits opposite the title - a Button, a Badge, an icon action. */
   action?: React.ReactNode;
 };
@@ -30,12 +35,13 @@ export function ScreenHeader({
   title,
   subtitle,
   icon,
+  leading,
   action,
 }: ScreenHeaderProps): React.JSX.Element {
   return (
     <View style={styles.container}>
       <View style={styles.row}>
-        {icon ? <IconBadge name={icon} /> : null}
+        {leading ?? (icon ? <IconBadge name={icon} /> : null)}
         <View style={styles.text}>
           <Text style={styles.title}>{title}</Text>
           {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
