@@ -5,6 +5,7 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import axios from 'axios';
 
 import {describeApiError} from '../../../api/errors';
+import {AccountTypeToggle} from '../../../components/AccountTypeToggle';
 import {AuthScreen} from '../../../components/AuthScreen';
 import {Field} from '../../../components/Field';
 import {FormError} from '../../../components/FormError';
@@ -57,8 +58,11 @@ function splitName(fullName: string): {firstName: string; lastName: string} {
  * The only way an ADMIN account gets made. There is no invite code because
  * there is nobody yet who could have issued one - this call creates both the
  * account and a brand new restaurant in one step (see restaurant_name on
- * RegisterSerializer). Staff never see this screen; they arrive through an
- * invite link instead (JoinScreen).
+ * RegisterSerializer).
+ *
+ * Staff do not belong here, so the toggle at the top hands them straight to
+ * JoinScreen rather than leaving them to work out that this form is not for
+ * them.
  */
 export function SetupTakeawayScreen(): React.JSX.Element {
   const navigation = useNavigation<Nav>();
@@ -124,6 +128,15 @@ export function SetupTakeawayScreen(): React.JSX.Element {
 
   return (
     <AuthScreen>
+      {/* `replace` rather than `navigate`: the two are one choice, so
+          switching should not leave the abandoned form on the stack for Back
+          to return to. */}
+      <AccountTypeToggle
+        value="setup"
+        disabled={submitting}
+        onChange={type => type === 'join' && navigation.replace('Join', {})}
+      />
+
       <View style={styles.titleBlock}>
         <Text style={styles.title}>Set up your takeaway</Text>
         <Text style={styles.subtitle}>Takes about 2 minutes. You can invite staff after.</Text>

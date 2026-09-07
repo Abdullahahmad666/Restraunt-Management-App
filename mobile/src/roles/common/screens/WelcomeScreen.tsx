@@ -50,16 +50,17 @@ export function WelcomeScreen(): React.JSX.Element {
           />
 
           {/*
-            Staff invited by a manager land here when the invite link did not
-            open the app - a custom scheme does nothing without the app
-            installed, which is exactly the person an invite is aimed at.
-            They can type the code that came with it instead.
+            "Create an account" opens the owner form, which is the wrong one
+            for most people who tap it - staff outnumber owners heavily. Both
+            screens carry AccountTypeToggle so a wrong turn is one tap to fix,
+            and this shortcut means someone holding a code from their manager
+            never has to take the wrong turn at all.
           */}
           <Pressable
             onPress={() => navigation.navigate('Join', {})}
             hitSlop={8}
             style={styles.inviteLink}>
-            <Text style={styles.inviteText}>Have an invite code?</Text>
+            <Text style={styles.inviteText}>Joining a team? Use your invite code</Text>
           </Pressable>
         </View>
       </View>
