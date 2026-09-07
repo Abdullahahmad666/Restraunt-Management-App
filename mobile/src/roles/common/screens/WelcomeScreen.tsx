@@ -70,18 +70,12 @@ export function WelcomeScreen(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   inviteLink: {alignSelf: 'center', paddingVertical: spacing.sm},
-  inviteText: {fontSize: 14, fontWeight: '600', color: colors.primary},
+  inviteText: {...typography.caption, fontSize: 14, fontWeight: '600', color: colors.primary},
   screen: {flex: 1, backgroundColor: colors.background},
   hero: {flex: 1, alignItems: 'center', justifyContent: 'center'},
   logo: {width: 160, height: 160},
   bottom: {padding: spacing.lg, paddingBottom: spacing.xl},
-  headline: {
-    ...typography.title,
-    fontSize: 32,
-    lineHeight: 38,
-    color: colors.text,
-    marginBottom: spacing.xl,
-  },
+  headline: {...typography.display, color: colors.text, marginBottom: spacing.xl},
   headlineAccent: {color: colors.primary},
   actions: {gap: spacing.sm},
 });

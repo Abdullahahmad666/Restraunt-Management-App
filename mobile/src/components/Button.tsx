@@ -1,18 +1,31 @@
 import React from 'react';
-import {ActivityIndicator, Pressable, StyleSheet, Text} from 'react-native';
 
-import {colors, radii, spacing} from '../theme';
-
-type Variant = 'primary' | 'secondary' | 'danger';
+import {PrimaryButton} from './PrimaryButton';
 
 type ButtonProps = {
   title: string;
   onPress: () => void;
-  variant?: Variant;
+  variant?: 'primary' | 'secondary' | 'danger';
   loading?: boolean;
   disabled?: boolean;
 };
 
+/**
+ * The same button as PrimaryButton, under the name the role screens use.
+ *
+ * There were genuinely two button components, and they disagreed: this one
+ * put white text on amber (which fails contrast - amber is bright, hence
+ * `onPrimary` being navy) and drew `secondary` as a filled surface with an
+ * amber border, where the auth screens drew it as transparent with a muted
+ * one. Two looks for the same control, split along which half of the app you
+ * happened to be in - so a screen could not be moved between them without
+ * changing appearance.
+ *
+ * Kept as an alias rather than resolved by renaming call sites in twenty
+ * screens: the two names read naturally in their own contexts (`title` for a
+ * row of actions, `label` for a form's one submit), and collapsing them would
+ * be a diff across the whole app for no behavioural gain.
+ */
 export function Button({
   title,
   onPress,
@@ -20,45 +33,13 @@ export function Button({
   loading = false,
   disabled = false,
 }: ButtonProps): React.JSX.Element {
-  const isDisabled = disabled || loading;
-
   return (
-    <Pressable
+    <PrimaryButton
+      label={title}
       onPress={onPress}
-      disabled={isDisabled}
-      style={({pressed}) => [
-        styles.base,
-        variantStyles[variant],
-        isDisabled && styles.disabled,
-        pressed && !isDisabled && styles.pressed,
-      ]}>
-      {loading ? (
-        <ActivityIndicator color={variant === 'secondary' ? colors.primary : '#FFFFFF'} />
-      ) : (
-        <Text style={[styles.label, variant === 'secondary' && styles.labelSecondary]}>
-          {title}
-        </Text>
-      )}
-    </Pressable>
+      variant={variant}
+      loading={loading}
+      disabled={disabled}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  base: {
-    borderRadius: radii.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pressed: {opacity: 0.85},
-  disabled: {opacity: 0.5},
-  label: {color: '#FFFFFF', fontSize: 16, fontWeight: '600'},
-  labelSecondary: {color: colors.primary},
-});
-
-const variantStyles = StyleSheet.create({
-  primary: {backgroundColor: colors.primary},
-  secondary: {backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.primary},
-  danger: {backgroundColor: colors.danger},
-});

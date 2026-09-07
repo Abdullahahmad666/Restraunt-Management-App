@@ -17,7 +17,7 @@ import {
   useVenueQrCodes,
 } from '../../../features/attendance/hooks';
 import {useAuthStore} from '../../../store/authStore';
-import {colors, spacing, typography} from '../../../theme';
+import {colors, radii, spacing, typography} from '../../../theme';
 import {roundCoordinate} from '../../../utils/coords';
 
 /**
@@ -183,7 +183,9 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.md,
   },
-  qrWrap: {backgroundColor: '#FFFFFF', padding: spacing.lg, borderRadius: 12},
+  // White, deliberately: a QR code needs a light quiet zone to scan, so
+  // this is the one place in a dark-only app that stays white.
+  qrWrap: {backgroundColor: '#FFFFFF', padding: spacing.lg, borderRadius: radii.lg},
   hint: {...typography.caption, fontSize: 14, color: colors.textMuted, textAlign: 'center'},
   row: {...typography.caption, fontSize: 14, color: colors.text},
   warning: {fontSize: 12, color: colors.warning, textAlign: 'center'},

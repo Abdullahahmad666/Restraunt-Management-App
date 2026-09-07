@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
   },
   chipText: {...typography.caption, fontSize: 14, color: colors.text},
   chipSelected: {backgroundColor: colors.primary, borderColor: colors.primary},
-  chipTextSelected: {color: '#FFFFFF', fontWeight: '700'},
+  chipTextSelected: {color: colors.onPrimary, fontWeight: '700'},
 
   timeRow: {flexDirection: 'row', gap: spacing.md},
   timeField: {flex: 1, gap: spacing.xs},
