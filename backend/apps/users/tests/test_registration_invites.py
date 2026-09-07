@@ -164,17 +164,31 @@ def test_a_valid_admin_code_creates_an_admin_in_that_restaurant(
     assert invite.is_used and invite.used_by_id == user.id
 
 
-def test_staff_can_register_with_no_code_but_get_no_restaurant(client, django_user_model):
-    """Allowed, but inert: every queryset is restaurant-scoped and fails closed."""
+def test_staff_cannot_register_without_a_code(client, django_user_model):
+    """An account with no restaurant can sign in and then see nothing.
+
+    Every staff queryset is restaurant-scoped and fails closed, so this used to
+    hand someone a working login onto an empty app with no way out but an admin
+    editing them in Django admin. Refusing is the kinder answer, and matches the
+    only real route in: an invite from a manager.
+    """
     response = client.post(
         reverse(REGISTER),
         {"email": "newbie@example.com", "password": PASSWORD},
     )
-    assert response.status_code == 201, response.data
+    assert response.status_code == 400
+    assert "invite_code" in response.data
+    assert not django_user_model.objects.filter(email="newbie@example.com").exists()
 
-    user = django_user_model.objects.get(email="newbie@example.com")
-    assert user.role == Role.STAFF
-    assert user.restaurant_id is None
+
+def test_a_blank_code_is_refused_the_same_way(client):
+    """The app sends "" for an untouched field - it must not read as "no code"."""
+    response = client.post(
+        reverse(REGISTER),
+        {"email": "newbie@example.com", "password": PASSWORD, "invite_code": ""},
+    )
+    assert response.status_code == 400
+    assert "invite_code" in response.data
 
 
 def test_a_staff_code_attaches_the_account_to_the_restaurant(client, restaurant, django_user_model):
@@ -373,8 +387,9 @@ def test_an_invite_code_takes_precedence_over_a_restaurant_name(
 
 
 def test_staff_cannot_start_a_new_restaurant_with_a_name_alone(client, django_user_model):
-    """restaurant_name is an admin-only path - staff joins via a code or not
-    at all, never by typing a takeaway name into existence."""
+    """restaurant_name is an admin-only path - staff join via a code, never by
+    typing a takeaway name into existence. Sending one is not an invite, so it
+    is refused for the same reason sending nothing is."""
     response = client.post(
         reverse(REGISTER),
         {
@@ -384,10 +399,10 @@ def test_staff_cannot_start_a_new_restaurant_with_a_name_alone(client, django_us
             "restaurant_name": "Golden Spice",
         },
     )
-    assert response.status_code == 201, response.data
-
-    user = django_user_model.objects.get(email="confused@example.com")
-    assert user.restaurant_id is None
+    assert response.status_code == 400
+    assert "invite_code" in response.data
+    assert not Restaurant.objects.filter(name="Golden Spice").exists()
+    assert not django_user_model.objects.filter(email="confused@example.com").exists()
 
 
 # ---------------------------------------------------------------------------

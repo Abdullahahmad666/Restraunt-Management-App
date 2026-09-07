@@ -58,12 +58,12 @@ class RegisterSerializer(serializers.ModelSerializer):
     just believed `role=ADMIN` would hand anyone edit access to attendance
     records and payroll, so one of those two is always required.
 
-    A STAFF code is optional and only attaches the account to a restaurant.
-    Skipping it produces a valid but inert account: every queryset is scoped to
-    the caller's restaurant and fails closed when there is not one. In
-    practice staff should always arrive with a code, carried invisibly by the
-    invite link they tapped (see InviteCodeLookupView) rather than typed by
-    hand - but the field itself doesn't know or enforce how it got here.
+    A STAFF code is required, because a staff account without a restaurant is
+    inert: every queryset is scoped to the caller's restaurant and fails closed
+    when there is not one. Letting someone register anyway produced an account
+    that could sign in and then see nothing at all, with no way out except an
+    admin finding them in Django admin. An invite code is the only route in for
+    staff, so ask for it up front rather than issuing a dead end.
     """
 
     password = serializers.CharField(write_only=True, validators=[validate_password])
@@ -132,7 +132,16 @@ class RegisterSerializer(serializers.ModelSerializer):
                 )
             attrs["_new_restaurant_name"] = restaurant_name
         else:
-            attrs["_new_restaurant_name"] = None
+            # Nothing to attach a staff account to, and nothing this serializer
+            # could invent - staff never bring their own restaurant.
+            raise serializers.ValidationError(
+                {
+                    "invite_code": (
+                        "Enter the invite code your manager sent you. Staff accounts are "
+                        "created from an invite."
+                    )
+                }
+            )
 
         return attrs
 
