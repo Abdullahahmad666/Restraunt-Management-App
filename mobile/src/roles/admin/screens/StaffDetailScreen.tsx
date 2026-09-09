@@ -87,18 +87,25 @@ export function StaffDetailScreen(): React.JSX.Element {
       <Card>
         <Text style={styles.cardTitle}>Pay rates</Text>
         <Text style={styles.hint}>
-          Current: {existingRate ? `£${existingRate.rate_1} / £${existingRate.rate_2}` : 'Not set'}
+          The first 40 hours of each pay period are paid at the standard rate; anything past that is
+          paid at the overtime rate.
+        </Text>
+        <Text style={styles.hint}>
+          Current:{' '}
+          {existingRate
+            ? `£${existingRate.rate_1}/hr standard, £${existingRate.rate_2}/hr overtime`
+            : 'Not set'}
         </Text>
 
         <TextField
-          label="Rate 1 (£/hr)"
+          label="Standard rate (£/hr, first 40h)"
           keyboardType="decimal-pad"
           placeholder={existingRate?.rate_1 ?? '11.50'}
           value={rate1}
           onChangeText={setRate1}
         />
         <TextField
-          label="Rate 2 (£/hr)"
+          label="Overtime rate (£/hr, after 40h)"
           keyboardType="decimal-pad"
           placeholder={existingRate?.rate_2 ?? '10.00'}
           value={rate2}
@@ -119,6 +126,16 @@ export function StaffDetailScreen(): React.JSX.Element {
           title="Manage shifts"
           variant="secondary"
           onPress={() => navigation.navigate('AttendanceEdit', {staffId: member.id})}
+        />
+      </Card>
+
+      <Card>
+        <Text style={styles.cardTitle}>Analytics</Text>
+        <Text style={styles.hint}>Punctuality history, month by month.</Text>
+        <Button
+          title="View analytics"
+          variant="secondary"
+          onPress={() => navigation.navigate('StaffAnalytics', {staffId: member.id})}
         />
       </Card>
 

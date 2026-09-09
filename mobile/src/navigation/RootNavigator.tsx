@@ -6,6 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import {BrandSplash} from '../components/BrandSplash';
 import {useAuthStore} from '../store/authStore';
 import {useRestoreSession} from '../features/auth/useRestoreSession';
+import {useRegisterPushToken} from '../features/notifications/hooks';
 import {AdminNavigator} from '../roles/admin/navigation/AdminNavigator';
 import {StaffNavigator} from '../roles/staff/navigation/StaffNavigator';
 import {PendingApprovalScreen} from '../roles/common/screens/PendingApprovalScreen';
@@ -29,6 +30,7 @@ export function RootNavigator(): React.JSX.Element | null {
   const user = useAuthStore(state => state.user);
 
   useRestoreSession();
+  useRegisterPushToken(status === 'authenticated' && Boolean(user));
 
   const settled = status !== 'idle' && status !== 'loading';
 

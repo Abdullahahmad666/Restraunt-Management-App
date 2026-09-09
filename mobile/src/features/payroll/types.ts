@@ -9,12 +9,16 @@ export type PayPeriod = {
   starts_on: string;
   ends_on: string;
   status: PayPeriodStatus;
+  /** "Pay period 2 of September 2026" - named for the month its end date
+   * (payday) falls in, not its start. */
+  label: string;
 };
 
 export type PayrollEntry = {
   id: string;
   pay_period: string;
   staff: string;
+  staff_name: string;
   hours_worked: string;
   hours_at_rate_1: string;
   hours_at_rate_2: string;
@@ -29,6 +33,7 @@ export type PayPeriodEntry = PayrollEntry & {
   pay_period_starts_on: string;
   pay_period_ends_on: string;
   pay_period_status: PayPeriodStatus;
+  pay_period_label: string;
 };
 
 export type StaffPayRate = {

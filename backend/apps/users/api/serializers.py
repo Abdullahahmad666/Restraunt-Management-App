@@ -28,6 +28,11 @@ class UserSerializer(serializers.ModelSerializer):
     # there is no restaurant at all, so the app can tell "pending" apart
     # from "not attached to anything".
     restaurant_is_approved = serializers.SerializerMethodField()
+    # The takeaway's own name (e.g. "Phillys") - a bare restaurant id is not
+    # something a screen can show a person, and every screen that wants this
+    # would otherwise have to fetch the restaurant separately just to read
+    # its name.
+    restaurant_name = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -40,12 +45,22 @@ class UserSerializer(serializers.ModelSerializer):
             "profile_picture",
             "role",
             "restaurant",
+            "restaurant_name",
             "restaurant_is_approved",
         )
-        read_only_fields = ("id", "role", "restaurant", "restaurant_is_approved")
+        read_only_fields = (
+            "id",
+            "role",
+            "restaurant",
+            "restaurant_name",
+            "restaurant_is_approved",
+        )
 
     def get_restaurant_is_approved(self, obj) -> bool | None:
         return obj.restaurant.is_approved if obj.restaurant_id else None
+
+    def get_restaurant_name(self, obj) -> str | None:
+        return obj.restaurant.name if obj.restaurant_id else None
 
 
 class RegisterSerializer(serializers.ModelSerializer):

@@ -8,12 +8,14 @@ import {LoadingView} from '../../../components/LoadingView';
 import {Screen} from '../../../components/Screen';
 import {describeApiError} from '../../../api/errors';
 import {useCreateStaffInvite} from '../../../features/invites/hooks';
-import {colors, spacing} from '../../../theme';
+import {colors, radii, spacing} from '../../../theme';
 
 /**
- * Nothing but the link: no roster, no forms. A fresh invite is generated the
- * moment this screen opens - one code per visit, matching how it's shared
- * (to one person at a time, see InviteCode.used_by being a one-to-one).
+ * Just the code - no deep link. JoinScreen already has a "type the code by
+ * hand" path (it has to: the link's custom scheme does nothing on a phone
+ * without the app yet, which is most of an invite's audience, and nothing at
+ * all in Expo Go), so the code alone is a complete, working invite on its
+ * own rather than a fallback for when the link fails.
  */
 export function InviteStaffScreen(): React.JSX.Element {
   const createInvite = useCreateStaffInvite();
@@ -39,25 +41,11 @@ export function InviteStaffScreen(): React.JSX.Element {
     );
   }
 
-  const link = createInvite.data.invite_link;
   const code = createInvite.data.code;
-
-  /**
-   * The link uses a custom scheme, so tapping it does nothing on a phone that
-   * does not have the app yet - which is most of the audience for an invite.
-   * Sending the code alongside it means that is an inconvenience rather than a
-   * dead end: install the app, tap Join, type the code.
-   */
-  const shareMessage = [
-    "You're invited to join the team on Invisiko.",
-    '',
-    `Already have the app? Tap this: ${link}`,
-    '',
-    `Otherwise install Invisiko, tap "Join a team" and enter this code: ${code}`,
-  ].join('\n');
+  const shareMessage = `You're invited to join the team on Invisiko. Install the app, tap "Join a team" and enter this code: ${code}`;
 
   async function onCopy() {
-    await Clipboard.setStringAsync(shareMessage);
+    await Clipboard.setStringAsync(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
@@ -66,8 +54,8 @@ export function InviteStaffScreen(): React.JSX.Element {
     <Screen>
       <Text style={styles.heading}>Invite a staff member</Text>
       <Text style={styles.hint}>
-        Send this to one new team member. They create their own account and join your team
-        automatically - it can only be used once.
+        Send this code to one new team member. They install the app, enter it on the Join screen,
+        and create their own account - it can only be used once.
       </Text>
 
       <View style={styles.codeBox}>
@@ -75,28 +63,15 @@ export function InviteStaffScreen(): React.JSX.Element {
         <Text style={styles.code} selectable>
           {code}
         </Text>
-        <Text style={styles.codeHint}>
-          Works even if the link does not - they can type this on the Join screen.
-        </Text>
-      </View>
-
-      <View style={styles.linkBox}>
-        <Text style={styles.linkText} selectable>
-          {link}
-        </Text>
       </View>
 
       <View style={styles.actions}>
         <Button
           title="Share"
           variant="secondary"
-          onPress={() =>
-            Share.share({
-              message: shareMessage,
-            })
-          }
+          onPress={() => Share.share({message: shareMessage})}
         />
-        <Button title={copied ? 'Copied!' : 'Copy'} onPress={onCopy} />
+        <Button title={copied ? 'Copied!' : 'Copy code'} onPress={onCopy} />
       </View>
     </Screen>
   );
@@ -105,20 +80,12 @@ export function InviteStaffScreen(): React.JSX.Element {
 const styles = StyleSheet.create({
   heading: {fontSize: 22, fontWeight: '700', color: colors.text},
   hint: {fontSize: 14, color: colors.textMuted},
-  linkBox: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    padding: spacing.md,
-  },
-  linkText: {fontSize: 14, color: colors.text},
   codeBox: {
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.primary,
-    borderRadius: 8,
-    padding: spacing.md,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
     gap: 4,
     alignItems: 'center',
   },
@@ -128,12 +95,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
-  code: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.primary,
-    letterSpacing: 4,
-  },
-  codeHint: {fontSize: 12, color: colors.textMuted, textAlign: 'center'},
+  code: {fontSize: 32, fontWeight: '700', color: colors.primary, letterSpacing: 4},
   actions: {flexDirection: 'row', gap: spacing.sm},
 });

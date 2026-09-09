@@ -185,6 +185,7 @@ SPECTACULAR_SETTINGS = {
     "ENUM_NAME_OVERRIDES": {
         "AttendanceLogStatusEnum": "apps.attendance.models.ATTENDANCE_LOG_STATUS_CHOICES",
         "ShiftJobTitleEnum": "apps.attendance.models.SHIFT_JOB_TITLE_CHOICES",
+        "ShiftSwapStatusEnum": "apps.attendance.models.SHIFT_SWAP_STATUS_CHOICES",
         "PayPeriodStatusEnum": "apps.payroll.models.PAY_PERIOD_STATUS_CHOICES",
         "NotificationStatusEnum": "apps.notifications.models.NOTIFICATION_STATUS_CHOICES",
     },

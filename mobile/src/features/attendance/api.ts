@@ -1,4 +1,5 @@
-/** Calls to /staff/{scan,shifts,logs}/ and /admin/{shifts,logs,qr-codes}/. */
+/** Calls to /staff/{scan,shifts,logs,colleagues,shift-swap-requests}/ and
+ * /admin/{shifts,logs,qr-codes,shift-swap-requests}/. */
 import {apiClient} from '../../api/client';
 import {endpoints} from '../../api/endpoints';
 import type {Paginated} from '../../types/api';
@@ -6,10 +7,14 @@ import type {
   AdminShift,
   AttendanceLog,
   AttendanceLogCorrection,
+  AttendanceStatus,
+  Colleague,
   JobTitle,
   ScanRequest,
   ScanResponse,
   Shift,
+  ShiftSwapRequest,
+  ShiftSwapStatus,
   VenueQRCode,
 } from './types';
 
@@ -27,8 +32,54 @@ export async function myShifts(): Promise<Paginated<Shift>> {
   return data;
 }
 
-export async function myLogs(): Promise<Paginated<AttendanceLog>> {
-  const {data} = await apiClient.get<Paginated<AttendanceLog>>(endpoints.staff.attendance.logs);
+export async function myLogs(params?: {
+  status?: AttendanceStatus;
+}): Promise<Paginated<AttendanceLog>> {
+  const {data} = await apiClient.get<Paginated<AttendanceLog>>(endpoints.staff.attendance.logs, {
+    params,
+  });
+  return data;
+}
+
+/** The only thing a staff member may write on their own log - see
+ * StaffAttendanceLogSerializer, which rejects anything else here. */
+export async function updateMyLogNote(id: string, note: string): Promise<AttendanceLog> {
+  const {data} = await apiClient.patch<AttendanceLog>(endpoints.staff.attendance.log(id), {note});
+  return data;
+}
+
+/** Other active staff at the caller's own restaurant - who a shift can be
+ * offered to. */
+export async function colleagues(): Promise<Paginated<Colleague>> {
+  const {data} = await apiClient.get<Paginated<Colleague>>(endpoints.staff.attendance.colleagues);
+  return data;
+}
+
+/** The caller's own swap requests - both the ones they made and the ones
+ * asking them to cover someone else's shift. */
+export async function myShiftSwapRequests(): Promise<Paginated<ShiftSwapRequest>> {
+  const {data} = await apiClient.get<Paginated<ShiftSwapRequest>>(
+    endpoints.staff.attendance.shiftSwapRequests,
+  );
+  return data;
+}
+
+export async function createShiftSwapRequest(input: {
+  shift: string;
+  target_staff: string;
+  note?: string;
+}): Promise<ShiftSwapRequest> {
+  const {data} = await apiClient.post<ShiftSwapRequest>(
+    endpoints.staff.attendance.shiftSwapRequests,
+    input,
+  );
+  return data;
+}
+
+export async function cancelShiftSwapRequest(id: string): Promise<ShiftSwapRequest> {
+  const {data} = await apiClient.post<ShiftSwapRequest>(
+    endpoints.staff.attendance.cancelShiftSwapRequest(id),
+  );
   return data;
 }
 
@@ -117,5 +168,33 @@ export async function createVenueQrCode(input: CreateQrCodeInput): Promise<Venue
 
 export async function regenerateVenueQrCode(id: string): Promise<VenueQRCode> {
   const {data} = await apiClient.post<VenueQRCode>(endpoints.admin.attendance.regenerateQrCode(id));
+  return data;
+}
+
+export async function listShiftSwapRequests(params?: {
+  status?: ShiftSwapStatus;
+}): Promise<Paginated<ShiftSwapRequest>> {
+  const {data} = await apiClient.get<Paginated<ShiftSwapRequest>>(
+    endpoints.admin.attendance.shiftSwapRequests,
+    {params},
+  );
+  return data;
+}
+
+export async function approveShiftSwapRequest(id: string): Promise<ShiftSwapRequest> {
+  const {data} = await apiClient.post<ShiftSwapRequest>(
+    endpoints.admin.attendance.approveShiftSwapRequest(id),
+  );
+  return data;
+}
+
+export async function declineShiftSwapRequest(
+  id: string,
+  decision_note?: string,
+): Promise<ShiftSwapRequest> {
+  const {data} = await apiClient.post<ShiftSwapRequest>(
+    endpoints.admin.attendance.declineShiftSwapRequest(id),
+    {decision_note},
+  );
   return data;
 }

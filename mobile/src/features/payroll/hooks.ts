@@ -58,6 +58,14 @@ export function useCreatePeriod() {
   });
 }
 
+export function useGenerateNextPeriod() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: api.generateNextPeriod,
+    onSuccess: () => queryClient.invalidateQueries({queryKey: keys.periods}),
+  });
+}
+
 export function useClosePeriod() {
   const queryClient = useQueryClient();
   return useMutation({

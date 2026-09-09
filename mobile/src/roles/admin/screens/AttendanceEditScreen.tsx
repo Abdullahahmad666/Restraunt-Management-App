@@ -1,8 +1,7 @@
 import React, {useMemo, useState} from 'react';
-import {Platform, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {useNavigation, useRoute, type RouteProp} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import DateTimePicker from '@react-native-community/datetimepicker';
 
 import {Button} from '../../../components/Button';
 import {Card} from '../../../components/Card';
@@ -10,6 +9,7 @@ import {ErrorState} from '../../../components/ErrorState';
 import {LoadingView} from '../../../components/LoadingView';
 import {Screen} from '../../../components/Screen';
 import {TextField} from '../../../components/TextField';
+import {TimePickerField} from '../../../components/TimePickerField';
 import {describeApiError} from '../../../api/errors';
 import {
   useAttendanceLog,
@@ -129,10 +129,6 @@ function combineDateAndTime(isoDate: string, time: Date): Date {
   const month = Number(isoDate.slice(5, 7));
   const day = Number(isoDate.slice(8, 10));
   return new Date(year, month - 1, day, time.getHours(), time.getMinutes(), 0, 0);
-}
-
-function formatTimeOfDay(date: Date): string {
-  return date.toLocaleTimeString(undefined, {hour: '2-digit', minute: '2-digit'});
 }
 
 const JOB_TITLES = Object.keys(JOB_TITLE_LABELS) as JobTitle[];
@@ -294,46 +290,6 @@ function AddShift({staffId, onDone}: {staffId: string; onDone: () => void}): Rea
   );
 }
 
-function TimePickerField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: Date;
-  onChange: (date: Date) => void;
-}): React.JSX.Element {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <View style={styles.timeField}>
-      <Text style={styles.label}>{label}</Text>
-      <Pressable style={styles.timeButton} onPress={() => setOpen(true)} accessibilityRole="button">
-        <Text style={styles.timeButtonText}>{formatTimeOfDay(value)}</Text>
-      </Pressable>
-
-      {open ? (
-        <DateTimePicker
-          value={value}
-          mode="time"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={(event, date) => {
-            if (Platform.OS === 'android') {
-              setOpen(false);
-            }
-            if (event.type !== 'dismissed' && date) {
-              onChange(date);
-            }
-          }}
-        />
-      ) : null}
-      {open && Platform.OS === 'ios' ? (
-        <Button title="Done" variant="secondary" onPress={() => setOpen(false)} />
-      ) : null}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   heading: {fontSize: 22, fontWeight: '700', color: colors.text},
   hint: {fontSize: 13, color: colors.textMuted},
@@ -366,15 +322,6 @@ const styles = StyleSheet.create({
   chipTextSelected: {color: '#FFFFFF', fontWeight: '700'},
 
   timeRow: {flexDirection: 'row', gap: spacing.md},
-  timeField: {flex: 1, gap: spacing.xs},
-  timeButton: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    padding: spacing.md,
-    alignItems: 'center',
-  },
-  timeButtonText: {fontSize: 16, color: colors.text, fontWeight: '600'},
 
   existing: {gap: spacing.sm},
   shiftRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},

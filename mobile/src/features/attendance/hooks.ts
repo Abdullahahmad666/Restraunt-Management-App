@@ -2,24 +2,41 @@
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 
 import * as api from './api';
-import type {AttendanceLogCorrection, ScanRequest} from './types';
+import type {
+  AttendanceLogCorrection,
+  AttendanceStatus,
+  ScanRequest,
+  ShiftSwapStatus,
+} from './types';
 
 const keys = {
   myShifts: ['attendance', 'my-shifts'] as const,
-  myLogs: ['attendance', 'my-logs'] as const,
+  myLogs: (params?: {status?: AttendanceStatus}) => ['attendance', 'my-logs', params] as const,
   live: ['attendance', 'live'] as const,
   logs: (params?: {staff?: string; status?: string}) => ['attendance', 'logs', params] as const,
   log: (id: string) => ['attendance', 'log', id] as const,
   shifts: (params?: {staff?: string}) => ['attendance', 'shifts', params] as const,
   qrCodes: ['attendance', 'qr-codes'] as const,
+  colleagues: ['attendance', 'colleagues'] as const,
+  myShiftSwapRequests: ['attendance', 'my-shift-swap-requests'] as const,
+  shiftSwapRequests: (params?: {status?: ShiftSwapStatus}) =>
+    ['attendance', 'shift-swap-requests', params] as const,
 };
 
 export function useMyShifts() {
   return useQuery({queryKey: keys.myShifts, queryFn: api.myShifts});
 }
 
-export function useMyLogs() {
-  return useQuery({queryKey: keys.myLogs, queryFn: api.myLogs});
+export function useMyLogs(params?: {status?: AttendanceStatus}) {
+  return useQuery({queryKey: keys.myLogs(params), queryFn: () => api.myLogs(params)});
+}
+
+export function useUpdateMyLogNote() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({id, note}: {id: string; note: string}) => api.updateMyLogNote(id, note),
+    onSuccess: () => queryClient.invalidateQueries({queryKey: ['attendance', 'my-logs']}),
+  });
 }
 
 export function useScan() {
@@ -27,7 +44,9 @@ export function useScan() {
   return useMutation({
     mutationFn: (request: ScanRequest) => api.scan(request),
     onSuccess: () => {
-      queryClient.invalidateQueries({queryKey: keys.myLogs});
+      // Prefix match: invalidates every status-filtered variant, not just
+      // the unfiltered list.
+      queryClient.invalidateQueries({queryKey: ['attendance', 'my-logs']});
       queryClient.invalidateQueries({queryKey: keys.live});
     },
   });
@@ -102,5 +121,60 @@ export function useCreateVenueQrCode() {
   return useMutation({
     mutationFn: api.createVenueQrCode,
     onSuccess: () => queryClient.invalidateQueries({queryKey: keys.qrCodes}),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Shift swaps
+// ---------------------------------------------------------------------------
+
+export function useColleagues() {
+  return useQuery({queryKey: keys.colleagues, queryFn: api.colleagues});
+}
+
+export function useMyShiftSwapRequests() {
+  return useQuery({queryKey: keys.myShiftSwapRequests, queryFn: api.myShiftSwapRequests});
+}
+
+export function useCreateShiftSwapRequest() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: api.createShiftSwapRequest,
+    onSuccess: () => queryClient.invalidateQueries({queryKey: ['attendance']}),
+  });
+}
+
+export function useCancelShiftSwapRequest() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: api.cancelShiftSwapRequest,
+    onSuccess: () => queryClient.invalidateQueries({queryKey: ['attendance']}),
+  });
+}
+
+export function useShiftSwapRequests(params?: {status?: ShiftSwapStatus}) {
+  return useQuery({
+    queryKey: keys.shiftSwapRequests(params),
+    queryFn: () => api.listShiftSwapRequests(params),
+  });
+}
+
+export function useApproveShiftSwapRequest() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: api.approveShiftSwapRequest,
+    // Approving reassigns the shift - invalidate the whole domain rather
+    // than just the swap-request lists, so both the rota and my-shifts
+    // (on whichever device happens to be looking) pick up the change too.
+    onSuccess: () => queryClient.invalidateQueries({queryKey: ['attendance']}),
+  });
+}
+
+export function useDeclineShiftSwapRequest() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({id, decisionNote}: {id: string; decisionNote?: string}) =>
+      api.declineShiftSwapRequest(id, decisionNote),
+    onSuccess: () => queryClient.invalidateQueries({queryKey: ['attendance']}),
   });
 }

@@ -53,6 +53,13 @@ export async function createPeriod(input: {
   return data;
 }
 
+/** Opens the next Friday-to-Thursday period after the restaurant's most
+ * recent one, computed server-side - see apps.payroll.services.pay_periods. */
+export async function generateNextPeriod(): Promise<PayPeriod> {
+  const {data} = await apiClient.post<PayPeriod>(endpoints.admin.payroll.generateNextPeriod);
+  return data;
+}
+
 export async function closePeriod(id: string): Promise<PayPeriod> {
   const {data} = await apiClient.post<PayPeriod>(endpoints.admin.payroll.closePeriod(id));
   return data;

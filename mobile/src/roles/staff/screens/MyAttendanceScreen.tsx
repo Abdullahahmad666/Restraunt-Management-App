@@ -1,97 +1,126 @@
 import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
+import {useNavigation} from '@react-navigation/native';
+import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
 import {Badge} from '../../../components/Badge';
-import {Button} from '../../../components/Button';
 import {Card} from '../../../components/Card';
 import {EmptyState} from '../../../components/EmptyState';
 import {ErrorState} from '../../../components/ErrorState';
+import {FadeIn} from '../../../components/FadeIn';
+import {GridTile} from '../../../components/GridTile';
 import {LoadingView} from '../../../components/LoadingView';
 import {Screen} from '../../../components/Screen';
 import {describeApiError} from '../../../api/errors';
-import {useMyLogs, useMyShifts} from '../../../features/attendance/hooks';
-import {useSignOut} from '../../../features/auth/useSignOut';
+import {useMyShifts} from '../../../features/attendance/hooks';
+import {JOB_TITLE_LABELS} from '../../../features/attendance/types';
 import {colors, spacing} from '../../../theme';
 import {formatDateTime} from '../../../utils/format';
+import type {StaffStackParamList} from '../../../navigation/types';
 
-/** This staff member's own upcoming rota and clock-in/out history. */
+type Nav = NativeStackNavigationProp<StaffStackParamList>;
+
+/** The staff landing page: what's next, then a grid into everything else -
+ * shifts, pay, scan history, notifications - each on its own screen instead
+ * of one long page trying to be all of them at once. */
 export function MyAttendanceScreen(): React.JSX.Element {
+  const navigation = useNavigation<Nav>();
   const shifts = useMyShifts();
-  const logs = useMyLogs();
-  const signOut = useSignOut();
 
-  const loading = shifts.isLoading || logs.isLoading;
-  const error = shifts.error ?? logs.error;
-
-  function refresh() {
-    shifts.refetch();
-    logs.refetch();
-  }
-
-  if (loading) {
+  if (shifts.isLoading) {
     return <LoadingView />;
   }
-
-  if (error) {
+  if (shifts.error) {
     return (
       <ErrorState
-        message={describeApiError(error, 'Could not load your attendance.')}
-        onRetry={refresh}
+        message={describeApiError(shifts.error, 'Could not load your shifts.')}
+        onRetry={() => shifts.refetch()}
       />
     );
   }
 
-  const upcomingShifts = shifts.data?.results ?? [];
-  const recentLogs = logs.data?.results ?? [];
+  const now = Date.now();
+  const nextShift = (shifts.data?.results ?? [])
+    .filter(shift => new Date(shift.starts_at).getTime() >= now)
+    .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())[0];
 
   return (
-    <Screen onRefresh={refresh} refreshing={shifts.isRefetching || logs.isRefetching}>
-      <Text style={styles.sectionTitle}>Upcoming shifts</Text>
-      {upcomingShifts.length === 0 ? (
-        <EmptyState title="No shifts scheduled" body="Check back once the rota is published." />
-      ) : (
-        upcomingShifts.map(shift => (
-          <Card key={shift.id}>
-            <Text style={styles.rowTitle}>
-              {formatDateTime(shift.starts_at)} - {formatDateTime(shift.ends_at)}
+    <Screen onRefresh={() => shifts.refetch()} refreshing={shifts.isRefetching}>
+      <Text style={styles.heading}>My hours</Text>
+
+      <FadeIn>
+        {nextShift ? (
+          <Card style={styles.nextShiftCard}>
+            <Text style={styles.nextShiftLabel}>Next shift</Text>
+            <Text style={styles.nextShiftTime}>
+              {formatDateTime(nextShift.starts_at)} - {formatDateTime(nextShift.ends_at)}
             </Text>
-            {shift.notes ? <Text style={styles.rowBody}>{shift.notes}</Text> : null}
-          </Card>
-        ))
-      )}
-
-      <Text style={styles.sectionTitle}>Recent scans</Text>
-      {recentLogs.length === 0 ? (
-        <EmptyState title="No scans yet" body="Your check-ins and check-outs will show up here." />
-      ) : (
-        recentLogs.map(log => (
-          <Card key={log.id}>
-            <View style={styles.rowHeader}>
-              <Text style={styles.rowTitle}>{formatDateTime(log.clock_in_at)}</Text>
-              <Badge
-                label={log.status === 'OPEN' ? 'On shift' : 'Closed'}
-                tone={log.status === 'OPEN' ? 'success' : 'neutral'}
-              />
-            </View>
-            {log.clock_out_at ? (
-              <Text style={styles.rowBody}>Out: {formatDateTime(log.clock_out_at)}</Text>
-            ) : null}
-            {log.is_manual_override ? (
-              <Text style={styles.rowNote}>Corrected by an admin</Text>
+            {nextShift.job_title ? (
+              <Badge label={JOB_TITLE_LABELS[nextShift.job_title]} tone="neutral" />
             ) : null}
           </Card>
-        ))
-      )}
+        ) : (
+          <EmptyState title="No shifts scheduled" body="Check back once the rota is published." />
+        )}
+      </FadeIn>
 
-      <Button title="Sign out" variant="secondary" onPress={signOut} />
+      <View style={styles.grid}>
+        <FadeIn delay={60} style={styles.tileWrap}>
+          <GridTile
+            icon="calendar-outline"
+            label="My shifts"
+            subtitle="This month's rota"
+            onPress={() => navigation.navigate('MyShifts')}
+          />
+        </FadeIn>
+        <FadeIn delay={110} style={styles.tileWrap}>
+          <GridTile
+            icon="cash-outline"
+            label="My pay"
+            subtitle="Rates & earnings"
+            onPress={() => navigation.navigate('MyPay')}
+          />
+        </FadeIn>
+        <FadeIn delay={160} style={styles.tileWrap}>
+          <GridTile
+            icon="time-outline"
+            label="Scan history"
+            subtitle="Check-ins & outs"
+            onPress={() => navigation.navigate('ScanHistory')}
+          />
+        </FadeIn>
+        <FadeIn delay={210} style={styles.tileWrap}>
+          <GridTile
+            icon="notifications-outline"
+            label="Notifications"
+            subtitle="Alerts & reminders"
+            onPress={() => navigation.navigate('Notifications')}
+          />
+        </FadeIn>
+        <FadeIn delay={260} style={styles.tileWrap}>
+          <GridTile
+            icon="swap-horizontal-outline"
+            label="Swap requests"
+            subtitle="Cover & offer shifts"
+            onPress={() => navigation.navigate('SwapRequests')}
+          />
+        </FadeIn>
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  sectionTitle: {fontSize: 14, fontWeight: '700', color: colors.textMuted, marginTop: spacing.sm},
-  rowHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
-  rowTitle: {fontSize: 15, fontWeight: '600', color: colors.text},
-  rowBody: {fontSize: 14, color: colors.textMuted},
-  rowNote: {fontSize: 12, color: colors.warning, fontWeight: '600'},
+  heading: {fontSize: 22, fontWeight: '700', color: colors.text},
+  nextShiftCard: {borderColor: colors.primary, borderWidth: 1},
+  nextShiftLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  nextShiftTime: {fontSize: 15, fontWeight: '600', color: colors.text},
+  grid: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, justifyContent: 'space-between'},
+  tileWrap: {width: '48%'},
 });

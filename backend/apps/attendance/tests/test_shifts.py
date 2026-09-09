@@ -104,3 +104,70 @@ def test_a_staff_member_sees_the_job_title_on_their_own_rota(api_client, admin, 
 
     assert response.status_code == 200
     assert response.data["results"][0]["job_title"] == Shift.JobTitle.DRIVER
+
+
+# ---------------------------------------------------------------------------
+# Notifying the staff member whose rota changed
+# ---------------------------------------------------------------------------
+def test_creating_a_shift_notifies_the_staff_member(api_client, admin, staff_member):
+    from apps.notifications.models import Notification
+
+    api_client.force_authenticate(user=admin)
+
+    response = api_client.post(
+        reverse(SHIFT_LIST),
+        {
+            "staff": str(staff_member.id),
+            "starts_at": "2026-09-08T09:00:00Z",
+            "ends_at": "2026-09-08T17:00:00Z",
+        },
+    )
+
+    assert response.status_code == 201, response.data
+    notification = Notification.objects.get(user=staff_member)
+    assert notification.kind == Notification.Kind.SHIFT_ADDED
+
+
+def test_updating_a_shift_notifies_the_staff_member(api_client, admin, staff_member):
+    from apps.notifications.models import Notification
+
+    shift = Shift.objects.create(
+        restaurant=staff_member.restaurant,
+        staff=staff_member,
+        starts_at="2026-09-08T09:00:00Z",
+        ends_at="2026-09-08T17:00:00Z",
+        created_by=admin,
+    )
+    api_client.force_authenticate(user=admin)
+
+    response = api_client.patch(
+        reverse("v1:admin:attendance:shift-detail", kwargs={"pk": shift.id}),
+        {"starts_at": "2026-09-08T10:00:00Z"},
+    )
+
+    assert response.status_code == 200, response.data
+    notification = Notification.objects.get(user=staff_member)
+    assert notification.kind == Notification.Kind.SHIFT_UPDATED
+
+
+def test_deleting_a_shift_notifies_the_staff_member(api_client, admin, staff_member):
+    from apps.notifications.models import Notification
+
+    shift = Shift.objects.create(
+        restaurant=staff_member.restaurant,
+        staff=staff_member,
+        starts_at="2026-09-08T09:00:00Z",
+        ends_at="2026-09-08T17:00:00Z",
+        created_by=admin,
+    )
+    api_client.force_authenticate(user=admin)
+
+    response = api_client.delete(
+        reverse("v1:admin:attendance:shift-detail", kwargs={"pk": shift.id})
+    )
+
+    assert response.status_code == 204
+    notification = Notification.objects.get(user=staff_member)
+    assert notification.kind == Notification.Kind.SHIFT_CANCELLED
+    # The shift row is gone - the notification must not depend on it existing.
+    assert not Shift.objects.filter(id=shift.id).exists()
