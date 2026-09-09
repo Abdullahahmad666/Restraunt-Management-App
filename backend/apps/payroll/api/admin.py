@@ -59,10 +59,25 @@ class AdminStaffPayRateViewSet(AdminViewSet):
 
 
 class AdminPayPeriodSerializer(serializers.ModelSerializer):
+    # "Pay period 2 of September 2026" - see
+    # apps.payroll.services.pay_periods for the naming rule.
+    label = serializers.SerializerMethodField()
+
     class Meta:
         model = models.PayPeriod
-        fields = ("id", "restaurant", "starts_on", "ends_on", "status")
-        read_only_fields = ("id", "status")
+        fields = ("id", "restaurant", "starts_on", "ends_on", "status", "label")
+        read_only_fields = ("id", "status", "label")
+
+    def get_label(self, obj) -> str:
+        try:
+            return pay_periods.period_label(ends_on=obj.ends_on)
+        except ValueError:
+            # A period opened through the manual create endpoint (still
+            # allowed, for an edge case the biweekly generator doesn't cover)
+            # rather than generate_next, so it may not fall on a real
+            # Friday-to-Thursday boundary - fall back to its own dates
+            # rather than 500 on a screen that just wants a label.
+            return f"Pay period {obj.starts_on:%d %b} - {obj.ends_on:%d %b %Y}"
 
 
 class AdminPayPeriodViewSet(RestaurantScopedQuerysetMixin, AdminViewSet):
@@ -78,6 +93,25 @@ class AdminPayPeriodViewSet(RestaurantScopedQuerysetMixin, AdminViewSet):
 
     def perform_create(self, serializer):
         serializer.save(restaurant=self.request.user.restaurant)
+
+    @action(detail=False, methods=["post"], url_path="generate-next")
+    def generate_next(self, request):
+        """Open the next Friday-to-Thursday period after the restaurant's most
+        recent one - so nobody has to hand-compute the correct dates (or get
+        them wrong) every two weeks. The very first period for a restaurant
+        with none yet starts from today.
+        """
+        restaurant = request.user.restaurant
+        latest = models.PayPeriod.objects.filter(restaurant=restaurant).order_by("-ends_on").first()
+        if latest:
+            starts_on, ends_on = pay_periods.next_period_bounds(after=latest.ends_on)
+        else:
+            starts_on, ends_on = pay_periods.period_bounds_for(timezone.localdate())
+
+        period = models.PayPeriod.objects.create(
+            restaurant=restaurant, starts_on=starts_on, ends_on=ends_on
+        )
+        return Response(self.get_serializer(period).data, status=201)
 
     @action(detail=True, methods=["post"])
     def close(self, request, pk=None):

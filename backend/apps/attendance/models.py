@@ -58,6 +58,9 @@ class Shift(BaseModel):
     # Set by the send_shift_reminders command so a shift is reminded exactly
     # once even if the command's schedule slips slightly.
     reminder_sent_at = models.DateTimeField(null=True, blank=True)
+    # The same guard, for the separate "your shift ends soon" reminder - a
+    # second field because a shift needs both, independently, not either/or.
+    end_reminder_sent_at = models.DateTimeField(null=True, blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -77,6 +80,56 @@ class Shift(BaseModel):
 
     def __str__(self):
         return f"{self.staff} {self.starts_at:%Y-%m-%d %H:%M}"
+
+
+class ShiftSwapRequest(BaseModel):
+    """A staff member asking a colleague to take over one of their own
+    upcoming shifts, subject to manager approval - so a shift never quietly
+    changes hands without the manager knowing who is actually on the rota.
+
+    This is a hand-off, not a two-way trade: approving one only reassigns
+    `shift` to `target_staff`, nothing moves the other way. A colleague
+    trading back their own shift is a second, separate request.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        APPROVED = "APPROVED", "Approved"
+        DECLINED = "DECLINED", "Declined"
+        CANCELLED = "CANCELLED", "Cancelled"
+
+    restaurant = models.ForeignKey(
+        "restaurants.Restaurant", on_delete=models.CASCADE, related_name="shift_swap_requests"
+    )
+    shift = models.ForeignKey(Shift, on_delete=models.CASCADE, related_name="swap_requests")
+    # Who asked - its own field rather than reading shift.staff, because
+    # shift.staff is reassigned to target_staff the moment the swap is
+    # approved; this stays the permanent record of who originally asked.
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="shift_swaps_requested"
+    )
+    target_staff = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="shift_swaps_offered"
+    )
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
+    # The requester's own reason, shown to both the target and the manager.
+    note = models.CharField(max_length=255, blank=True)
+    # The manager's reason, shown to the requester - mainly useful on a decline.
+    decision_note = models.CharField(max_length=255, blank=True)
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    decided_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    def __str__(self):
+        return f"{self.requested_by} -> {self.target_staff} ({self.shift_id})"
 
 
 class AttendanceLog(BaseModel):
@@ -130,6 +183,12 @@ class AttendanceLog(BaseModel):
         blank=True,
         related_name="+",
     )
+    # Free text the staff member can attach to their own check-in/out - "car
+    # broke down, 10 min late" - so a late or early scan carries its own
+    # context instead of relying on the staff member telling a manager
+    # separately. Writable by the owning staff member; see
+    # StaffAttendanceLogSerializer.
+    note = models.CharField(max_length=255, blank=True)
 
     class Meta:
         ordering = ("-clock_in_at",)
@@ -150,3 +209,4 @@ class AttendanceLog(BaseModel):
 # (AttendanceLog.Status.choices) is not resolvable there.
 ATTENDANCE_LOG_STATUS_CHOICES = AttendanceLog.Status.choices
 SHIFT_JOB_TITLE_CHOICES = Shift.JobTitle.choices
+SHIFT_SWAP_STATUS_CHOICES = ShiftSwapRequest.Status.choices

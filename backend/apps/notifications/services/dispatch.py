@@ -1,16 +1,19 @@
 """Send a notification via its channel.
 
-Push delivery is a placeholder until the mobile app registers Expo push
-tokens through DeviceToken - until then this records the attempt and marks
-it failed so nothing is silently dropped, and the same call site starts
-working for real the moment tokens exist and _send_expo_push is filled in.
+Push delivery goes straight to Expo's push HTTP API - no SDK needed, just a
+JSON POST of one message per device token. See
+https://docs.expo.dev/push-notifications/sending-notifications/.
 """
 
 import logging
 
+import requests
+
 from .. import models
 
 logger = logging.getLogger(__name__)
+
+EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
 
 
 def send_notification(notification: models.Notification) -> bool:
@@ -51,8 +54,45 @@ def send_notification(notification: models.Notification) -> bool:
 
 
 def _send_expo_push(tokens: list[models.DeviceToken], notification: models.Notification) -> bool:
-    """Not wired up yet - swap this for a real call to Expo's push API once
-    the mobile app starts registering tokens.
+    """POST one push message per token to Expo, and deactivate any token
+    Expo reports as dead so later notifications stop retrying it.
+
+    Returns True only if every token was accepted - a partial failure (one
+    of several devices) still leaves the notification's own status/delivery
+    trail reflecting that not everything went out clean.
     """
-    logger.info("Would send push to %d token(s): %s", len(tokens), notification.title)
-    return False
+    messages = [
+        {
+            "to": token.token,
+            "title": notification.title,
+            "body": notification.body,
+            "sound": "default",
+            "data": {"kind": notification.kind, "notification_id": str(notification.id)},
+        }
+        for token in tokens
+    ]
+
+    try:
+        response = requests.post(
+            EXPO_PUSH_URL,
+            json=messages,
+            headers={"Accept": "application/json", "Content-Type": "application/json"},
+            timeout=10,
+        )
+        response.raise_for_status()
+        receipts = response.json().get("data", [])
+    except (requests.RequestException, ValueError):
+        logger.exception("Expo push request failed for notification %s", notification.id)
+        return False
+
+    all_ok = True
+    for token, receipt in zip(tokens, receipts, strict=False):
+        if receipt.get("status") == "ok":
+            continue
+        all_ok = False
+        logger.warning("Expo push to token %s failed: %s", token.id, receipt.get("message"))
+        if receipt.get("details", {}).get("error") == "DeviceNotRegistered":
+            token.is_active = False
+            token.save(update_fields=["is_active", "updated_at"])
+
+    return all_ok

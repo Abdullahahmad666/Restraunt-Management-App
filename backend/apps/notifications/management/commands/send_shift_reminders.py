@@ -1,4 +1,4 @@
-"""Notify staff whose shift starts in about 15 minutes.
+"""Notify staff whose shift starts, or ends, in about 15 minutes.
 
 Run once a minute via cron / Windows Task Scheduler:
 
@@ -11,8 +11,13 @@ from apps.notifications.services import rules
 
 
 class Command(BaseCommand):
-    help = "Send shift-starting-soon reminders."
+    help = "Send shift-starting-soon and shift-ending-soon reminders."
 
     def handle(self, *args, **options):
-        sent = rules.send_upcoming_shift_reminders()
-        self.stdout.write(self.style.SUCCESS(f"Sent {sent} shift reminder(s)."))
+        starting = rules.send_upcoming_shift_reminders()
+        ending = rules.send_ending_shift_reminders()
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Sent {starting} shift-starting reminder(s), {ending} shift-ending reminder(s)."
+            )
+        )

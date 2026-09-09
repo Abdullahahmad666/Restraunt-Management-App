@@ -7,6 +7,7 @@ import {Badge} from '../../../components/Badge';
 import {Card} from '../../../components/Card';
 import {EmptyState} from '../../../components/EmptyState';
 import {ErrorState} from '../../../components/ErrorState';
+import {FadeIn} from '../../../components/FadeIn';
 import {LoadingView} from '../../../components/LoadingView';
 import {Screen} from '../../../components/Screen';
 import {describeApiError} from '../../../api/errors';
@@ -54,22 +55,23 @@ export function AttendanceLiveScreen(): React.JSX.Element {
           body="Staff on shift will show up here as soon as they scan in."
         />
       ) : (
-        logs.map(log => {
+        logs.map((log, index) => {
           const shift = log.shift ? shiftById.get(log.shift) : undefined;
           return (
-            <Pressable
-              key={log.id}
-              onPress={() => navigation.navigate('AttendanceHistory', {staffId: log.staff})}>
-              <Card>
-                <Text style={styles.name}>{nameById.get(log.staff) ?? 'Staff member'}</Text>
-                <Text style={styles.detail}>
-                  {shift
-                    ? `Shift: ${formatTime(shift.starts_at)} - ${formatTime(shift.ends_at)}`
-                    : `Checked in ${formatTime(log.clock_in_at)}`}
-                </Text>
-                <Badge label={`On shift ${formatElapsed(log.clock_in_at)}`} tone="success" />
-              </Card>
-            </Pressable>
+            <FadeIn key={log.id} delay={index * 50}>
+              <Pressable
+                onPress={() => navigation.navigate('AttendanceHistory', {staffId: log.staff})}>
+                <Card>
+                  <Text style={styles.name}>{nameById.get(log.staff) ?? 'Staff member'}</Text>
+                  <Text style={styles.detail}>
+                    {shift
+                      ? `Shift: ${formatTime(shift.starts_at)} - ${formatTime(shift.ends_at)}`
+                      : `Checked in ${formatTime(log.clock_in_at)}`}
+                  </Text>
+                  <Badge label={`On shift ${formatElapsed(log.clock_in_at)}`} tone="success" />
+                </Card>
+              </Pressable>
+            </FadeIn>
           );
         })
       )}

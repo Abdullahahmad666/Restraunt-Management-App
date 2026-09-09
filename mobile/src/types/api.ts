@@ -21,6 +21,8 @@ export type User = {
   profile_picture: string | null;
   role: Role;
   restaurant: string | null;
+  /** The takeaway's name (e.g. "Phillys"), or null with no restaurant yet. */
+  restaurant_name: string | null;
   /** null when the user has no restaurant yet; otherwise whether a super
    * admin has approved that restaurant in Django Admin. A newly
    * self-registered restaurant starts false until reviewed. */

@@ -1,13 +1,15 @@
 import {DarkTheme, type Theme} from '@react-navigation/native';
 
 /**
- * Invisiko's dark theme.
+ * Invisiko's dark theme: black and white, with amber kept as the one accent.
  *
- * The palette is taken from the logo rather than invented: the mark is a white
- * "i" with an amber dot on a deep navy badge, so navy is the ground and amber
- * is the single accent. Because `background` is the exact navy of the icon and
- * the splash screen, launch has no colour shift - the splash simply becomes the
- * app.
+ * This used to sit on the logo's navy badge exactly, so launch had no colour
+ * shift - the splash screen simply became the app. It no longer does: the
+ * splash screen and app icon backgrounds are separate native assets
+ * (app.json's "backgroundColor"/"primaryColor", still #08172B) that were not
+ * part of this pass. Changing those is an asset job, not a token edit, so
+ * until they're redrawn to match, a cold launch will show a brief navy-to-
+ * black handoff.
  *
  * The app is dark-only. `userInterfaceStyle` is pinned to "dark" in app.json,
  * so there is no light variant to keep in step. If a light theme is ever
@@ -15,30 +17,33 @@ import {DarkTheme, type Theme} from '@react-navigation/native';
  * scattering conditionals through the screens.
  */
 
-/** Straight from the artwork - do not drift from these. */
 export const brand = {
-  navy: '#08172B',
+  /** True black ground, not the old navy - see the note above. */
+  black: '#0B0B0D',
   amber: '#FE9A02',
-  white: '#FEFEFE',
+  white: '#FFFFFF',
 } as const;
 
 export const colors = {
-  // Surfaces, darkest first. Each step is a lift, not a new hue.
-  background: brand.navy,
-  surface: '#0F2338',
-  surfaceRaised: '#17304A',
-  border: '#22405C',
+  // Surfaces, darkest first. Each step is a lift in lightness only - no hue
+  // creeps in, which is what keeps this reading as black-and-white rather
+  // than "dark grey with a tint."
+  background: brand.black,
+  surface: '#1A1A1D',
+  surfaceRaised: '#242427',
+  border: '#333336',
 
   // Text. `textMuted` still clears 4.5:1 on `background`, so it is safe for
   // body copy and not just decoration.
-  text: '#F2F6FA',
-  textMuted: '#9DB0C6',
+  text: brand.white,
+  textMuted: '#A6A6AC',
 
-  // Actions. Amber is bright, so anything sitting on it needs dark ink.
+  // Actions. Amber is the one colour in an otherwise monochrome app, so it
+  // has to stay rare - anything sitting on it needs dark ink.
   primary: brand.amber,
   primaryPressed: '#D98202',
   primaryDisabled: '#6B4A12',
-  onPrimary: brand.navy,
+  onPrimary: brand.black,
 
   // Status. Lightened from their usual values - mid-tone greens and reds go
   // muddy against a dark ground.

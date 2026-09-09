@@ -16,6 +16,7 @@ const someone: User = {
   profile_picture: null,
   role: 'STAFF',
   restaurant: 'r-1',
+  restaurant_name: 'The Test Kitchen',
   restaurant_is_approved: true,
 };
 

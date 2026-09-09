@@ -96,6 +96,19 @@ def scan(*, staff, token, latitude, longitude) -> ScanResult:
     checking out, and one with a very recently opened log is neither (see
     MIN_TIME_BEFORE_CHECKOUT).
     """
+    result = _scan(staff=staff, token=token, latitude=latitude, longitude=longitude)
+
+    # Outside the transaction above (already committed by now): a manager
+    # hears about this immediately, but never blocks the staff member's own
+    # check-in on it, and never gets told about an "already_checked_in"
+    # no-op where nothing about their attendance actually changed.
+    from apps.notifications.services.rules import notify_admins_of_scan
+
+    notify_admins_of_scan(log=result.log, action=result.action)
+    return result
+
+
+def _scan(*, staff, token, latitude, longitude) -> ScanResult:
     qr_code = _verify_qr_and_location(
         staff=staff, token=token, latitude=latitude, longitude=longitude
     )

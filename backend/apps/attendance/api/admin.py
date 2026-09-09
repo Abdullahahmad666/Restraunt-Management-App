@@ -5,15 +5,25 @@ Mounted at /api/v1/admin/attendance/.
 
 import uuid
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from rest_framework.decorators import action
+from rest_framework.exceptions import MethodNotAllowed
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.response import Response
 
 from apps.attendance import models, selectors
+from apps.attendance.services import swap as swap_service
 from apps.common.api.fields import LatitudeField, LongitudeField
 from apps.common.api.viewsets import AdminViewSet, RestaurantScopedQuerysetMixin
+from apps.notifications.services.rules import (
+    notify_shift_added,
+    notify_shift_cancelled,
+    notify_shift_updated,
+    notify_swap_decided,
+)
 
-from .common import BaseAttendanceLogSerializer, BaseShiftSerializer
+from .common import BaseAttendanceLogSerializer, BaseShiftSerializer, BaseShiftSwapRequestSerializer
 
 
 class AdminShiftSerializer(BaseShiftSerializer):
@@ -43,7 +53,19 @@ class AdminShiftViewSet(RestaurantScopedQuerysetMixin, AdminViewSet):
     filterset_fields = ("staff",)
 
     def perform_create(self, serializer):
-        serializer.save(restaurant=self.request.user.restaurant, created_by=self.request.user)
+        shift = serializer.save(
+            restaurant=self.request.user.restaurant, created_by=self.request.user
+        )
+        notify_shift_added(shift)
+
+    def perform_update(self, serializer):
+        shift = serializer.save()
+        notify_shift_updated(shift)
+
+    def perform_destroy(self, instance):
+        staff, starts_at = instance.staff, instance.starts_at
+        instance.delete()
+        notify_shift_cancelled(staff=staff, starts_at=starts_at)
 
 
 class AdminAttendanceLogSerializer(BaseAttendanceLogSerializer):
@@ -128,3 +150,58 @@ class AdminVenueQRCodeViewSet(RestaurantScopedQuerysetMixin, AdminViewSet):
         qr_code.token = uuid.uuid4()
         qr_code.save(update_fields=["token", "updated_at"])
         return Response(self.get_serializer(qr_code).data)
+
+
+class DecisionNoteSerializer(serializers.Serializer):
+    decision_note = serializers.CharField(required=False, allow_blank=True, max_length=255)
+
+
+class AdminShiftSwapRequestViewSet(RestaurantScopedQuerysetMixin, AdminViewSet):
+    """Every swap request raised by the caller's restaurant's staff, and the
+    approve/decline decision on each - read-only otherwise, since a manager
+    reacts to a request rather than editing one.
+
+    "post" stays in http_method_names for the approve/decline actions below,
+    which are their own detail routes - so create() is disabled explicitly
+    rather than by verb, or POSTing to the plain list endpoint would still
+    reach it and try to save a request with no fields (every field on
+    BaseShiftSwapRequestSerializer is read-only; requests are only ever made
+    from the staff side, via apps.attendance.services.swap.request_swap).
+    """
+
+    serializer_class = BaseShiftSwapRequestSerializer
+    queryset = models.ShiftSwapRequest.objects.select_related(
+        "shift", "requested_by", "target_staff"
+    )
+    filterset_fields = ("status",)
+    http_method_names = ["get", "post", "head", "options"]
+
+    def create(self, request, *args, **kwargs):
+        raise MethodNotAllowed("POST")
+
+    def _decide(self, request, *, approve: bool):
+        input_serializer = DecisionNoteSerializer(data=request.data)
+        input_serializer.is_valid(raise_exception=True)
+
+        try:
+            swap_request = swap_service.decide_swap(
+                swap_request=self.get_object(),
+                approve=approve,
+                decided_by=request.user,
+                decision_note=input_serializer.validated_data.get("decision_note", ""),
+            )
+        except DjangoValidationError as exc:
+            raise DRFValidationError(getattr(exc, "messages", str(exc))) from exc
+
+        notify_swap_decided(swap_request)
+        return swap_request
+
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        swap_request = self._decide(request, approve=True)
+        return Response(self.get_serializer(swap_request).data)
+
+    @action(detail=True, methods=["post"])
+    def decline(self, request, pk=None):
+        swap_request = self._decide(request, approve=False)
+        return Response(self.get_serializer(swap_request).data)

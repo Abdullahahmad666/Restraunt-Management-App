@@ -8,13 +8,19 @@ from apps.attendance.services.hours import hours_worked
 
 from .. import models
 
+# The first RATE_1_HOUR_CAP hours of a pay period are paid at rate 1;
+# anything past that, at rate 2. A staff member who worked 85 hours in a
+# period is paid 40 at rate 1 and the remaining 45 at rate 2.
+RATE_1_HOUR_CAP = Decimal("40")
+
 
 def calculate_entry(*, pay_period, staff) -> models.PayrollEntry:
     """Create or refresh one staff member's entry for a pay period.
 
-    Hours come from attendance. The rate-1/rate-2 split defaults to all hours
-    on rate 1 until an admin reviews and reallocates it - see
-    apps.payroll.api.admin and reallocate_hours below.
+    Hours come from attendance. The rate-1/rate-2 split defaults to
+    RATE_1_HOUR_CAP hours on rate 1 and the rest on rate 2, until an admin
+    reviews and reallocates it differently - see apps.payroll.api.admin and
+    reallocate_hours below.
     """
     rates = models.StaffPayRate.objects.filter(staff=staff).first()
     rate_1 = rates.rate_1 if rates else Decimal("0")
@@ -35,8 +41,8 @@ def calculate_entry(*, pay_period, staff) -> models.PayrollEntry:
     # Re-running a calculation (e.g. after attendance corrections, before the
     # period is locked) should not clobber a split an admin already made.
     if created or entry.hours_at_rate_1 + entry.hours_at_rate_2 == 0:
-        entry.hours_at_rate_1 = worked
-        entry.hours_at_rate_2 = Decimal("0")
+        entry.hours_at_rate_1 = min(worked, RATE_1_HOUR_CAP)
+        entry.hours_at_rate_2 = max(worked - RATE_1_HOUR_CAP, Decimal("0"))
 
     entry.total_pay = (entry.hours_at_rate_1 * entry.rate_1_snapshot) + (
         entry.hours_at_rate_2 * entry.rate_2_snapshot

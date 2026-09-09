@@ -29,8 +29,17 @@ class Notification(BaseModel):
 
     class Kind(models.TextChoices):
         SHIFT_REMINDER = "SHIFT_REMINDER", "Shift reminder"
+        SHIFT_ENDING_SOON = "SHIFT_ENDING_SOON", "Shift ending soon"
+        SHIFT_ADDED = "SHIFT_ADDED", "Shift added"
+        SHIFT_UPDATED = "SHIFT_UPDATED", "Shift updated"
+        SHIFT_CANCELLED = "SHIFT_CANCELLED", "Shift cancelled"
+        STAFF_CHECKED_IN = "STAFF_CHECKED_IN", "Staff checked in"
+        STAFF_CHECKED_OUT = "STAFF_CHECKED_OUT", "Staff checked out"
         MISSED_CHECKOUT = "MISSED_CHECKOUT", "Missed checkout"
         COMPLIANCE_OVERDUE = "COMPLIANCE_OVERDUE", "Compliance overdue"
+        SHIFT_SWAP_REQUESTED = "SHIFT_SWAP_REQUESTED", "Shift swap requested"
+        SHIFT_SWAP_APPROVED = "SHIFT_SWAP_APPROVED", "Shift swap approved"
+        SHIFT_SWAP_DECLINED = "SHIFT_SWAP_DECLINED", "Shift swap declined"
 
     class Status(models.TextChoices):
         PENDING = "PENDING", "Pending"

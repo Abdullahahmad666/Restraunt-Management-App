@@ -8,6 +8,7 @@ from rest_framework.exceptions import ValidationError
 
 from apps.attendance.api.common import BaseShiftSerializer
 from apps.payroll import models
+from apps.payroll.services.pay_periods import period_label
 
 # Long enough to comfortably cover two pay runs in a month, short enough that
 # a summary screen isn't quietly loading someone's entire work history by
@@ -16,12 +17,18 @@ DEFAULT_SUMMARY_WINDOW_DAYS = 60
 
 
 class BasePayrollEntrySerializer(serializers.ModelSerializer):
+    # A bare `staff` id isn't enough for the admin's per-period entry list
+    # (see AdminPayPeriodViewSet.entries) to show who each row is for
+    # without a second lookup.
+    staff_name = serializers.SerializerMethodField()
+
     class Meta:
         model = models.PayrollEntry
         fields = (
             "id",
             "pay_period",
             "staff",
+            "staff_name",
             "hours_worked",
             "hours_at_rate_1",
             "hours_at_rate_2",
@@ -30,6 +37,9 @@ class BasePayrollEntrySerializer(serializers.ModelSerializer):
             "total_pay",
         )
         read_only_fields = fields
+
+    def get_staff_name(self, obj) -> str:
+        return obj.staff.get_full_name() or obj.staff.email
 
 
 class PayPeriodEntrySerializer(BasePayrollEntrySerializer):
@@ -40,6 +50,10 @@ class PayPeriodEntrySerializer(BasePayrollEntrySerializer):
     pay_period_starts_on = serializers.DateField(source="pay_period.starts_on", read_only=True)
     pay_period_ends_on = serializers.DateField(source="pay_period.ends_on", read_only=True)
     pay_period_status = serializers.CharField(source="pay_period.status", read_only=True)
+    # "Pay period 2 of September 2026" - see apps.payroll.services.pay_periods
+    # for the Friday-to-Thursday, biweekly, end-date-names-the-month rule
+    # this comes from.
+    pay_period_label = serializers.SerializerMethodField()
 
     class Meta(BasePayrollEntrySerializer.Meta):
         fields = (
@@ -47,8 +61,19 @@ class PayPeriodEntrySerializer(BasePayrollEntrySerializer):
             "pay_period_starts_on",
             "pay_period_ends_on",
             "pay_period_status",
+            "pay_period_label",
         )
         read_only_fields = fields
+
+    def get_pay_period_label(self, obj) -> str:
+        try:
+            return period_label(ends_on=obj.pay_period.ends_on)
+        except ValueError:
+            # See the matching fallback on AdminPayPeriodSerializer - a
+            # period not on a real Friday-to-Thursday boundary shouldn't 500
+            # a screen that just wants something to show.
+            period = obj.pay_period
+            return f"Pay period {period.starts_on:%d %b} - {period.ends_on:%d %b %Y}"
 
 
 class StaffInfoSerializer(serializers.Serializer):

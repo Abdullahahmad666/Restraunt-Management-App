@@ -1,6 +1,6 @@
 import type {NavigatorScreenParams} from '@react-navigation/native';
 
-import type {ScanAction, AttendanceLog} from '../features/attendance/types';
+import type {AttendanceLog, ScanAction, Shift} from '../features/attendance/types';
 
 export type AuthStackParamList = {
   Welcome: undefined;
@@ -34,8 +34,11 @@ export type AuthStackParamList = {
 // ---------------------------------------------------------------------------
 // Staff
 // ---------------------------------------------------------------------------
-/** Bottom tabs a floor user sees. */
+/** Bottom tabs a floor user sees. Analytics is first, and so the default tab
+ * on launch - the punctuality summary is the thing worth seeing first, not
+ * a bare scan camera with nothing on it yet. */
 export type StaffTabParamList = {
+  Analytics: undefined;
   Scan: undefined;
   Checks: undefined;
   Attendance: undefined;
@@ -51,22 +54,38 @@ export type StaffStackParamList = {
   CheckDetail: {taskId: string};
   CorrectiveAction: {taskId: string};
   MyPay: undefined;
+  MyShifts: undefined;
+  // The staff shifts endpoint is list-only (no retrieve-by-id, same reason
+  // as ScanResult above), so the shift being offered travels as a param
+  // rather than being re-fetched by id. Optional: reached with a shift
+  // already picked (a shift card's "Offer this shift" link) or with none
+  // (Swap requests' "Request a swap" button), in which case the screen's
+  // own first step is picking one.
+  RequestSwap: {shift?: Shift} | undefined;
+  SwapRequests: undefined;
+  ScanHistory: undefined;
+  Notifications: undefined;
 };
 
 // ---------------------------------------------------------------------------
 // Admin
 // ---------------------------------------------------------------------------
+/** Bottom tabs a manager sees - the same shape as the staff side's tab bar:
+ * an analytics home, then the areas they manage, then their own account. */
 export type AdminTabParamList = {
+  // The landing tab: who's on shift right now, then cost/hours/lateness
+  // compared across the whole team, plus shortcuts into rota, payroll, the
+  // check-in code and notifications - everything that used to live on a
+  // separate "Manager" hub tab now lives here instead.
+  Analytics: undefined;
   // Team roster/invites plus a shortcut to who's on shift right now - both
   // attendance and team management live under this one tab.
   Staff: undefined;
-  // The owner/manager's own landing tab: shift stats, quick shortcuts
-  // (payroll, QR code, notifications), and their own account.
-  Manager: undefined;
-  Compliance: undefined;
+  Checks: undefined;
   // Food wastage tracking and menu management - no backend for either yet,
   // so this is a placeholder until that feature is built out.
   Food: undefined;
+  Profile: undefined;
 };
 
 export type AdminStackParamList = {
@@ -78,14 +97,20 @@ export type AdminStackParamList = {
   // Who is checked in right now - reached from the Staff tab, not a tab of
   // its own now that Staff and Attendance share one tab.
   AttendanceLive: undefined;
-  // The manual add-staff form, pulled out of the Staff tab's roster so that
-  // screen stays a plain list.
-  AddStaff: undefined;
-  // Generates and shows one invite link, on its own page - no roster, no
-  // clutter, just the link plus share/copy.
+  // Generates and shows one invite code, on its own page - no roster, no
+  // clutter, just the code plus share/copy. No deep link shown - JoinScreen
+  // already has a type-the-code path, so the code alone is a complete invite.
   InviteStaff: undefined;
+  // The full roster - the manager themselves, then every staff account.
+  AllStaff: undefined;
   // One staff member: their info, pay rates, and a way into their shifts.
   StaffDetail: {staffId: string};
+  // That same staff member's punctuality history - a manager can browse any
+  // month, not just the current one.
+  StaffAnalytics: {staffId: string};
+  // The weekly rota builder: who's on each day, Monday-Sunday, and that
+  // day's estimated staff cost.
+  Rota: undefined;
   Payroll: undefined;
   // The venue's single check-in QR code, not a per-staff barcode - there is
   // no such thing on the backend, only one VenueQRCode per restaurant.
@@ -93,8 +118,9 @@ export type AdminStackParamList = {
   ComplianceHistory: undefined;
   Equipment: undefined;
   Notifications: undefined;
-  // Reached from the Manager tab now that Profile isn't a tab of its own.
-  Profile: undefined;
+  // Every staff-raised swap request across the restaurant, and the
+  // approve/decline decision on each.
+  SwapRequests: undefined;
 };
 
 // ---------------------------------------------------------------------------

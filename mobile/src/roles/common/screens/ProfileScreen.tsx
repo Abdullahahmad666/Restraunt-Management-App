@@ -265,7 +265,7 @@ export function ProfileScreen(): React.JSX.Element {
             <Row
               icon="business-outline"
               label="Restaurant"
-              value={user.restaurant ? 'Assigned' : 'Not assigned yet'}
+              value={user.restaurant_name ?? 'Not assigned yet'}
             />
           </>
         )}
