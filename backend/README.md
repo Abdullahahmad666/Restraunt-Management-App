@@ -127,6 +127,43 @@ python manage.py makemigrations --check --dry-run   # CI runs this too
 With the server running: <http://localhost:8000/api/docs/> (Swagger UI) and
 `/api/schema/` for the raw OpenAPI document.
 
+## Deploying
+
+The [`Dockerfile`](Dockerfile) is what actually runs in production - build,
+`collectstatic`, then `docker-entrypoint.sh` applies migrations and starts
+gunicorn on every boot. `../render.yaml` deploys it to
+[Render](https://render.com) as a Blueprint, which is the fastest path from
+zero to a URL a client can hit:
+
+1. **A database.** Render's own Postgres is no longer free past a 30-day
+   trial, so `render.yaml` expects an external one instead -
+   [Neon](https://neon.tech) has a real free tier and works as a drop-in
+   Postgres 16. Create a project there and copy its connection string
+   (`postgres://user:password@host/dbname?sslmode=require`).
+2. **The service.** On Render: **New -> Blueprint**, point it at this repo.
+   Render reads `render.yaml` and creates one web service. Fields marked
+   "sync: false" in that file are ones it will prompt you to fill in rather
+   than guessing - `DATABASE_URL` (from step 1), the Gmail address + [App
+   Password](https://myaccount.google.com/apppasswords) for outgoing email,
+   and `ALLOWED_HOSTS` / `CSRF_TRUSTED_ORIGINS`.
+3. **The hostname.** Render only tells you the actual URL
+   (`your-service-name.onrender.com`, or something else if that name was
+   taken) after the first deploy. Set `ALLOWED_HOSTS` and
+   `CSRF_TRUSTED_ORIGINS` to it in the dashboard's Environment tab once you
+   see it - the service redeploys itself automatically.
+4. **Data.** `seed_demo` refuses to run with `DEBUG=False` (see its
+   docstring) - it's a local-only command. To put demo data in front of a
+   client, run it from your own machine against the deployed database
+   instead: temporarily point your local `DATABASE_URL` at the same Neon
+   connection string from step 1 and run `python manage.py seed_demo
+   --reset` - it talks straight to that Postgres instance regardless of
+   where the code seeding it is running. Switch `DATABASE_URL` back to your
+   local database afterwards.
+
+The free Render plan spins the service down after 15 minutes idle - the
+first request after a quiet spell takes 30-60 seconds to wake it back up.
+Fine for a client trying it out; upgrade the plan once it needs to stay warm.
+
 ## Conventions
 
 - **Deny by default.** DRF's default permission is `IsAuthenticated`. Public
