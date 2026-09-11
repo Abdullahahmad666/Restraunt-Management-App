@@ -20,6 +20,10 @@
       "channel": "preview",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://invisiko-api.onrender.com/api/v1",
+        "EXPO_PUBLIC_API_TIMEOUT_MS": "15000"
       }
     },
     "production": {
@@ -27,6 +31,10 @@
       "autoIncrement": true,
       "android": {
         "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://invisiko-api.onrender.com/api/v1",
+        "EXPO_PUBLIC_API_TIMEOUT_MS": "15000"
       }
     }
   },
