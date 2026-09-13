@@ -1,0 +1,22 @@
+name: Keep backend warm
+
+# Render's free tier spins the service down after 15 minutes with no
+# traffic, and the next request pays for it with a 30-60+ second cold
+# start - bad for a client trying out the app for the first time. A ping
+# well inside that 15-minute window keeps it from ever going idle.
+#
+# This is a stopgap for the free tier, not a substitute for it - the
+# right long-term fix, once this is worth paying for, is upgrading the
+# Render service so it never sleeps and deleting this workflow.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping the health check endpoint
+        run: |
+          curl -fsS --max-time 90 https://invisiko-api.onrender.com/healthz/
