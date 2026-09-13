@@ -241,6 +241,12 @@ MAILERS = {
             "use_tls": env.bool("EMAIL_USE_TLS", default=True),
             "username": env("EMAIL_HOST_USER", default=""),
             "password": env("EMAIL_HOST_PASSWORD", default=""),
+            # Without this, a host that silently drops outbound SMTP (Render's
+            # free tier, notably - see render.yaml) hangs the connection
+            # attempt until gunicorn's own worker timeout kills the whole
+            # request at 30s. A short, explicit timeout turns that into a
+            # fast, specific failure instead.
+            "timeout": env.int("EMAIL_TIMEOUT", default=10),
         },
     }
 }

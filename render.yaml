@@ -10,14 +10,17 @@
 # prompt you to fill in rather than guessing.
 #
 # See backend/README.md's "Deploying" section for the full walkthrough.
-
-services:
-  - type: web
-    name: invisiko-api
-    runtime: docker
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
-    plan: free
+#
+# plan: `free` blocks all outbound SMTP traffic (ports 25/465/587) as of
+# Sept 2025 - Gmail-based email (OTP, password reset) hangs for gunicorn's
+# full worker timeout and 500s on every attempt. `starter` (or anything
+# paid) lifts that block and also never spins down on idle, so it doubles
+# as the fix for cold starts. This field is the reason to keep it in sync
+# with whatever you actually pick in the dashboard: Render treats this
+# file as the source of truth on a blueprint sync, so upgrading the plan
+# by hand in the dashboard without updating this too risks a later sync
+# silently downgrading it back to `free`.
+    plan: starter
     healthCheckPath: /healthz/
     envVars:
       - key: DJANGO_SETTINGS_MODULE
