@@ -18,46 +18,64 @@ import {Platform} from 'react-native';
 
 import type {DevicePlatform} from './types';
 
+// Expo Go's own Android module still logs a "removed from Expo Go" WARN/ERROR
+// the moment expo-notifications initialises there, regardless of anything
+// below - that line is Expo Go's, not a bug here, and it does not crash the
+// app (see the try/catch below and the .catch on useRegisterPushToken's
+// caller). It stops appearing entirely once you're running a dev build
+// instead of Expo Go, which this project already ships expo-dev-client for.
+const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
 // Registered once at import time - this module is only ever imported from
 // the one place (useRegisterPushToken) that runs for the lifetime of the app.
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+// Skipped in Expo Go: there is no point configuring how a push notification
+// displays in an environment that can never receive one.
+if (!isExpoGo) {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+}
 
 export async function getExpoPushToken(): Promise<{
   token: string;
   platform: DevicePlatform;
 } | null> {
-  if (Constants.executionEnvironment === ExecutionEnvironment.StoreClient) {
+  if (isExpoGo) {
     return null;
   }
 
-  const existing = await Notifications.getPermissionsAsync();
-  let status = existing.status;
-  if (status !== 'granted') {
-    status = (await Notifications.requestPermissionsAsync()).status;
-  }
-  if (status !== 'granted') {
+  try {
+    const existing = await Notifications.getPermissionsAsync();
+    let status = existing.status;
+    if (status !== 'granted') {
+      status = (await Notifications.requestPermissionsAsync()).status;
+    }
+    if (status !== 'granted') {
+      return null;
+    }
+
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.DEFAULT,
+      });
+    }
+
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+    if (!projectId) {
+      return null;
+    }
+
+    const {data: token} = await Notifications.getExpoPushTokenAsync({projectId});
+    return {token, platform: Platform.OS === 'ios' ? 'IOS' : 'ANDROID'};
+  } catch {
+    // A device/OS quirk here (no Google Play services, a stripped-down ROM,
+    // ...) should never be the reason the rest of the app fails to load.
     return null;
   }
-
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'default',
-      importance: Notifications.AndroidImportance.DEFAULT,
-    });
-  }
-
-  const projectId = Constants.expoConfig?.extra?.eas?.projectId;
-  if (!projectId) {
-    return null;
-  }
-
-  const {data: token} = await Notifications.getExpoPushTokenAsync({projectId});
-  return {token, platform: Platform.OS === 'ios' ? 'IOS' : 'ANDROID'};
 }

@@ -10,7 +10,10 @@
     "ios": {
       "bundleIdentifier": "com.invisiko.app",
       "supportsTablet": true,
-      "userInterfaceStyle": "dark"
+      "userInterfaceStyle": "dark",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.invisiko.app",

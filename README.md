@@ -67,6 +67,16 @@ that is why `API_BASE_URL` defaults to `http://10.0.2.2:8000/api/v1`.
 
 With the backend running: <http://localhost:8000/api/docs/>.
 
+## Deploying
+
+- **Backend** - [`backend/README.md`](backend/README.md)'s "Deploying"
+  section: a Render Blueprint (`render.yaml`) deploys the API in a few
+  minutes on Render's free tier plus a free Neon Postgres database.
+- **Mobile** - [`mobile/README.md`](mobile/README.md)'s "Getting a build in
+  front of a client" section: an EAS build produces an installable Android
+  `.apk` (no account needed beyond a free Expo one) or a TestFlight build for
+  iPhone (needs a paid Apple Developer account).
+
 ## Contributing
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) before your first PR. The short version:

@@ -1,0 +1,23 @@
+# Secrets - the single most important line in this file. Without it, a local
+# backend/.env (Gmail app password, DJANGO_SECRET_KEY, DATABASE_URL, ...) gets
+# baked straight into the image layers on anyone's `docker build`.
+.env
+.env.*
+!.env.example
+
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+db.sqlite3
+staticfiles/
+media/
+
+.git/
+.github/
+
+*.md

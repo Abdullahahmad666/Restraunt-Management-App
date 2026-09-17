@@ -99,3 +99,41 @@ npm test
 npm run format
 npm run doctor        # expo-doctor: version and config mismatches
 ```
+
+## Getting a build in front of a client
+
+Point `EXPO_PUBLIC_API_BASE_URL` in `.env` at the deployed backend (see
+[`../backend/README.md`](../backend/README.md)'s Deploying section) before
+building - a build bakes that value in at build time, it isn't read at
+runtime, so pointing at `localhost` here ships a build that can never reach
+anything.
+
+This project already ships `expo-dev-client` and an `eas.json` with the
+profiles below configured, so there's no setup left to do - only an
+[Expo account](https://expo.dev/signup) (free) to build with.
+
+**Android** - works right now, nothing else needed:
+
+```bash
+eas login
+eas build --profile preview --platform android
+```
+
+Produces a downloadable `.apk` - send the link, the client installs it
+directly (Settings may prompt them to allow installs from your source once).
+
+**iPhone** - needs an [Apple Developer account](https://developer.apple.com/programs/)
+($99/year, enrolled under whichever Apple ID will own the app) first. Once
+enrolled:
+
+```bash
+eas build --profile production --platform ios
+eas submit --platform ios
+```
+
+`eas build` will ask to create the needed Apple credentials (App Store
+Connect API key, provisioning profile) on first run - let it. `eas submit`
+uploads the build to App Store Connect; from there, add the client's email
+as an external TestFlight tester. Apple briefly reviews a build the first
+time it's used for external testing (usually well under 24h); after that,
+new builds on the same app go straight through.
