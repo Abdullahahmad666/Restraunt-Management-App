@@ -16,7 +16,7 @@ import {JOB_TITLE_LABELS} from '../../../features/attendance/types';
 import type {Shift} from '../../../features/attendance/types';
 import type {StaffStackParamList} from '../../../navigation/types';
 import {colors, spacing} from '../../../theme';
-import {formatTime} from '../../../utils/format';
+import {LOCALE, formatTime} from '../../../utils/format';
 
 type Nav = NativeStackNavigationProp<StaffStackParamList>;
 
@@ -38,7 +38,7 @@ function ShiftCard({shift, delay}: {shift: Shift; delay: number}): React.JSX.Ele
         <View style={styles.rowHeader}>
           <View>
             <Text style={styles.day}>
-              {new Date(shift.starts_at).toLocaleDateString(undefined, {
+              {new Date(shift.starts_at).toLocaleDateString(LOCALE, {
                 weekday: 'short',
                 day: 'numeric',
                 month: 'short',
@@ -114,9 +114,9 @@ export function MyShiftsScreen(): React.JSX.Element {
         .sort(sortByStart)
     : [];
 
-  const monthLabel = monthStart.toLocaleDateString(undefined, {month: 'long', year: 'numeric'});
+  const monthLabel = monthStart.toLocaleDateString(LOCALE, {month: 'long', year: 'numeric'});
   const nextMonthLabel = new Date(now.getFullYear(), now.getMonth() + 1, 1).toLocaleDateString(
-    undefined,
+    LOCALE,
     {month: 'long', year: 'numeric'},
   );
 

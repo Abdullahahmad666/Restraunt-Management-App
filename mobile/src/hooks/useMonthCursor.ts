@@ -1,5 +1,7 @@
 import {useMemo, useState} from 'react';
 
+import {LOCALE} from '../utils/format';
+
 /** A month a screen is currently looking at, plus prev/next navigation.
  * Shared by My Shifts and My Pay so "which month" works identically on both. */
 export function useMonthCursor() {
@@ -9,7 +11,7 @@ export function useMonthCursor() {
     const now = new Date();
     const start = new Date(now.getFullYear(), now.getMonth() + offset, 1);
     const end = new Date(now.getFullYear(), now.getMonth() + offset + 1, 0, 23, 59, 59, 999);
-    const label = start.toLocaleDateString(undefined, {month: 'long', year: 'numeric'});
+    const label = start.toLocaleDateString(LOCALE, {month: 'long', year: 'numeric'});
 
     return {
       start,

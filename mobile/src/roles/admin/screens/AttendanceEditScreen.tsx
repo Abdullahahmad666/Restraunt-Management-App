@@ -20,7 +20,7 @@ import {
 } from '../../../features/attendance/hooks';
 import {JOB_TITLE_LABELS, type JobTitle} from '../../../features/attendance/types';
 import {colors, spacing} from '../../../theme';
-import {formatTime} from '../../../utils/format';
+import {LOCALE, formatTime} from '../../../utils/format';
 import type {AdminStackParamList} from '../../../navigation/types';
 
 type Route = RouteProp<AdminStackParamList, 'AttendanceEdit'>;
@@ -75,7 +75,7 @@ function EditLog({logId, onDone}: {logId: string; onDone: () => void}): React.JS
   return (
     <Screen scroll>
       <Text style={styles.heading}>Correct record</Text>
-      <Text style={styles.hint}>Currently: {new Date(log.clock_in_at).toLocaleString()}</Text>
+      <Text style={styles.hint}>Currently: {new Date(log.clock_in_at).toLocaleString(LOCALE)}</Text>
 
       <TextField
         label="New check-in (leave blank to keep)"
@@ -105,7 +105,7 @@ function upcomingDays(count: number): {iso: string; weekday: string; dayNum: str
     const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
     out.push({
       iso: toLocalIsoDate(date),
-      weekday: date.toLocaleDateString(undefined, {weekday: 'short'}),
+      weekday: date.toLocaleDateString(LOCALE, {weekday: 'short'}),
       dayNum: String(date.getDate()),
     });
   }
@@ -268,7 +268,7 @@ function AddShift({staffId, onDone}: {staffId: string; onDone: () => void}): Rea
             <Card key={shift.id} style={styles.shiftRow}>
               <View>
                 <Text style={styles.rowTitle}>
-                  {new Date(shift.starts_at).toLocaleDateString(undefined, {
+                  {new Date(shift.starts_at).toLocaleDateString(LOCALE, {
                     weekday: 'short',
                     day: 'numeric',
                     month: 'short',

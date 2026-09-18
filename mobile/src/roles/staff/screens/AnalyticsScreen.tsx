@@ -13,7 +13,7 @@ import {useMyLogs, useMyShifts} from '../../../features/attendance/hooks';
 import {useMySummary} from '../../../features/payroll/hooks';
 import type {PayPeriodEntry} from '../../../features/payroll/types';
 import {colors, spacing} from '../../../theme';
-import {formatCurrency, formatHours} from '../../../utils/format';
+import {LOCALE, formatCurrency, formatHours} from '../../../utils/format';
 
 /** Last N months of pay-period entries, summed to one point per month - the
  * same "which month a period belongs to" the labels already use (a period's
@@ -40,7 +40,7 @@ function monthlyTotals(entries: PayPeriodEntry[]): {
       existing.pay += pay;
     } else {
       byMonth.set(key, {
-        label: endsOn.toLocaleDateString(undefined, {month: 'short'}),
+        label: endsOn.toLocaleDateString(LOCALE, {month: 'short'}),
         hours,
         pay,
         sortKey: endsOn.getFullYear() * 12 + endsOn.getMonth(),
@@ -85,7 +85,7 @@ export function AnalyticsScreen(): React.JSX.Element {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-  const monthLabel = monthStart.toLocaleDateString(undefined, {month: 'long', year: 'numeric'});
+  const monthLabel = monthStart.toLocaleDateString(LOCALE, {month: 'long', year: 'numeric'});
 
   const {daily, totalLateMinutes, onTimeCount, lateCount} = computeLateness(
     logs.data?.results ?? [],

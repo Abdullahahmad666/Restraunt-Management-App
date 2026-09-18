@@ -16,7 +16,7 @@ import {PAY_PERIOD_STAFF_HINT, PAY_PERIOD_STATUS_LABEL} from '../../../features/
 import type {PayPeriodStatus} from '../../../features/payroll/types';
 import {useMonthCursor} from '../../../hooks/useMonthCursor';
 import {colors, spacing} from '../../../theme';
-import {formatCurrency, formatDate, formatHours, formatTime} from '../../../utils/format';
+import {LOCALE, formatCurrency, formatDate, formatHours, formatTime} from '../../../utils/format';
 
 const STATUS_TONE: Record<PayPeriodStatus, 'neutral' | 'success' | 'warning'> = {
   OPEN: 'neutral',
@@ -150,7 +150,7 @@ export function MyPayScreen(): React.JSX.Element {
               <Card style={styles.dayCard}>
                 <View>
                   <Text style={styles.rowTitle}>
-                    {new Date(entry.date).toLocaleDateString(undefined, {
+                    {new Date(entry.date).toLocaleDateString(LOCALE, {
                       weekday: 'short',
                       day: 'numeric',
                       month: 'short',
