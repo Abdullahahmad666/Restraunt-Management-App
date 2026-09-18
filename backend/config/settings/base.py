@@ -190,6 +190,7 @@ SPECTACULAR_SETTINGS = {
         "NotificationStatusEnum": "apps.notifications.models.NOTIFICATION_STATUS_CHOICES",
         "ComplianceRoutineEnum": "apps.compliance.models.COMPLIANCE_ROUTINE_CHOICES",
         "FridgeUnitKindEnum": "apps.compliance.models.FRIDGE_UNIT_KIND_CHOICES",
+        "ChecklistFrequencyEnum": "apps.compliance.models.CHECKLIST_FREQUENCY_CHOICES",
     },
 }
 

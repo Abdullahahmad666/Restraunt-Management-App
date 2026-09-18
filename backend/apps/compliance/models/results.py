@@ -14,7 +14,7 @@ from django.db import models
 
 from apps.common.models import BaseModel
 
-from .templates import ChecklistItem, FridgeUnit, Routine
+from .templates import ChecklistItem, ChecklistTask, FridgeUnit, Routine
 
 
 class TemperatureReading(BaseModel):
@@ -70,3 +70,35 @@ class ChecklistCompletion(BaseModel):
 
     def __str__(self):
         return f"{self.checklist_item_id} done {self.date}"
+
+
+class ChecklistTaskCompletion(BaseModel):
+    """A ChecklistTask ticked off for its current period - the daily/weekly/
+    monthly equivalent of ChecklistCompletion above, same sharing rule.
+    `period_start` is today for a daily task, the Monday of the current
+    week for a weekly one, or the 1st of the current month for a monthly
+    one - see apps.compliance.services.completion.current_period_start,
+    the one place that computes it, so a client never has to."""
+
+    restaurant = models.ForeignKey(
+        "restaurants.Restaurant",
+        on_delete=models.CASCADE,
+        related_name="checklist_task_completions",
+    )
+    task = models.ForeignKey(ChecklistTask, on_delete=models.CASCADE, related_name="completions")
+    period_start = models.DateField()
+    completed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="+"
+    )
+    completed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("task", "period_start"), name="one_completion_per_task_per_period"
+            )
+        ]
+        ordering = ("-period_start",)
+
+    def __str__(self):
+        return f"{self.task_id} done for period {self.period_start}"

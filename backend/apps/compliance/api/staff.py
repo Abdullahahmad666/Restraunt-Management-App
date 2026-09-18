@@ -16,8 +16,11 @@ from .. import models
 from ..services import completion as completion_service
 from .common import (
     BaseChecklistItemSerializer,
+    BaseChecklistTaskSerializer,
+    BaseChecklistTemplateSerializer,
     BaseFridgeUnitSerializer,
     ChecklistCompletionSerializer,
+    ChecklistTaskCompletionSerializer,
     TemperatureReadingSerializer,
 )
 
@@ -140,5 +143,110 @@ class StaffChecklistCompletionViewSet(
 
     def perform_destroy(self, instance):
         completion_service.uncomplete_checklist_item(
+            restaurant=self.request.user.restaurant, completion=instance
+        )
+
+
+class StaffChecklistTemplateViewSet(
+    RestaurantScopedQuerysetMixin, mixins.ListModelMixin, viewsets.GenericViewSet
+):
+    """Every active named checklist at the caller's restaurant, optionally
+    filtered to one frequency (?frequency=DAILY) - read-only, a manager
+    maintains these (see AdminChecklistTemplateViewSet)."""
+
+    serializer_class = BaseChecklistTemplateSerializer
+    permission_classes = [IsStaff]
+    filterset_fields = ("frequency",)
+    queryset = models.ChecklistTemplate.objects.all()
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return models.ChecklistTemplate.objects.none()
+        return super().get_queryset().filter(is_active=True)
+
+
+class StaffChecklistTaskViewSet(
+    RestaurantScopedQuerysetMixin, mixins.ListModelMixin, viewsets.GenericViewSet
+):
+    """Every active task on one checklist template (?template=<id>) -
+    read-only."""
+
+    serializer_class = BaseChecklistTaskSerializer
+    permission_classes = [IsStaff]
+    filterset_fields = ("template",)
+    queryset = models.ChecklistTask.objects.all()
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return models.ChecklistTask.objects.none()
+        return super().get_queryset().filter(is_active=True)
+
+
+class CompleteChecklistTaskSerializer(serializers.Serializer):
+    task = serializers.PrimaryKeyRelatedField(queryset=models.ChecklistTask.objects.all())
+
+
+class StaffChecklistTaskCompletionViewSet(
+    RestaurantScopedQuerysetMixin,
+    mixins.ListModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    """Which of one template's tasks are done for the *current* period
+    (?template=<id>) - today for a daily checklist, this week for a weekly
+    one, this month for a monthly one. Unlike the opening/closing
+    completions, there's no `date` to pass: current_period_start works it
+    out from the template's frequency, the same way on every request, so a
+    client never computes "which Monday" itself and risks landing on a
+    different one than the server would have."""
+
+    serializer_class = ChecklistTaskCompletionSerializer
+    permission_classes = [IsStaff]
+    http_method_names = ["get", "post", "delete", "head", "options"]
+    queryset = models.ChecklistTaskCompletion.objects.select_related(
+        "completed_by", "task", "task__template"
+    )
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if self.action != "list":
+            # Detail actions (retrieve/delete) address one row by id and
+            # don't need - or have - a ?template= to filter by.
+            return queryset
+
+        template_id = self.request.query_params.get("template")
+        if not template_id:
+            return queryset.none()
+
+        template = models.ChecklistTemplate.objects.filter(
+            id=template_id, restaurant_id=self.request.user.restaurant_id
+        ).first()
+        if template is None:
+            return queryset.none()
+
+        period_start = completion_service.current_period_start(
+            frequency=template.frequency, today=timezone.localdate()
+        )
+        return queryset.filter(task__template=template, period_start=period_start)
+
+    def create(self, request, *args, **kwargs):
+        input_serializer = CompleteChecklistTaskSerializer(data=request.data)
+        input_serializer.is_valid(raise_exception=True)
+
+        try:
+            completion = completion_service.complete_checklist_task(
+                restaurant=request.user.restaurant,
+                completed_by=request.user,
+                today=timezone.localdate(),
+                **input_serializer.validated_data,
+            )
+        except DjangoValidationError as exc:
+            raise DRFValidationError(getattr(exc, "messages", str(exc))) from exc
+
+        return Response(self.get_serializer(completion).data, status=201)
+
+    def perform_destroy(self, instance):
+        completion_service.uncomplete_checklist_task(
             restaurant=self.request.user.restaurant, completion=instance
         )

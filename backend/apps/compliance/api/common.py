@@ -71,3 +71,38 @@ class ChecklistCompletionSerializer(serializers.ModelSerializer):
         if not obj.completed_by_id:
             return None
         return obj.completed_by.get_full_name() or obj.completed_by.email
+
+
+class BaseChecklistTemplateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.ChecklistTemplate
+        fields = ("id", "frequency", "name", "sort_order")
+        read_only_fields = ("id",)
+
+
+class BaseChecklistTaskSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.ChecklistTask
+        fields = ("id", "template", "text", "sort_order")
+        read_only_fields = ("id",)
+
+
+class ChecklistTaskCompletionSerializer(serializers.ModelSerializer):
+    completed_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = models.ChecklistTaskCompletion
+        fields = (
+            "id",
+            "task",
+            "period_start",
+            "completed_by",
+            "completed_by_name",
+            "completed_at",
+        )
+        read_only_fields = fields
+
+    def get_completed_by_name(self, obj) -> str | None:
+        if not obj.completed_by_id:
+            return None
+        return obj.completed_by.get_full_name() or obj.completed_by.email

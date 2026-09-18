@@ -27,3 +27,21 @@ class TemperatureReadingAdmin(admin.ModelAdmin):
 class ChecklistCompletionAdmin(admin.ModelAdmin):
     list_display = ("checklist_item", "date", "completed_by")
     list_filter = ("date",)
+
+
+@admin.register(models.ChecklistTemplate)
+class ChecklistTemplateAdmin(admin.ModelAdmin):
+    list_display = ("name", "restaurant", "frequency", "sort_order", "is_active")
+    list_filter = ("restaurant", "frequency", "is_active")
+
+
+@admin.register(models.ChecklistTask)
+class ChecklistTaskAdmin(admin.ModelAdmin):
+    list_display = ("text", "template", "sort_order", "is_active")
+    list_filter = ("template__frequency", "is_active")
+
+
+@admin.register(models.ChecklistTaskCompletion)
+class ChecklistTaskCompletionAdmin(admin.ModelAdmin):
+    list_display = ("task", "period_start", "completed_by")
+    list_filter = ("period_start",)

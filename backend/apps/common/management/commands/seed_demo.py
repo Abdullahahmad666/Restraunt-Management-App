@@ -479,6 +479,68 @@ class Command(BaseCommand):
                 completed_by=first_staff_member,
             )
 
+        self._seed_frequency_checklists(restaurant, first_staff_member, today)
+
+    def _seed_frequency_checklists(self, restaurant, first_staff_member, today) -> None:
+        """A couple of named daily/weekly/monthly checklists so the "Other
+        checklists" screens have something real to show - one task per
+        checklist already ticked off for the current period, the rest left
+        open."""
+        daily = compliance_models.ChecklistTemplate.objects.create(
+            restaurant=restaurant,
+            frequency=compliance_models.ChecklistFrequency.DAILY,
+            name="Toilet Cleaning",
+            sort_order=0,
+        )
+        daily_tasks = [
+            compliance_models.ChecklistTask.objects.create(
+                restaurant=restaurant, template=daily, text=text, sort_order=index
+            )
+            for index, text in enumerate(["Clean and disinfect toilets", "Restock soap and paper"])
+        ]
+
+        weekly = compliance_models.ChecklistTemplate.objects.create(
+            restaurant=restaurant,
+            frequency=compliance_models.ChecklistFrequency.WEEKLY,
+            name="Team Meeting",
+            sort_order=0,
+        )
+        weekly_tasks = [
+            compliance_models.ChecklistTask.objects.create(
+                restaurant=restaurant, template=weekly, text=text, sort_order=index
+            )
+            for index, text in enumerate(["Have team meeting", "Review upcoming rota"])
+        ]
+
+        monthly = compliance_models.ChecklistTemplate.objects.create(
+            restaurant=restaurant,
+            frequency=compliance_models.ChecklistFrequency.MONTHLY,
+            name="Monthly Deep Clean",
+            sort_order=0,
+        )
+        compliance_models.ChecklistTask.objects.create(
+            restaurant=restaurant,
+            template=monthly,
+            text="Deep clean fridges and freezers",
+            sort_order=0,
+        )
+        compliance_models.ChecklistTask.objects.create(
+            restaurant=restaurant,
+            template=monthly,
+            text="Deep clean extraction and filters",
+            sort_order=1,
+        )
+
+        compliance_service.complete_checklist_task(
+            restaurant=restaurant, task=daily_tasks[0], completed_by=first_staff_member, today=today
+        )
+        compliance_service.complete_checklist_task(
+            restaurant=restaurant,
+            task=weekly_tasks[0],
+            completed_by=first_staff_member,
+            today=today,
+        )
+
     # -----------------------------------------------------------------
     # Summary
     # -----------------------------------------------------------------

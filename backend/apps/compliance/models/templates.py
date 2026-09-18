@@ -8,12 +8,19 @@ from apps.common.models import BaseModel
 
 
 class Routine(models.TextChoices):
-    """Which end of the day a check belongs to. Deliberately just these two
-    for now - see the module docstring in results.py for why daily/weekly/
-    monthly checklists aren't modelled as a Routine."""
+    """Which end of the day a check belongs to. There is exactly one
+    checklist per routine (see ChecklistItem) - unlike ChecklistTemplate
+    below, where a restaurant can have any number of named checklists per
+    frequency, so a routine isn't modelled as one of those."""
 
     OPENING = "OPENING", "Opening"
     CLOSING = "CLOSING", "Closing"
+
+
+class ChecklistFrequency(models.TextChoices):
+    DAILY = "DAILY", "Daily"
+    WEEKLY = "WEEKLY", "Weekly"
+    MONTHLY = "MONTHLY", "Monthly"
 
 
 class FridgeUnit(BaseModel):
@@ -63,7 +70,48 @@ class ChecklistItem(BaseModel):
         return f"{self.get_routine_display()}: {self.text}"
 
 
+class ChecklistTemplate(BaseModel):
+    """A named, admin-managed checklist on a cadence - "Toilet Cleaning"
+    (daily), "Monthly Deep Clean" (monthly). Unlike the opening/closing
+    checklist, a restaurant can register any number of these per
+    frequency - each with its own ChecklistTask lines below."""
+
+    restaurant = models.ForeignKey(
+        "restaurants.Restaurant", on_delete=models.CASCADE, related_name="checklist_templates"
+    )
+    frequency = models.CharField(max_length=16, choices=ChecklistFrequency.choices)
+    name = models.CharField(max_length=150)
+    sort_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ("frequency", "sort_order", "name")
+
+    def __str__(self):
+        return f"{self.get_frequency_display()}: {self.name}"
+
+
+class ChecklistTask(BaseModel):
+    """One line within a ChecklistTemplate - "Deck scrub floors, including
+    under and behind appliances"."""
+
+    restaurant = models.ForeignKey(
+        "restaurants.Restaurant", on_delete=models.CASCADE, related_name="checklist_tasks"
+    )
+    template = models.ForeignKey(ChecklistTemplate, on_delete=models.CASCADE, related_name="tasks")
+    text = models.CharField(max_length=255)
+    sort_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ("sort_order",)
+
+    def __str__(self):
+        return f"{self.template_id}: {self.text}"
+
+
 # Flat, top-level names so config.settings.base's ENUM_NAME_OVERRIDES can
 # point at them - see the matching comment in apps.attendance.models.
 COMPLIANCE_ROUTINE_CHOICES = Routine.choices
+CHECKLIST_FREQUENCY_CHOICES = ChecklistFrequency.choices
 FRIDGE_UNIT_KIND_CHOICES = FridgeUnit.Kind.choices
