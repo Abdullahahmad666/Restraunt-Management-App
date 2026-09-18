@@ -19,6 +19,12 @@ import {useAuthStore} from '../../../store/authStore';
 import {colors, spacing} from '../../../theme';
 import {roundCoordinate} from '../../../utils/coords';
 
+/** decimal-pad has no minus key on either platform, and a longitude west of
+ * Greenwich or a latitude south of the equator needs one - there is no
+ * numeric keyboardType that reliably includes "-" on both iOS and Android,
+ * so this falls back to the ordinary text keyboard, which always has it. */
+const COORDINATE_KEYBOARD_TYPE = 'default';
+
 /**
  * The venue's single check-in QR code, printed and displayed at the door.
  *
@@ -126,13 +132,13 @@ function ExistingQrCode({
             />
             <TextField
               label="Latitude"
-              keyboardType="decimal-pad"
+              keyboardType={COORDINATE_KEYBOARD_TYPE}
               value={latitude}
               onChangeText={setLatitude}
             />
             <TextField
               label="Longitude"
-              keyboardType="decimal-pad"
+              keyboardType={COORDINATE_KEYBOARD_TYPE}
               value={longitude}
               onChangeText={setLongitude}
             />
@@ -143,17 +149,21 @@ function ExistingQrCode({
               onChangeText={setRadius}
             />
             <View style={styles.actions}>
-              <Button
-                title="Cancel"
-                variant="secondary"
-                onPress={() => setEditingLocation(false)}
-              />
-              <Button
-                title="Confirm & regenerate"
-                onPress={onRegenerate}
-                loading={regenerate.isPending}
-                disabled={!latitude || !longitude}
-              />
+              <View style={styles.actionButton}>
+                <Button
+                  title="Cancel"
+                  variant="secondary"
+                  onPress={() => setEditingLocation(false)}
+                />
+              </View>
+              <View style={styles.actionButton}>
+                <Button
+                  title="Regenerate"
+                  onPress={onRegenerate}
+                  loading={regenerate.isPending}
+                  disabled={!latitude || !longitude}
+                />
+              </View>
             </View>
           </Card>
         ) : (
@@ -223,13 +233,13 @@ function CreateQrCodeForm(): React.JSX.Element {
 
       <TextField
         label="Latitude"
-        keyboardType="decimal-pad"
+        keyboardType={COORDINATE_KEYBOARD_TYPE}
         value={latitude}
         onChangeText={setLatitude}
       />
       <TextField
         label="Longitude"
-        keyboardType="decimal-pad"
+        keyboardType={COORDINATE_KEYBOARD_TYPE}
         value={longitude}
         onChangeText={setLongitude}
       />
@@ -267,5 +277,6 @@ const styles = StyleSheet.create({
   warning: {fontSize: 12, color: colors.warning, textAlign: 'center'},
   error: {color: colors.danger, textAlign: 'center'},
   locationCard: {width: '100%', gap: spacing.sm},
-  actions: {flexDirection: 'row', gap: spacing.sm, justifyContent: 'flex-end'},
+  actions: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm},
+  actionButton: {flexGrow: 1, flexBasis: 120},
 });
