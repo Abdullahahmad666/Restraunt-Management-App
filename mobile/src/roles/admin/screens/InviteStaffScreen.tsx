@@ -7,32 +7,55 @@ import {ErrorState} from '../../../components/ErrorState';
 import {LoadingView} from '../../../components/LoadingView';
 import {Screen} from '../../../components/Screen';
 import {describeApiError} from '../../../api/errors';
-import {useCreateStaffInvite} from '../../../features/invites/hooks';
+import {useCreateStaffInvite, useInviteCodes} from '../../../features/invites/hooks';
 import {colors, radii, spacing} from '../../../theme';
 
 /**
- * Just the code - no deep link. JoinScreen already has a "type the code by
- * hand" path (it has to: the link's custom scheme does nothing on a phone
- * without the app yet, which is most of an invite's audience, and nothing at
- * all in Expo Go), so the code alone is a complete, working invite on its
- * own rather than a fallback for when the link fails.
+ * One standing invite code the whole team shares - not a one-time ticket.
+ * It keeps working for every new joiner until a manager asks for a new one
+ * here, which is also the only thing that stops the old one working (see
+ * AdminInviteCodeViewSet.perform_create on the backend). So this screen
+ * shows the restaurant's current active code if one already exists, rather
+ * than minting a fresh (and so immediately-replacing) one on every visit.
+ *
+ * No deep link shown - JoinScreen already has a "type the code by hand"
+ * path (it has to: the link's custom scheme does nothing on a phone
+ * without the app yet, which is most of an invite's audience, and nothing
+ * at all in Expo Go), so the code alone is a complete, working invite.
  */
 export function InviteStaffScreen(): React.JSX.Element {
+  const codes = useInviteCodes();
   const createInvite = useCreateStaffInvite();
   const [copied, setCopied] = useState(false);
+  const [confirmingNew, setConfirmingNew] = useState(false);
+
+  const activeCode = codes.data?.results.find(c => c.role === 'STAFF' && c.is_usable);
+  const hasNoCode = codes.isSuccess && !activeCode;
 
   useEffect(() => {
-    createInvite.mutate();
-    // Only ever once, when the screen opens - re-running on every render
-    // would mint a fresh code each time.
+    // Only when the restaurant has never had one - not on every visit,
+    // which would silently replace (and so invalidate) an existing code
+    // nobody asked to retire yet.
+    if (hasNoCode) {
+      createInvite.mutate();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [hasNoCode]);
 
-  if (createInvite.isPending || createInvite.isIdle) {
+  if (codes.isLoading || (hasNoCode && (createInvite.isPending || createInvite.isIdle))) {
     return <LoadingView />;
   }
 
-  if (createInvite.isError) {
+  if (codes.isError) {
+    return (
+      <ErrorState
+        message={describeApiError(codes.error, 'Could not load the invite code.')}
+        onRetry={() => codes.refetch()}
+      />
+    );
+  }
+
+  if (createInvite.isError && !activeCode) {
     return (
       <ErrorState
         message={describeApiError(createInvite.error, 'Could not create an invite.')}
@@ -41,21 +64,33 @@ export function InviteStaffScreen(): React.JSX.Element {
     );
   }
 
-  const code = createInvite.data.code;
+  // createInvite.data wins once populated - freshest after a "Generate new
+  // code" tap, ahead of the list query's background refetch landing.
+  const code = (createInvite.data ?? activeCode)?.code;
+  if (!code) {
+    return <LoadingView />;
+  }
+
   const shareMessage = `You're invited to join the team on Invisiko. Install the app, tap "Join a team" and enter this code: ${code}`;
 
   async function onCopy() {
-    await Clipboard.setStringAsync(code);
+    await Clipboard.setStringAsync(code as string);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
 
+  async function onGenerateNew() {
+    await createInvite.mutateAsync();
+    setConfirmingNew(false);
+  }
+
   return (
     <Screen>
-      <Text style={styles.heading}>Invite a staff member</Text>
+      <Text style={styles.heading}>Invite your team</Text>
       <Text style={styles.hint}>
-        Send this code to one new team member. They install the app, enter it on the Join screen,
-        and create their own account - it can only be used once.
+        Share this code with everyone you want to join. Anyone can enter it on the Join screen to
+        create their own account - it keeps working for the whole team until you generate a new one
+        below.
       </Text>
 
       <View style={styles.codeBox}>
@@ -73,6 +108,28 @@ export function InviteStaffScreen(): React.JSX.Element {
         />
         <Button title={copied ? 'Copied!' : 'Copy code'} onPress={onCopy} />
       </View>
+
+      {confirmingNew ? (
+        <View style={styles.confirmBox}>
+          <Text style={styles.warning}>
+            This stops the code above from working for anyone who hasn't joined yet. Continue?
+          </Text>
+          <View style={styles.actions}>
+            <Button title="Cancel" variant="secondary" onPress={() => setConfirmingNew(false)} />
+            <Button
+              title="Yes, generate new code"
+              onPress={onGenerateNew}
+              loading={createInvite.isPending}
+            />
+          </View>
+        </View>
+      ) : (
+        <Button
+          title="Generate new code"
+          variant="secondary"
+          onPress={() => setConfirmingNew(true)}
+        />
+      )}
     </Screen>
   );
 }
@@ -97,4 +154,6 @@ const styles = StyleSheet.create({
   },
   code: {fontSize: 32, fontWeight: '700', color: colors.primary, letterSpacing: 4},
   actions: {flexDirection: 'row', gap: spacing.sm},
+  confirmBox: {gap: spacing.sm},
+  warning: {fontSize: 12, color: colors.warning},
 });

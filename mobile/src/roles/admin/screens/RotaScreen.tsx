@@ -17,7 +17,7 @@ import {useStaffAccounts} from '../../../features/staff/hooks';
 import type {StaffAccount} from '../../../features/staff/types';
 import {useWeekCursor} from '../../../hooks/useWeekCursor';
 import {colors, radii, spacing} from '../../../theme';
-import {formatCurrency, formatHours, formatTime, fullName} from '../../../utils/format';
+import {LOCALE, formatCurrency, formatHours, formatTime, fullName} from '../../../utils/format';
 
 const JOB_TITLES = Object.keys(JOB_TITLE_LABELS) as JobTitle[];
 
@@ -177,7 +177,7 @@ function DayCard({
     <Card>
       <View style={styles.dayHeader}>
         <Text style={styles.dayTitle}>
-          {day.toLocaleDateString(undefined, {weekday: 'long', day: 'numeric', month: 'short'})}
+          {day.toLocaleDateString(LOCALE, {weekday: 'long', day: 'numeric', month: 'short'})}
         </Text>
         <Text style={styles.dayCost}>{formatCurrency(dayCost)}</Text>
       </View>

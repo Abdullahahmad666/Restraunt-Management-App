@@ -13,6 +13,7 @@ export type InviteCode = {
   role: Role;
   restaurant: string;
   expires_at: string;
+  is_active: boolean;
   used_at: string | null;
   is_usable: boolean;
   created_at: string;

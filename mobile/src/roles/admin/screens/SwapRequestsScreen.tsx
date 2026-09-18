@@ -19,7 +19,7 @@ import {
 import {JOB_TITLE_LABELS} from '../../../features/attendance/types';
 import type {ShiftSwapRequest, ShiftSwapStatus} from '../../../features/attendance/types';
 import {colors, spacing} from '../../../theme';
-import {formatTime} from '../../../utils/format';
+import {LOCALE, formatTime} from '../../../utils/format';
 
 const STATUS_TONE: Record<ShiftSwapStatus, 'neutral' | 'success' | 'warning' | 'danger'> = {
   PENDING: 'warning',
@@ -29,7 +29,7 @@ const STATUS_TONE: Record<ShiftSwapStatus, 'neutral' | 'success' | 'warning' | '
 };
 
 function shiftWindow(swap: ShiftSwapRequest): string {
-  const day = new Date(swap.shift_starts_at).toLocaleDateString(undefined, {
+  const day = new Date(swap.shift_starts_at).toLocaleDateString(LOCALE, {
     weekday: 'short',
     day: 'numeric',
     month: 'short',

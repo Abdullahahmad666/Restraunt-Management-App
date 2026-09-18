@@ -116,7 +116,10 @@ AUTH_PASSWORD_VALIDATORS = [
 # ---------------------------------------------------------------------------
 # I18N / timezone
 # ---------------------------------------------------------------------------
-LANGUAGE_CODE = "en-us"
+# The restaurant is UK-only (see TIME_ZONE default's counterpart in
+# render.yaml) - en-gb rather than en-us mainly matters for how Django
+# admin renders/parses dates (31/12/2026, not 12/31/2026).
+LANGUAGE_CODE = "en-gb"
 TIME_ZONE = env("TIME_ZONE", default="UTC")
 USE_I18N = True
 USE_TZ = True

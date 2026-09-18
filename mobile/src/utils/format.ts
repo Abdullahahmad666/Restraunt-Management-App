@@ -1,27 +1,41 @@
-/** Shared display formatting so screens don't each invent their own. */
+/** Shared display formatting so screens don't each invent their own.
+ *
+ * The restaurant is UK-only (see render.yaml's TIME_ZONE comment), so every
+ * date/time/currency format here is pinned to 'en-GB'/GBP rather than left
+ * to `undefined` (the device's own locale) - a phone set to US English
+ * would otherwise show "Sep 18, 2026" and "1:35 PM" instead of "18 Sep
+ * 2026" and "13:35" for the exact same restaurant. Screens outside this
+ * file that call toLocaleDateString/toLocaleTimeString directly should
+ * import LOCALE from here rather than passing `undefined`.
+ */
+
+export const LOCALE = 'en-GB';
+const CURRENCY = 'GBP';
 
 export function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
+  return new Date(iso).toLocaleString(LOCALE, {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
 }
 
 export function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString(undefined, {timeStyle: 'short'});
+  return new Date(iso).toLocaleTimeString(LOCALE, {timeStyle: 'short'});
 }
 
 export function formatDate(isoDate: string): string {
   // isoDate is a plain "YYYY-MM-DD" - parsing as UTC avoids the date shifting
   // by a day for anyone west of UTC.
-  return new Date(`${isoDate}T00:00:00Z`).toLocaleDateString(undefined, {
+  return new Date(`${isoDate}T00:00:00Z`).toLocaleDateString(LOCALE, {
     dateStyle: 'medium',
     timeZone: 'UTC',
   });
 }
 
 export function formatCurrency(amount: string | number): string {
-  return `£${Number(amount).toFixed(2)}`;
+  return new Intl.NumberFormat(LOCALE, {style: 'currency', currency: CURRENCY}).format(
+    Number(amount),
+  );
 }
 
 export function formatHours(hours: string | number): string {

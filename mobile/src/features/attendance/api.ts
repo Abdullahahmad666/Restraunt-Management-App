@@ -166,8 +166,24 @@ export async function createVenueQrCode(input: CreateQrCodeInput): Promise<Venue
   return data;
 }
 
-export async function regenerateVenueQrCode(id: string): Promise<VenueQRCode> {
-  const {data} = await apiClient.post<VenueQRCode>(endpoints.admin.attendance.regenerateQrCode(id));
+export type RegenerateQrCodeInput = {
+  latitude: number;
+  longitude: number;
+  radius_meters: number;
+};
+
+/** Rotates the token AND refreshes the venue position/radius in one call -
+ * the backend requires all three every time, on the theory that "regenerate"
+ * is also the moment to notice and fix a stale geofence, not just a way to
+ * invalidate a lost printout. */
+export async function regenerateVenueQrCode(
+  id: string,
+  input: RegenerateQrCodeInput,
+): Promise<VenueQRCode> {
+  const {data} = await apiClient.post<VenueQRCode>(
+    endpoints.admin.attendance.regenerateQrCode(id),
+    input,
+  );
   return data;
 }
 

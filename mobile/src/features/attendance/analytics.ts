@@ -1,5 +1,6 @@
 /** Turns logs + shifts into punctuality figures - shared by the staff and
  * admin analytics screens so "late" means exactly the same thing on both. */
+import {LOCALE} from '../../utils/format';
 import type {AttendanceLog, Shift} from './types';
 
 export type LatenessSummary = {
@@ -50,7 +51,7 @@ export function computeLateness(
     }
 
     return {
-      label: clockIn.toLocaleDateString(undefined, {day: 'numeric', month: 'short'}),
+      label: clockIn.toLocaleDateString(LOCALE, {day: 'numeric', month: 'short'}),
       lateMinutes,
     };
   });

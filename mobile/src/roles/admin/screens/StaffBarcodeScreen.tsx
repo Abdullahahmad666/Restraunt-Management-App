@@ -19,6 +19,12 @@ import {useAuthStore} from '../../../store/authStore';
 import {colors, spacing} from '../../../theme';
 import {roundCoordinate} from '../../../utils/coords';
 
+/** decimal-pad has no minus key on either platform, and a longitude west of
+ * Greenwich or a latitude south of the equator needs one - there is no
+ * numeric keyboardType that reliably includes "-" on both iOS and Android,
+ * so this falls back to the ordinary text keyboard, which always has it. */
+const COORDINATE_KEYBOARD_TYPE = 'default';
+
 /**
  * The venue's single check-in QR code, printed and displayed at the door.
  *
@@ -48,22 +54,59 @@ export function StaffBarcodeScreen(): React.JSX.Element {
     return <CreateQrCodeForm />;
   }
 
-  // Captured as a plain string so the closure below doesn't need TS to prove
-  // `code` itself stays defined - narrowing on an outer const doesn't carry
-  // into a function declared after the guard.
-  const codeId = code.id;
+  return <ExistingQrCode code={code} regenerate={regenerate} error={error} setError={setError} />;
+}
+
+/** Regenerating rotates the token, but also asks for the venue's
+ * position/radius again rather than silently keeping whatever was set last
+ * time - the geofence needs updating if the venue moved, and "regenerate"
+ * is the moment a manager is already here to fix it. */
+function ExistingQrCode({
+  code,
+  regenerate,
+  error,
+  setError,
+}: {
+  code: NonNullable<ReturnType<typeof useVenueQrCodes>['data']>['results'][number];
+  regenerate: ReturnType<typeof useRegenerateVenueQrCode>;
+  error: string | null;
+  setError: (error: string | null) => void;
+}): React.JSX.Element {
+  const [editingLocation, setEditingLocation] = useState(false);
+  const [latitude, setLatitude] = useState(String(code.latitude));
+  const [longitude, setLongitude] = useState(String(code.longitude));
+  const [radius, setRadius] = useState(String(code.radius_meters));
+
+  async function useCurrentLocation() {
+    const permission = await Location.requestForegroundPermissionsAsync();
+    if (permission.status !== 'granted') {
+      setError('Location permission is required to set the venue position.');
+      return;
+    }
+    const position = await Location.getCurrentPositionAsync({});
+    setLatitude(String(roundCoordinate(position.coords.latitude)));
+    setLongitude(String(roundCoordinate(position.coords.longitude)));
+  }
 
   async function onRegenerate() {
     setError(null);
     try {
-      await regenerate.mutateAsync(codeId);
+      await regenerate.mutateAsync({
+        id: code.id,
+        input: {
+          latitude: Number(latitude),
+          longitude: Number(longitude),
+          radius_meters: Number(radius) || code.radius_meters,
+        },
+      });
+      setEditingLocation(false);
     } catch (err) {
       setError(describeApiError(err, 'Could not regenerate the QR code.'));
     }
   }
 
   return (
-    <Screen scroll={false}>
+    <Screen scroll={editingLocation}>
       <View style={styles.center}>
         <View style={styles.qrWrap}>
           <QRCode value={code.token} size={220} />
@@ -77,15 +120,64 @@ export function StaffBarcodeScreen(): React.JSX.Element {
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <Button
-          title="Regenerate code"
-          variant="secondary"
-          onPress={onRegenerate}
-          loading={regenerate.isPending}
-        />
-        <Text style={styles.warning}>
-          Regenerating invalidates any printed copy of the old code immediately.
-        </Text>
+        {editingLocation ? (
+          <Card style={styles.locationCard}>
+            <Text style={styles.hint}>
+              Confirm the venue's position - staff must be within this radius to check in.
+            </Text>
+            <Button
+              title="Use my current location"
+              variant="secondary"
+              onPress={useCurrentLocation}
+            />
+            <TextField
+              label="Latitude"
+              keyboardType={COORDINATE_KEYBOARD_TYPE}
+              value={latitude}
+              onChangeText={setLatitude}
+            />
+            <TextField
+              label="Longitude"
+              keyboardType={COORDINATE_KEYBOARD_TYPE}
+              value={longitude}
+              onChangeText={setLongitude}
+            />
+            <TextField
+              label="Radius (meters)"
+              keyboardType="number-pad"
+              value={radius}
+              onChangeText={setRadius}
+            />
+            <View style={styles.actions}>
+              <View style={styles.actionButton}>
+                <Button
+                  title="Cancel"
+                  variant="secondary"
+                  onPress={() => setEditingLocation(false)}
+                />
+              </View>
+              <View style={styles.actionButton}>
+                <Button
+                  title="Regenerate"
+                  onPress={onRegenerate}
+                  loading={regenerate.isPending}
+                  disabled={!latitude || !longitude}
+                />
+              </View>
+            </View>
+          </Card>
+        ) : (
+          <>
+            <Button
+              title="Regenerate code"
+              variant="secondary"
+              onPress={() => setEditingLocation(true)}
+            />
+            <Text style={styles.warning}>
+              Regenerating invalidates any printed copy of the old code immediately.
+            </Text>
+          </>
+        )}
       </View>
     </Screen>
   );
@@ -141,13 +233,13 @@ function CreateQrCodeForm(): React.JSX.Element {
 
       <TextField
         label="Latitude"
-        keyboardType="decimal-pad"
+        keyboardType={COORDINATE_KEYBOARD_TYPE}
         value={latitude}
         onChangeText={setLatitude}
       />
       <TextField
         label="Longitude"
-        keyboardType="decimal-pad"
+        keyboardType={COORDINATE_KEYBOARD_TYPE}
         value={longitude}
         onChangeText={setLongitude}
       />
@@ -184,4 +276,7 @@ const styles = StyleSheet.create({
   row: {fontSize: 14, color: colors.text},
   warning: {fontSize: 12, color: colors.warning, textAlign: 'center'},
   error: {color: colors.danger, textAlign: 'center'},
+  locationCard: {width: '100%', gap: spacing.sm},
+  actions: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm},
+  actionButton: {flexGrow: 1, flexBasis: 120},
 });

@@ -21,7 +21,7 @@ import {JOB_TITLE_LABELS} from '../../../features/attendance/types';
 import type {Shift} from '../../../features/attendance/types';
 import type {StaffStackParamList} from '../../../navigation/types';
 import {colors, radii, spacing} from '../../../theme';
-import {formatTime, fullName} from '../../../utils/format';
+import {LOCALE, formatTime, fullName} from '../../../utils/format';
 
 type Nav = NativeStackNavigationProp<StaffStackParamList>;
 type Route = RouteProp<StaffStackParamList, 'RequestSwap'>;
@@ -84,7 +84,7 @@ function ShiftPicker({onPick}: {onPick: (shift: Shift) => void}): React.JSX.Elem
             <Card style={styles.pickCard}>
               <View>
                 <Text style={styles.shiftDate}>
-                  {new Date(shift.starts_at).toLocaleDateString(undefined, {
+                  {new Date(shift.starts_at).toLocaleDateString(LOCALE, {
                     weekday: 'short',
                     day: 'numeric',
                     month: 'short',
@@ -143,7 +143,7 @@ function OfferForm({
           </Pressable>
         </View>
         <Text style={styles.shiftDate}>
-          {new Date(shift.starts_at).toLocaleDateString(undefined, {
+          {new Date(shift.starts_at).toLocaleDateString(LOCALE, {
             weekday: 'long',
             day: 'numeric',
             month: 'short',

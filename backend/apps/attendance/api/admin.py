@@ -134,6 +134,18 @@ class AdminVenueQRCodeSerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "token")
 
 
+class RegenerateVenueQrCodeSerializer(serializers.Serializer):
+    """Same fields as creating a code in the first place - regenerating is
+    also how an admin re-points the geofence at a new location, not just a
+    way to rotate the token, so the venue position has to be supplied fresh
+    each time rather than silently carried over from whatever it was set to
+    last."""
+
+    latitude = LatitudeField()
+    longitude = LongitudeField()
+    radius_meters = serializers.IntegerField(min_value=1)
+
+
 class AdminVenueQRCodeViewSet(RestaurantScopedQuerysetMixin, AdminViewSet):
     """One QR code per restaurant, printed and displayed at the venue."""
 
@@ -145,10 +157,22 @@ class AdminVenueQRCodeViewSet(RestaurantScopedQuerysetMixin, AdminViewSet):
 
     @action(detail=True, methods=["post"])
     def regenerate(self, request, pk=None):
-        """Rotate the token, e.g. after a lost/leaked printout - the old code stops working."""
+        """Rotate the token, e.g. after a lost/leaked printout - the old
+        code stops working - and refresh the venue's position/radius at the
+        same time, since regenerating is also the moment an admin would
+        notice and fix a stale geofence."""
         qr_code = self.get_object()
+        input_serializer = RegenerateVenueQrCodeSerializer(data=request.data)
+        input_serializer.is_valid(raise_exception=True)
+        data = input_serializer.validated_data
+
         qr_code.token = uuid.uuid4()
-        qr_code.save(update_fields=["token", "updated_at"])
+        qr_code.latitude = data["latitude"]
+        qr_code.longitude = data["longitude"]
+        qr_code.radius_meters = data["radius_meters"]
+        qr_code.save(
+            update_fields=["token", "latitude", "longitude", "radius_meters", "updated_at"]
+        )
         return Response(self.get_serializer(qr_code).data)
 
 

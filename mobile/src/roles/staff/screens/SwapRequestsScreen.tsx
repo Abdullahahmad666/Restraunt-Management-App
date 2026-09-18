@@ -21,7 +21,7 @@ import type {ShiftSwapRequest, ShiftSwapStatus} from '../../../features/attendan
 import type {StaffStackParamList} from '../../../navigation/types';
 import {useAuthStore} from '../../../store/authStore';
 import {colors, spacing} from '../../../theme';
-import {formatTime} from '../../../utils/format';
+import {LOCALE, formatTime} from '../../../utils/format';
 
 type Nav = NativeStackNavigationProp<StaffStackParamList>;
 
@@ -55,7 +55,7 @@ function SwapRow({
     <Card>
       <View style={styles.rowHeader}>
         <Text style={styles.rowTitle}>
-          {new Date(swap.shift_starts_at).toLocaleDateString(undefined, {
+          {new Date(swap.shift_starts_at).toLocaleDateString(LOCALE, {
             weekday: 'short',
             day: 'numeric',
             month: 'short',

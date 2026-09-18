@@ -1,5 +1,7 @@
 import {useMemo, useState} from 'react';
 
+import {LOCALE} from '../utils/format';
+
 /** The week (Monday-Sunday) a screen is currently looking at, plus
  * prev/next navigation - the weekly-rota equivalent of useMonthCursor. */
 export function useWeekCursor() {
@@ -19,10 +21,10 @@ export function useWeekCursor() {
     );
     const sunday = days[6] as Date;
 
-    const label = `${monday.toLocaleDateString(undefined, {
+    const label = `${monday.toLocaleDateString(LOCALE, {
       day: 'numeric',
       month: 'short',
-    })} - ${sunday.toLocaleDateString(undefined, {
+    })} - ${sunday.toLocaleDateString(LOCALE, {
       day: 'numeric',
       month: 'short',
       year: 'numeric',

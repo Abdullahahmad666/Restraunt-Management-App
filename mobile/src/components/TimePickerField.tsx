@@ -3,9 +3,10 @@ import {Platform, Pressable, StyleSheet, Text, View} from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 import {colors, radii, spacing} from '../theme';
+import {LOCALE} from '../utils/format';
 
 function formatTimeOfDay(date: Date): string {
-  return date.toLocaleTimeString(undefined, {hour: '2-digit', minute: '2-digit'});
+  return date.toLocaleTimeString(LOCALE, {hour: '2-digit', minute: '2-digit'});
 }
 
 /** A labelled button that opens the native time picker - shared by every

@@ -87,8 +87,9 @@ export function StaffDetailScreen(): React.JSX.Element {
       <Card>
         <Text style={styles.cardTitle}>Pay rates</Text>
         <Text style={styles.hint}>
-          The first 40 hours of each pay period are paid at the standard rate; anything past that is
-          paid at the overtime rate.
+          The first 20 hours of each week are paid at the standard rate; anything past that in the
+          same week is paid at the overtime rate. This resets every week, not just once per pay
+          period.
         </Text>
         <Text style={styles.hint}>
           Current:{' '}
@@ -98,14 +99,14 @@ export function StaffDetailScreen(): React.JSX.Element {
         </Text>
 
         <TextField
-          label="Standard rate (£/hr, first 40h)"
+          label="Standard rate (£/hr, first 20h/week)"
           keyboardType="decimal-pad"
           placeholder={existingRate?.rate_1 ?? '11.50'}
           value={rate1}
           onChangeText={setRate1}
         />
         <TextField
-          label="Overtime rate (£/hr, after 40h)"
+          label="Overtime rate (£/hr, after 20h/week)"
           keyboardType="decimal-pad"
           placeholder={existingRate?.rate_2 ?? '10.00'}
           value={rate2}

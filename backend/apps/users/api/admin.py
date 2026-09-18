@@ -120,4 +120,15 @@ class AdminInviteCodeViewSet(AdminViewSet):
             raise ValidationError(
                 "Your account is not attached to a restaurant, so it cannot issue invites."
             )
+
+        role = serializer.validated_data.get("role", Role.STAFF)
+        if role == Role.STAFF:
+            # A STAFF code is a standing invite the whole team shares (see
+            # InviteCode's docstring) - issuing a new one is how a manager
+            # "requests a new code", and the old one should stop working at
+            # that point rather than staying valid alongside it.
+            InviteCode.objects.filter(
+                restaurant_id=restaurant_id, role=Role.STAFF, is_active=True
+            ).update(is_active=False)
+
         serializer.save(restaurant_id=restaurant_id, created_by=self.request.user)
