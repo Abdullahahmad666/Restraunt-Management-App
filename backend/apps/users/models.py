@@ -107,16 +107,23 @@ def _generate_code() -> str:
 
 
 class InviteCode(BaseModel):
-    """A single-use code that lets someone self-register into a restaurant.
+    """A code that lets someone self-register into a restaurant.
 
     This exists because signup is public. Without it, a role field on the
     register endpoint would let anyone create an admin account - and an admin
     here can edit attendance records, which decide what people are paid. The
     code moves that decision back to someone who already has the authority.
 
-    Staff codes are a convenience: they attach the new account to a restaurant.
-    A user with no restaurant sees nothing at all (the querysets fail closed),
-    so without a code an account is inert until an admin assigns it.
+    A STAFF code is a standing invite, not a single-use ticket: the whole
+    team shares the one code a manager hands out, and it keeps working for
+    every new joiner until the manager issues a replacement (see
+    AdminInviteCodeViewSet.perform_create, which deactivates the old one at
+    that point) or explicitly revokes it. An ADMIN code stays single-use -
+    handing someone the keys to edit attendance and payroll is deliberately
+    a one-shot action, not something meant to be reused or shared further.
+    `is_active` is the switch a manager's "regenerate" flips; `is_usable`
+    is what actually gates registration, and reads that switch differently
+    per role.
     """
 
     code = models.CharField(max_length=16, unique=True, db_index=True, editable=False)
@@ -134,13 +141,17 @@ class InviteCode(BaseModel):
         related_name="invites_created",
     )
     expires_at = models.DateTimeField()
+    is_active = models.BooleanField(default=True)
+    # "Most recently used" for a reusable STAFF code, or "the one and only
+    # use" for a single-use ADMIN code - either way, the last successful
+    # registration this code produced.
     used_at = models.DateTimeField(null=True, blank=True)
-    used_by = models.OneToOneField(
+    used_by = models.ForeignKey(
         "users.User",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="invite_used",
+        related_name="+",
     )
 
     #: How long a freshly issued code stays valid.
@@ -174,14 +185,25 @@ class InviteCode(BaseModel):
 
     @property
     def is_used(self) -> bool:
+        """Has this code ever produced a successful registration - not
+        "is it still usable" (see is_usable), since a STAFF code is meant
+        to go on being used after its first one."""
         return self.used_at is not None
 
     @property
     def is_usable(self) -> bool:
-        return not self.is_used and not self.is_expired
+        if self.is_expired or not self.is_active:
+            return False
+        if self.role == Role.STAFF:
+            return True
+        return not self.is_used
 
     def consume(self, user) -> None:
-        """Mark the code spent. Caller is responsible for the surrounding atomic block."""
+        """Record a successful registration. Caller is responsible for the
+        surrounding atomic block. Does not deactivate the code - for a
+        reusable STAFF code that would defeat the point; an ADMIN code is
+        already blocked from a second use by is_usable's own is_used check
+        above, so there is nothing else to enforce here."""
         self.used_at = timezone.now()
         self.used_by = user
         self.save(update_fields=("used_at", "used_by", "updated_at"))

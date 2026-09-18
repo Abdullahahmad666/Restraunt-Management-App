@@ -42,8 +42,14 @@
         sync: false
       - key: CSRF_TRUSTED_ORIGINS
         sync: false
+      # Every timestamp shown to a manager (push notifications, digest
+      # emails) is rendered server-side with timezone.localtime(), which
+      # converts from UTC using this setting - left at UTC, a 1:35pm BST
+      # check-in showed up as "checked in at 12:35" instead of "13:35". The
+      # restaurant is UK-only today, so one fixed zone (rather than each
+      # Restaurant's own currently-unused `timezone` field) is enough.
       - key: TIME_ZONE
-        value: UTC
+        value: Europe/London
       # Real email delivery (OTP, password reset) - a Gmail address plus an
       # App Password (myaccount.google.com/apppasswords, needs 2-Step
       # Verification on), not the account password itself. Leave EMAIL_HOST

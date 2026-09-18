@@ -68,8 +68,10 @@ def test_period_label_rejects_a_date_that_is_not_a_period_end():
 
 
 # ---------------------------------------------------------------------------
-# The rate-1/rate-2 split: first 40 hours of the period at rate 1, the rest
-# at rate 2.
+# The rate-1/rate-2 split: first 20 hours of EACH week at rate 1, the rest
+# of that week at rate 2 - reset at the start of the second week, not one
+# 40-hour bucket for the whole period. pay_period below runs Fri 2026-08-21
+# to Thu 2026-09-03, so week one is Aug 21-27 and week two is Aug 28-Sep 3.
 # ---------------------------------------------------------------------------
 @pytest.fixture
 def restaurant():
@@ -107,23 +109,27 @@ def make_closed_log(staff, *, day, hours):
     )
 
 
-def test_worked_85_hours_splits_40_at_rate_1_and_45_at_rate_2(pay_period, staff_member):
+def test_each_week_gets_its_own_20_hour_rate_1_cap(pay_period, staff_member):
+    """30 hours in week one, 25 in week two - not 55 hours read against one
+    40-hour cap for the whole period. Each week pays 20 at rate 1 and
+    whatever's left of that week at rate 2."""
     StaffPayRate.objects.create(
         staff=staff_member, rate_1=Decimal("10.00"), rate_2=Decimal("15.00")
     )
-    # 85 hours across the period, in a few closed logs.
-    make_closed_log(staff_member, day=date(2026, 8, 21), hours=40)
-    make_closed_log(staff_member, day=date(2026, 8, 26), hours=45)
+    make_closed_log(staff_member, day=date(2026, 8, 21), hours=30)  # week one
+    make_closed_log(staff_member, day=date(2026, 8, 28), hours=25)  # week two
 
     entry = calculate_entry(pay_period=pay_period, staff=staff_member)
 
-    assert entry.hours_worked == Decimal("85.00")
-    assert entry.hours_at_rate_1 == Decimal("40")
-    assert entry.hours_at_rate_2 == Decimal("45.00")
-    assert entry.total_pay == Decimal("40") * Decimal("10.00") + Decimal("45.00") * Decimal("15.00")
+    assert entry.hours_worked == Decimal("55.00")
+    assert entry.hours_at_rate_1 == Decimal("40.00")  # 20 + 20
+    assert entry.hours_at_rate_2 == Decimal("15.00")  # 10 + 5
+    assert entry.total_pay == Decimal("40.00") * Decimal("10.00") + Decimal("15.00") * Decimal(
+        "15.00"
+    )
 
 
-def test_worked_under_40_hours_is_entirely_rate_1(pay_period, staff_member):
+def test_worked_under_20_hours_in_a_week_is_entirely_rate_1(pay_period, staff_member):
     StaffPayRate.objects.create(
         staff=staff_member, rate_1=Decimal("10.00"), rate_2=Decimal("15.00")
     )
@@ -133,6 +139,22 @@ def test_worked_under_40_hours_is_entirely_rate_1(pay_period, staff_member):
 
     assert entry.hours_at_rate_1 == Decimal("12.00")
     assert entry.hours_at_rate_2 == Decimal("0")
+
+
+def test_a_second_weeks_hours_dont_inherit_the_first_weeks_leftover_cap(pay_period, staff_member):
+    """5 hours in week one (well under the cap) must not let week two get a
+    bigger allowance - each week's 20-hour cap is independent, not a shared
+    40-hour pool for the period."""
+    StaffPayRate.objects.create(
+        staff=staff_member, rate_1=Decimal("10.00"), rate_2=Decimal("15.00")
+    )
+    make_closed_log(staff_member, day=date(2026, 8, 21), hours=5)  # week one
+    make_closed_log(staff_member, day=date(2026, 8, 28), hours=30)  # week two
+
+    entry = calculate_entry(pay_period=pay_period, staff=staff_member)
+
+    assert entry.hours_at_rate_1 == Decimal("25.00")  # 5 + 20
+    assert entry.hours_at_rate_2 == Decimal("10.00")  # 0 + 10
 
 
 def test_recalculating_does_not_clobber_an_admins_manual_split(pay_period, staff_member):

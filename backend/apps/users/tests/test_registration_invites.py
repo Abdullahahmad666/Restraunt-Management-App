@@ -110,7 +110,9 @@ def test_an_expired_code_is_rejected(client, restaurant, django_user_model):
     assert not django_user_model.objects.filter(email="late@example.com").exists()
 
 
-def test_a_code_cannot_be_used_twice(client, restaurant, django_user_model):
+def test_an_admin_code_cannot_be_used_twice(client, restaurant, django_user_model):
+    """ADMIN codes stay single-use - handing someone edit access to
+    attendance and payroll is a deliberate one-shot action."""
     invite = make_invite(restaurant)
 
     first = client.post(
@@ -135,6 +137,41 @@ def test_a_code_cannot_be_used_twice(client, restaurant, django_user_model):
     )
     assert second.status_code == 400
     assert not django_user_model.objects.filter(email="second@example.com").exists()
+
+
+def test_a_staff_code_can_be_used_by_the_whole_team(client, restaurant, django_user_model):
+    """Unlike an ADMIN code, a STAFF code is a standing invite the whole
+    team shares - it keeps working for every new joiner."""
+    invite = make_invite(restaurant, role=Role.STAFF)
+
+    for email in ("first@example.com", "second@example.com", "third@example.com"):
+        response = client.post(
+            reverse(REGISTER),
+            {
+                "email": email,
+                "password": PASSWORD,
+                "role": Role.STAFF,
+                "invite_code": invite.code,
+            },
+        )
+        assert response.status_code == 201, response.data
+
+    assert django_user_model.objects.filter(restaurant=restaurant).count() == 3
+
+
+def test_issuing_a_new_staff_code_retires_the_old_one(client, restaurant, django_user_model):
+    """A manager "requesting a new code" (AdminInviteCodeViewSet.perform_create)
+    is how a STAFF code stops working - not by anyone actually using it."""
+    old_invite = make_invite(restaurant, role=Role.STAFF)
+    admin = django_user_model.objects.create_user(
+        email="owner@example.com", password=PASSWORD, role=Role.ADMIN, restaurant=restaurant
+    )
+    client.force_authenticate(user=admin)
+    client.post(reverse("v1:admin:users:invite-code-list"), {"role": Role.STAFF})
+
+    old_invite.refresh_from_db()
+    assert not old_invite.is_active
+    assert not old_invite.is_usable
 
 
 # ---------------------------------------------------------------------------
@@ -427,12 +464,14 @@ def test_invite_lookup_404s_for_an_unknown_code(client):
     assert response.status_code == 404
 
 
-def test_invite_lookup_still_resolves_a_used_code_but_marks_it_unusable(
+def test_invite_lookup_still_resolves_a_used_admin_code_but_marks_it_unusable(
     client, restaurant, django_user_model
 ):
     """The join screen should say "this invite has already been used", not a
-    bare 404 - it still needs the restaurant/inviter names to say that well."""
-    invite = make_invite(restaurant, role=Role.STAFF)
+    bare 404 - it still needs the restaurant/inviter names to say that well.
+    ADMIN only: a STAFF code deliberately stays usable after being used -
+    see test_invite_lookup_stays_usable_after_a_staff_code_is_used."""
+    invite = make_invite(restaurant, role=Role.ADMIN)
     invite.consume(
         django_user_model.objects.create_user(email="used@example.com", password=PASSWORD)
     )
@@ -441,6 +480,20 @@ def test_invite_lookup_still_resolves_a_used_code_but_marks_it_unusable(
 
     assert response.status_code == 200
     assert response.data["is_usable"] is False
+
+
+def test_invite_lookup_stays_usable_after_a_staff_code_is_used(
+    client, restaurant, django_user_model
+):
+    invite = make_invite(restaurant, role=Role.STAFF)
+    invite.consume(
+        django_user_model.objects.create_user(email="used@example.com", password=PASSWORD)
+    )
+
+    response = client.get(reverse(INVITE_LOOKUP, kwargs={"code": invite.code}))
+
+    assert response.status_code == 200
+    assert response.data["is_usable"] is True
 
 
 def test_invite_lookup_falls_back_when_the_inviter_has_no_name_on_file(client, restaurant):
