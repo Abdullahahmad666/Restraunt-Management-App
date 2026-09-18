@@ -14,7 +14,9 @@ import {ScanResultScreen} from '../screens/ScanResultScreen';
 import {ScanScreen} from '../screens/ScanScreen';
 import {SwapRequestsScreen} from '../screens/SwapRequestsScreen';
 import {ChecklistScreen} from '../../../roles/common/screens/ChecklistScreen';
+import {ChecklistTemplateTasksScreen} from '../../../roles/common/screens/ChecklistTemplateTasksScreen';
 import {FridgeTemperaturesScreen} from '../../../roles/common/screens/FridgeTemperaturesScreen';
+import {OtherChecklistsScreen} from '../../../roles/common/screens/OtherChecklistsScreen';
 import {ProfileScreen} from '../../../roles/common/screens/ProfileScreen';
 import {RoutineScreen} from '../../../roles/common/screens/RoutineScreen';
 import {tabIcon} from '../../../navigation/tabIcon';
@@ -69,6 +71,16 @@ export function StaffNavigator(): React.JSX.Element {
         options={{title: 'Temperatures'}}
       />
       <Stack.Screen name="Checklist" component={ChecklistScreen} options={{title: 'Checklist'}} />
+      <Stack.Screen
+        name="OtherChecklists"
+        component={OtherChecklistsScreen}
+        options={{title: 'Other checklists'}}
+      />
+      <Stack.Screen
+        name="ChecklistTemplateTasks"
+        component={ChecklistTemplateTasksScreen}
+        options={{title: 'Checklist'}}
+      />
       <Stack.Screen name="MyPay" component={MyPayScreen} options={{title: 'My pay'}} />
       <Stack.Screen name="MyShifts" component={MyShiftsScreen} options={{title: 'My shifts'}} />
       <Stack.Screen

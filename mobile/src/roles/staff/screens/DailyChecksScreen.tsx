@@ -142,6 +142,14 @@ export function DailyChecksScreen(): React.JSX.Element {
             onPress={() => goTo('CLOSING')}
           />
         </FadeIn>
+        <FadeIn delay={160} style={styles.tileWrap}>
+          <GridTile
+            icon="list-outline"
+            label="Other Checklists"
+            subtitle="Daily, weekly, monthly"
+            onPress={() => navigation.navigate('OtherChecklists')}
+          />
+        </FadeIn>
       </View>
     </Screen>
   );

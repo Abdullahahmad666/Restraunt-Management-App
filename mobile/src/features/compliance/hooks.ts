@@ -3,7 +3,7 @@
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 
 import * as api from './api';
-import type {ComplianceRoutine} from './types';
+import type {ChecklistFrequency, ComplianceRoutine} from './types';
 
 const keys = {
   fridgeUnits: ['compliance', 'fridge-units'] as const,
@@ -15,6 +15,15 @@ const keys = {
   adminFridgeUnits: ['compliance', 'admin-fridge-units'] as const,
   adminChecklistItems: (routine: ComplianceRoutine) =>
     ['compliance', 'admin-checklist-items', routine] as const,
+  checklistTemplates: (frequency: ChecklistFrequency) =>
+    ['compliance', 'checklist-templates', frequency] as const,
+  checklistTasks: (template: string) => ['compliance', 'checklist-tasks', template] as const,
+  checklistTaskCompletions: (template: string) =>
+    ['compliance', 'checklist-task-completions', template] as const,
+  adminChecklistTemplates: (frequency: ChecklistFrequency) =>
+    ['compliance', 'admin-checklist-templates', frequency] as const,
+  adminChecklistTasks: (template: string) =>
+    ['compliance', 'admin-checklist-tasks', template] as const,
 };
 
 // ---------------------------------------------------------------------------
@@ -70,6 +79,47 @@ export function useUncompleteChecklistItem() {
     mutationFn: api.uncompleteChecklistItem,
     onSuccess: () =>
       queryClient.invalidateQueries({queryKey: ['compliance', 'checklist-completions']}),
+  });
+}
+
+export function useChecklistTemplates(frequency: ChecklistFrequency) {
+  return useQuery({
+    queryKey: keys.checklistTemplates(frequency),
+    queryFn: () => api.listChecklistTemplates(frequency),
+  });
+}
+
+export function useChecklistTasks(template: string) {
+  return useQuery({
+    queryKey: keys.checklistTasks(template),
+    queryFn: () => api.listChecklistTasks(template),
+    enabled: Boolean(template),
+  });
+}
+
+export function useChecklistTaskCompletions(template: string) {
+  return useQuery({
+    queryKey: keys.checklistTaskCompletions(template),
+    queryFn: () => api.listChecklistTaskCompletions(template),
+    enabled: Boolean(template),
+  });
+}
+
+export function useCompleteChecklistTask() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: api.completeChecklistTask,
+    onSuccess: () =>
+      queryClient.invalidateQueries({queryKey: ['compliance', 'checklist-task-completions']}),
+  });
+}
+
+export function useUncompleteChecklistTask() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: api.uncompleteChecklistTask,
+    onSuccess: () =>
+      queryClient.invalidateQueries({queryKey: ['compliance', 'checklist-task-completions']}),
   });
 }
 
@@ -146,6 +196,71 @@ export function useDeleteChecklistItem() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: api.deleteChecklistItem,
+    onSuccess: () => invalidateFridgeUnits(queryClient),
+  });
+}
+
+export function useAdminChecklistTemplates(frequency: ChecklistFrequency) {
+  return useQuery({
+    queryKey: keys.adminChecklistTemplates(frequency),
+    queryFn: () => api.listAdminChecklistTemplates(frequency),
+  });
+}
+
+export function useCreateChecklistTemplate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: api.createChecklistTemplate,
+    onSuccess: () => invalidateFridgeUnits(queryClient),
+  });
+}
+
+export function useUpdateChecklistTemplate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({id, input}: {id: string; input: api.UpdateChecklistTemplateInput}) =>
+      api.updateChecklistTemplate(id, input),
+    onSuccess: () => invalidateFridgeUnits(queryClient),
+  });
+}
+
+export function useDeleteChecklistTemplate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: api.deleteChecklistTemplate,
+    onSuccess: () => invalidateFridgeUnits(queryClient),
+  });
+}
+
+export function useAdminChecklistTasks(template: string) {
+  return useQuery({
+    queryKey: keys.adminChecklistTasks(template),
+    queryFn: () => api.listAdminChecklistTasks(template),
+    enabled: Boolean(template),
+  });
+}
+
+export function useCreateChecklistTask() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: api.createChecklistTask,
+    onSuccess: () => invalidateFridgeUnits(queryClient),
+  });
+}
+
+export function useUpdateChecklistTask() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({id, input}: {id: string; input: api.UpdateChecklistTaskInput}) =>
+      api.updateChecklistTask(id, input),
+    onSuccess: () => invalidateFridgeUnits(queryClient),
+  });
+}
+
+export function useDeleteChecklistTask() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: api.deleteChecklistTask,
     onSuccess: () => invalidateFridgeUnits(queryClient),
   });
 }

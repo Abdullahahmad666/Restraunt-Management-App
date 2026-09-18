@@ -13,6 +13,8 @@ import {EquipmentScreen} from '../screens/EquipmentScreen';
 import {FoodScreen} from '../screens/FoodScreen';
 import {InviteStaffScreen} from '../screens/InviteStaffScreen';
 import {ManageChecklistScreen} from '../screens/ManageChecklistScreen';
+import {ManageChecklistTemplatesScreen} from '../screens/ManageChecklistTemplatesScreen';
+import {ManageChecklistTemplateTasksScreen} from '../screens/ManageChecklistTemplateTasksScreen';
 import {ManageFridgesScreen} from '../screens/ManageFridgesScreen';
 import {NotificationsScreen} from '../screens/NotificationsScreen';
 import {PayrollScreen} from '../screens/PayrollScreen';
@@ -24,7 +26,9 @@ import {StaffManagementScreen} from '../screens/StaffManagementScreen';
 import {SwapRequestsScreen} from '../screens/SwapRequestsScreen';
 import {TeamAnalyticsScreen} from '../screens/TeamAnalyticsScreen';
 import {ChecklistScreen} from '../../../roles/common/screens/ChecklistScreen';
+import {ChecklistTemplateTasksScreen} from '../../../roles/common/screens/ChecklistTemplateTasksScreen';
 import {FridgeTemperaturesScreen} from '../../../roles/common/screens/FridgeTemperaturesScreen';
+import {OtherChecklistsScreen} from '../../../roles/common/screens/OtherChecklistsScreen';
 import {ProfileScreen} from '../../../roles/common/screens/ProfileScreen';
 import {RoutineScreen} from '../../../roles/common/screens/RoutineScreen';
 import {tabIcon} from '../../../navigation/tabIcon';
@@ -107,6 +111,16 @@ export function AdminNavigator(): React.JSX.Element {
       />
       <Stack.Screen name="Checklist" component={ChecklistScreen} options={{title: 'Checklist'}} />
       <Stack.Screen
+        name="OtherChecklists"
+        component={OtherChecklistsScreen}
+        options={{title: 'Other checklists'}}
+      />
+      <Stack.Screen
+        name="ChecklistTemplateTasks"
+        component={ChecklistTemplateTasksScreen}
+        options={{title: 'Checklist'}}
+      />
+      <Stack.Screen
         name="ManageFridges"
         component={ManageFridgesScreen}
         options={{title: 'Fridges & freezers'}}
@@ -116,6 +130,16 @@ export function AdminNavigator(): React.JSX.Element {
         name="ManageChecklist"
         component={ManageChecklistScreen}
         options={{title: 'Manage checklist'}}
+      />
+      <Stack.Screen
+        name="ManageChecklistTemplates"
+        component={ManageChecklistTemplatesScreen}
+        options={{title: 'Manage checklists'}}
+      />
+      <Stack.Screen
+        name="ManageChecklistTemplateTasks"
+        component={ManageChecklistTemplateTasksScreen}
+        options={{title: 'Manage tasks'}}
       />
     </Stack.Navigator>
   );

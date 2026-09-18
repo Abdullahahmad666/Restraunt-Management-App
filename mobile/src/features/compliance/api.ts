@@ -5,9 +5,15 @@ import {endpoints} from '../../api/endpoints';
 import type {Paginated} from '../../types/api';
 import type {
   AdminChecklistItem,
+  AdminChecklistTask,
+  AdminChecklistTemplate,
   AdminFridgeUnit,
   ChecklistCompletion,
+  ChecklistFrequency,
   ChecklistItem,
+  ChecklistTask,
+  ChecklistTaskCompletion,
+  ChecklistTemplate,
   ComplianceRoutine,
   FridgeUnit,
   FridgeUnitKind,
@@ -80,6 +86,46 @@ export async function completeChecklistItem(input: {
 
 export async function uncompleteChecklistItem(id: string): Promise<void> {
   await apiClient.delete(endpoints.staff.compliance.checklistCompletion(id));
+}
+
+export async function listChecklistTemplates(
+  frequency: ChecklistFrequency,
+): Promise<Paginated<ChecklistTemplate>> {
+  const {data} = await apiClient.get<Paginated<ChecklistTemplate>>(
+    endpoints.staff.compliance.checklistTemplates,
+    {params: {frequency}},
+  );
+  return data;
+}
+
+export async function listChecklistTasks(template: string): Promise<Paginated<ChecklistTask>> {
+  const {data} = await apiClient.get<Paginated<ChecklistTask>>(
+    endpoints.staff.compliance.checklistTasks,
+    {params: {template}},
+  );
+  return data;
+}
+
+export async function listChecklistTaskCompletions(
+  template: string,
+): Promise<Paginated<ChecklistTaskCompletion>> {
+  const {data} = await apiClient.get<Paginated<ChecklistTaskCompletion>>(
+    endpoints.staff.compliance.checklistTaskCompletions,
+    {params: {template}},
+  );
+  return data;
+}
+
+export async function completeChecklistTask(task: string): Promise<ChecklistTaskCompletion> {
+  const {data} = await apiClient.post<ChecklistTaskCompletion>(
+    endpoints.staff.compliance.checklistTaskCompletions,
+    {task},
+  );
+  return data;
+}
+
+export async function uncompleteChecklistTask(id: string): Promise<void> {
+  await apiClient.delete(endpoints.staff.compliance.checklistTaskCompletion(id));
 }
 
 // ---------------------------------------------------------------------------
@@ -187,4 +233,92 @@ export async function updateChecklistItem(
 
 export async function deleteChecklistItem(id: string): Promise<void> {
   await apiClient.delete(endpoints.admin.compliance.checklistItem(id));
+}
+
+export async function listAdminChecklistTemplates(
+  frequency: ChecklistFrequency,
+): Promise<Paginated<AdminChecklistTemplate>> {
+  const {data} = await apiClient.get<Paginated<AdminChecklistTemplate>>(
+    endpoints.admin.compliance.checklistTemplates,
+    {params: {frequency}},
+  );
+  return data;
+}
+
+export type CreateChecklistTemplateInput = {
+  frequency: ChecklistFrequency;
+  name: string;
+  sort_order?: number;
+};
+
+export async function createChecklistTemplate(
+  input: CreateChecklistTemplateInput,
+): Promise<AdminChecklistTemplate> {
+  const {data} = await apiClient.post<AdminChecklistTemplate>(
+    endpoints.admin.compliance.checklistTemplates,
+    input,
+  );
+  return data;
+}
+
+export type UpdateChecklistTemplateInput = Partial<CreateChecklistTemplateInput> & {
+  is_active?: boolean;
+};
+
+export async function updateChecklistTemplate(
+  id: string,
+  input: UpdateChecklistTemplateInput,
+): Promise<AdminChecklistTemplate> {
+  const {data} = await apiClient.patch<AdminChecklistTemplate>(
+    endpoints.admin.compliance.checklistTemplate(id),
+    input,
+  );
+  return data;
+}
+
+export async function deleteChecklistTemplate(id: string): Promise<void> {
+  await apiClient.delete(endpoints.admin.compliance.checklistTemplate(id));
+}
+
+export async function listAdminChecklistTasks(
+  template: string,
+): Promise<Paginated<AdminChecklistTask>> {
+  const {data} = await apiClient.get<Paginated<AdminChecklistTask>>(
+    endpoints.admin.compliance.checklistTasks,
+    {params: {template}},
+  );
+  return data;
+}
+
+export type CreateChecklistTaskInput = {
+  template: string;
+  text: string;
+  sort_order?: number;
+};
+
+export async function createChecklistTask(
+  input: CreateChecklistTaskInput,
+): Promise<AdminChecklistTask> {
+  const {data} = await apiClient.post<AdminChecklistTask>(
+    endpoints.admin.compliance.checklistTasks,
+    input,
+  );
+  return data;
+}
+
+export type UpdateChecklistTaskInput = Partial<CreateChecklistTaskInput> & {is_active?: boolean};
+
+export async function updateChecklistTask(
+  id: string,
+  input: UpdateChecklistTaskInput,
+): Promise<AdminChecklistTask> {
+  const {data} = await apiClient.patch<AdminChecklistTask>(
+    endpoints.admin.compliance.checklistTask(id),
+    input,
+  );
+  return data;
+}
+
+export async function deleteChecklistTask(id: string): Promise<void> {
+  await apiClient.delete(endpoints.admin.compliance.checklistTask(id));
 }

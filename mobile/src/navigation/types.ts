@@ -1,7 +1,7 @@
 import type {NavigatorScreenParams} from '@react-navigation/native';
 
 import type {AttendanceLog, ScanAction, Shift} from '../features/attendance/types';
-import type {ComplianceRoutine} from '../features/compliance/types';
+import type {ChecklistFrequency, ComplianceRoutine} from '../features/compliance/types';
 
 export type AuthStackParamList = {
   Welcome: undefined;
@@ -46,6 +46,13 @@ export type ComplianceStackParamList = {
   Routine: {routine: ComplianceRoutine};
   FridgeTemperatures: {routine: ComplianceRoutine};
   Checklist: {routine: ComplianceRoutine};
+  // The named daily/weekly/monthly checklists ("Toilet Cleaning", "Monthly
+  // Deep Clean") - a Daily/Weekly/Monthly tab bar, then one named checklist's
+  // tasks. Same shared-completion viewing/completing for both roles as
+  // Routine/Checklist above; only adding/editing templates and tasks is
+  // admin-only (see AdminStackParamList's ManageChecklistTemplates(Tasks)).
+  OtherChecklists: undefined;
+  ChecklistTemplateTasks: {templateId: string; templateName: string};
 };
 
 // ---------------------------------------------------------------------------
@@ -141,6 +148,10 @@ export type AdminStackParamList = ComplianceStackParamList & {
   ManageFridges: undefined;
   EditFridge: {fridgeId?: string};
   ManageChecklist: {routine: ComplianceRoutine};
+  // Admin-only: adding/deactivating a frequency's named checklists, and one
+  // checklist's own tasks.
+  ManageChecklistTemplates: {frequency: ChecklistFrequency};
+  ManageChecklistTemplateTasks: {templateId: string; templateName: string};
 };
 
 // ---------------------------------------------------------------------------

@@ -141,6 +141,14 @@ export function ComplianceDashboardScreen(): React.JSX.Element {
             onPress={() => goTo('CLOSING')}
           />
         </FadeIn>
+        <FadeIn delay={160} style={styles.tileWrap}>
+          <GridTile
+            icon="list-outline"
+            label="Other Checklists"
+            subtitle="Daily, weekly, monthly"
+            onPress={() => navigation.navigate('OtherChecklists')}
+          />
+        </FadeIn>
       </View>
 
       <Text style={styles.heading}>Manage</Text>
@@ -167,6 +175,30 @@ export function ComplianceDashboardScreen(): React.JSX.Element {
             label="Closing checklist"
             subtitle={`${closingItemIds.size} items`}
             onPress={() => navigation.navigate('ManageChecklist', {routine: 'CLOSING'})}
+          />
+        </FadeIn>
+        <FadeIn delay={310} style={styles.tileWrap}>
+          <GridTile
+            icon="today-outline"
+            label="Daily checklists"
+            subtitle="e.g. Toilet cleaning"
+            onPress={() => navigation.navigate('ManageChecklistTemplates', {frequency: 'DAILY'})}
+          />
+        </FadeIn>
+        <FadeIn delay={360} style={styles.tileWrap}>
+          <GridTile
+            icon="calendar-outline"
+            label="Weekly checklists"
+            subtitle="e.g. Team meeting"
+            onPress={() => navigation.navigate('ManageChecklistTemplates', {frequency: 'WEEKLY'})}
+          />
+        </FadeIn>
+        <FadeIn delay={410} style={styles.tileWrap}>
+          <GridTile
+            icon="calendar-clear-outline"
+            label="Monthly checklists"
+            subtitle="e.g. Deep clean"
+            onPress={() => navigation.navigate('ManageChecklistTemplates', {frequency: 'MONTHLY'})}
           />
         </FadeIn>
       </View>
