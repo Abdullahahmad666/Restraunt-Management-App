@@ -57,6 +57,13 @@ export const endpoints = {
       list: `${STAFF}/notifications/`,
       markRead: (id: string) => `${STAFF}/notifications/${id}/mark-read/`,
     },
+    compliance: {
+      fridgeUnits: `${STAFF}/fridge-units/`,
+      checklistItems: `${STAFF}/checklist-items/`,
+      temperatureReadings: `${STAFF}/temperature-readings/`,
+      checklistCompletions: `${STAFF}/checklist-completions/`,
+      checklistCompletion: (id: string) => `${STAFF}/checklist-completions/${id}/`,
+    },
   },
 
   admin: {
@@ -97,6 +104,12 @@ export const endpoints = {
     },
     notifications: {
       list: `${ADMIN}/notifications/`,
+    },
+    compliance: {
+      fridgeUnits: `${ADMIN}/fridge-units/`,
+      fridgeUnit: (id: string) => `${ADMIN}/fridge-units/${id}/`,
+      checklistItems: `${ADMIN}/checklist-items/`,
+      checklistItem: (id: string) => `${ADMIN}/checklist-items/${id}/`,
     },
   },
 } as const;

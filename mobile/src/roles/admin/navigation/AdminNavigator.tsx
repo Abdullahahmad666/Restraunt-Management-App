@@ -8,9 +8,12 @@ import {AttendanceHistoryScreen} from '../screens/AttendanceHistoryScreen';
 import {AttendanceLiveScreen} from '../screens/AttendanceLiveScreen';
 import {ComplianceDashboardScreen} from '../screens/ComplianceDashboardScreen';
 import {ComplianceHistoryScreen} from '../screens/ComplianceHistoryScreen';
+import {EditFridgeScreen} from '../screens/EditFridgeScreen';
 import {EquipmentScreen} from '../screens/EquipmentScreen';
 import {FoodScreen} from '../screens/FoodScreen';
 import {InviteStaffScreen} from '../screens/InviteStaffScreen';
+import {ManageChecklistScreen} from '../screens/ManageChecklistScreen';
+import {ManageFridgesScreen} from '../screens/ManageFridgesScreen';
 import {NotificationsScreen} from '../screens/NotificationsScreen';
 import {PayrollScreen} from '../screens/PayrollScreen';
 import {RotaScreen} from '../screens/RotaScreen';
@@ -20,7 +23,10 @@ import {StaffDetailScreen} from '../screens/StaffDetailScreen';
 import {StaffManagementScreen} from '../screens/StaffManagementScreen';
 import {SwapRequestsScreen} from '../screens/SwapRequestsScreen';
 import {TeamAnalyticsScreen} from '../screens/TeamAnalyticsScreen';
+import {ChecklistScreen} from '../../../roles/common/screens/ChecklistScreen';
+import {FridgeTemperaturesScreen} from '../../../roles/common/screens/FridgeTemperaturesScreen';
 import {ProfileScreen} from '../../../roles/common/screens/ProfileScreen';
+import {RoutineScreen} from '../../../roles/common/screens/RoutineScreen';
 import {tabIcon} from '../../../navigation/tabIcon';
 import {tabScreenOptions} from '../../../theme';
 import type {AdminStackParamList, AdminTabParamList} from '../../../navigation/types';
@@ -92,6 +98,24 @@ export function AdminNavigator(): React.JSX.Element {
         name="SwapRequests"
         component={SwapRequestsScreen}
         options={{title: 'Swap requests'}}
+      />
+      <Stack.Screen name="Routine" component={RoutineScreen} options={{title: ''}} />
+      <Stack.Screen
+        name="FridgeTemperatures"
+        component={FridgeTemperaturesScreen}
+        options={{title: 'Temperatures'}}
+      />
+      <Stack.Screen name="Checklist" component={ChecklistScreen} options={{title: 'Checklist'}} />
+      <Stack.Screen
+        name="ManageFridges"
+        component={ManageFridgesScreen}
+        options={{title: 'Fridges & freezers'}}
+      />
+      <Stack.Screen name="EditFridge" component={EditFridgeScreen} options={{title: ''}} />
+      <Stack.Screen
+        name="ManageChecklist"
+        component={ManageChecklistScreen}
+        options={{title: 'Manage checklist'}}
       />
     </Stack.Navigator>
   );

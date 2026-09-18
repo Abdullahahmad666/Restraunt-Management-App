@@ -3,8 +3,6 @@ import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 
 import {AnalyticsScreen} from '../screens/AnalyticsScreen';
-import {CheckDetailScreen} from '../screens/CheckDetailScreen';
-import {CorrectiveActionScreen} from '../screens/CorrectiveActionScreen';
 import {DailyChecksScreen} from '../screens/DailyChecksScreen';
 import {MyAttendanceScreen} from '../screens/MyAttendanceScreen';
 import {MyPayScreen} from '../screens/MyPayScreen';
@@ -15,7 +13,10 @@ import {ScanHistoryScreen} from '../screens/ScanHistoryScreen';
 import {ScanResultScreen} from '../screens/ScanResultScreen';
 import {ScanScreen} from '../screens/ScanScreen';
 import {SwapRequestsScreen} from '../screens/SwapRequestsScreen';
+import {ChecklistScreen} from '../../../roles/common/screens/ChecklistScreen';
+import {FridgeTemperaturesScreen} from '../../../roles/common/screens/FridgeTemperaturesScreen';
 import {ProfileScreen} from '../../../roles/common/screens/ProfileScreen';
+import {RoutineScreen} from '../../../roles/common/screens/RoutineScreen';
 import {tabIcon} from '../../../navigation/tabIcon';
 import {tabScreenOptions} from '../../../theme';
 import type {StaffStackParamList, StaffTabParamList} from '../../../navigation/types';
@@ -55,20 +56,19 @@ function StaffTabs(): React.JSX.Element {
   );
 }
 
-/**
- * Everything a floor user sees.
- *
- * CorrectiveAction is a pushed screen rather than a tab on purpose: a failed
- * check has to route through it, and it should not be reachable by wandering
- * into a tab.
- */
+/** Everything a floor user sees. */
 export function StaffNavigator(): React.JSX.Element {
   return (
     <Stack.Navigator>
       <Stack.Screen name="StaffTabs" component={StaffTabs} options={{headerShown: false}} />
       <Stack.Screen name="ScanResult" component={ScanResultScreen} />
-      <Stack.Screen name="CheckDetail" component={CheckDetailScreen} />
-      <Stack.Screen name="CorrectiveAction" component={CorrectiveActionScreen} />
+      <Stack.Screen name="Routine" component={RoutineScreen} options={{title: ''}} />
+      <Stack.Screen
+        name="FridgeTemperatures"
+        component={FridgeTemperaturesScreen}
+        options={{title: 'Temperatures'}}
+      />
+      <Stack.Screen name="Checklist" component={ChecklistScreen} options={{title: 'Checklist'}} />
       <Stack.Screen name="MyPay" component={MyPayScreen} options={{title: 'My pay'}} />
       <Stack.Screen name="MyShifts" component={MyShiftsScreen} options={{title: 'My shifts'}} />
       <Stack.Screen
