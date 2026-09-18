@@ -119,11 +119,11 @@ export function MyPayScreen(): React.JSX.Element {
       <Card>
         <Text style={styles.cardTitle}>Your rates</Text>
         <Text style={styles.rowBody}>
-          Standard rate (first 40h/period):{' '}
+          Standard rate (first 20h/week):{' '}
           {pay_rates.rate_1 ? formatCurrency(pay_rates.rate_1) : 'Not set'}
         </Text>
         <Text style={styles.rowBody}>
-          Overtime rate (after 40h/period):{' '}
+          Overtime rate (after 20h/week):{' '}
           {pay_rates.rate_2 ? formatCurrency(pay_rates.rate_2) : 'Not set'}
         </Text>
         <Text style={styles.hint}>Set by your manager - ask them if these look wrong.</Text>

@@ -111,7 +111,8 @@ export function useVenueQrCodes() {
 export function useRegenerateVenueQrCode() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: api.regenerateVenueQrCode,
+    mutationFn: ({id, input}: {id: string; input: api.RegenerateQrCodeInput}) =>
+      api.regenerateVenueQrCode(id, input),
     onSuccess: () => queryClient.invalidateQueries({queryKey: keys.qrCodes}),
   });
 }
