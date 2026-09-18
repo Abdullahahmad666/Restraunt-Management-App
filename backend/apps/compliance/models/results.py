@@ -25,6 +25,7 @@ class TemperatureReading(BaseModel):
     routine = models.CharField(max_length=16, choices=Routine.choices)
     date = models.DateField()
     celsius = models.DecimalField(max_digits=4, decimal_places=1)
+    note = models.CharField(max_length=500, blank=True, default="")
     recorded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="+"
     )
@@ -55,6 +56,7 @@ class ChecklistCompletion(BaseModel):
         ChecklistItem, on_delete=models.CASCADE, related_name="completions"
     )
     date = models.DateField()
+    note = models.CharField(max_length=500, blank=True, default="")
     completed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="+"
     )
@@ -87,6 +89,7 @@ class ChecklistTaskCompletion(BaseModel):
     )
     task = models.ForeignKey(ChecklistTask, on_delete=models.CASCADE, related_name="completions")
     period_start = models.DateField()
+    note = models.CharField(max_length=500, blank=True, default="")
     completed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="+"
     )

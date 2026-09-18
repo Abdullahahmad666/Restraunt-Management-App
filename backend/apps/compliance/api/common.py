@@ -33,6 +33,7 @@ class TemperatureReadingSerializer(serializers.ModelSerializer):
             "routine",
             "date",
             "celsius",
+            "note",
             "recorded_by",
             "recorded_by_name",
             "recorded_at",
@@ -40,6 +41,7 @@ class TemperatureReadingSerializer(serializers.ModelSerializer):
         )
         read_only_fields = (
             "id",
+            "note",
             "recorded_by",
             "recorded_by_name",
             "recorded_at",
@@ -61,11 +63,12 @@ class ChecklistCompletionSerializer(serializers.ModelSerializer):
             "id",
             "checklist_item",
             "date",
+            "note",
             "completed_by",
             "completed_by_name",
             "completed_at",
         )
-        read_only_fields = ("id", "completed_by", "completed_by_name", "completed_at")
+        read_only_fields = ("id", "note", "completed_by", "completed_by_name", "completed_at")
 
     def get_completed_by_name(self, obj) -> str | None:
         if not obj.completed_by_id:
@@ -96,6 +99,7 @@ class ChecklistTaskCompletionSerializer(serializers.ModelSerializer):
             "id",
             "task",
             "period_start",
+            "note",
             "completed_by",
             "completed_by_name",
             "completed_at",

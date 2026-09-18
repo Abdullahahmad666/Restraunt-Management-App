@@ -239,6 +239,63 @@ def test_reading_defaults_to_todays_date(api_client, staff_member, fridge):
     assert response.data["date"] == date.today().isoformat()
 
 
+def test_a_reading_can_carry_an_optional_note(api_client, staff_member, fridge):
+    api_client.force_authenticate(user=staff_member)
+
+    response = api_client.post(
+        reverse(STAFF_READINGS),
+        {
+            "fridge_unit": str(fridge.id),
+            "routine": "OPENING",
+            "celsius": "3.5",
+            "note": "Door was left ajar overnight",
+        },
+    )
+
+    assert response.status_code == 201, response.data
+    assert response.data["note"] == "Door was left ajar overnight"
+
+
+def test_a_reading_with_no_note_defaults_to_blank(api_client, staff_member, fridge):
+    api_client.force_authenticate(user=staff_member)
+
+    response = api_client.post(
+        reverse(STAFF_READINGS),
+        {"fridge_unit": str(fridge.id), "routine": "OPENING", "celsius": "3.5"},
+    )
+
+    assert response.data["note"] == ""
+
+
+def test_history_can_be_filtered_to_a_date_range(api_client, staff_member, fridge):
+    from apps.compliance.models import TemperatureReading
+
+    TemperatureReading.objects.create(
+        restaurant=fridge.restaurant,
+        fridge_unit=fridge,
+        routine="OPENING",
+        date=date.today() - timedelta(days=10),
+        celsius=Decimal("3.5"),
+        recorded_by=staff_member,
+    )
+    TemperatureReading.objects.create(
+        restaurant=fridge.restaurant,
+        fridge_unit=fridge,
+        routine="OPENING",
+        date=date.today() - timedelta(days=2),
+        celsius=Decimal("4.0"),
+        recorded_by=staff_member,
+    )
+    api_client.force_authenticate(user=staff_member)
+
+    response = api_client.get(
+        reverse(STAFF_READINGS), {"date__gte": (date.today() - timedelta(days=7)).isoformat()}
+    )
+
+    assert response.data["count"] == 1
+    assert response.data["results"][0]["celsius"] == "4.0"
+
+
 def test_cannot_record_a_reading_for_another_restaurants_fridge(
     api_client, staff_member, other_restaurant
 ):
@@ -297,6 +354,24 @@ def test_staff_can_uncheck_a_completed_item(api_client, staff_member, opening_it
     assert response.status_code == 204
     list_response = api_client.get(reverse(STAFF_COMPLETIONS))
     assert list_response.data["count"] == 0
+
+
+def test_a_note_can_be_added_to_an_already_completed_item_without_reassigning_it(
+    api_client, staff_member, colleague, opening_item
+):
+    api_client.force_authenticate(user=staff_member)
+    api_client.post(reverse(STAFF_COMPLETIONS), {"checklist_item": str(opening_item.id)})
+
+    api_client.force_authenticate(user=colleague)
+    response = api_client.post(
+        reverse(STAFF_COMPLETIONS),
+        {"checklist_item": str(opening_item.id), "note": "Fridge 2 was still warm, rechecked"},
+    )
+
+    assert response.status_code == 201, response.data
+    assert response.data["note"] == "Fridge 2 was still warm, rechecked"
+    # Still attributed to whoever completed it first.
+    assert response.data["completed_by_name"] == "Alex"
 
 
 def test_completions_only_count_for_the_day_they_were_made(api_client, staff_member, opening_item):

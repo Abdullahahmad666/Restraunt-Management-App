@@ -238,6 +238,23 @@ def test_staff_can_uncomplete_a_task(api_client, staff_member, daily_task, daily
     assert list_response.data["results"] == []
 
 
+def test_a_note_can_be_added_to_an_already_completed_task_without_reassigning_it(
+    api_client, staff_member, colleague, daily_task
+):
+    api_client.force_authenticate(user=staff_member)
+    api_client.post(reverse(STAFF_COMPLETIONS), {"task": str(daily_task.id)})
+
+    api_client.force_authenticate(user=colleague)
+    response = api_client.post(
+        reverse(STAFF_COMPLETIONS),
+        {"task": str(daily_task.id), "note": "Restocked with the unscented soap this time"},
+    )
+
+    assert response.status_code == 201, response.data
+    assert response.data["note"] == "Restocked with the unscented soap this time"
+    assert response.data["completed_by_name"] == "Alex"
+
+
 def test_cannot_complete_a_task_from_another_restaurant(api_client, staff_member, other_restaurant):
     outside_template = ChecklistTemplate.objects.create(
         restaurant=other_restaurant, frequency=ChecklistFrequency.DAILY, name="Not yours"

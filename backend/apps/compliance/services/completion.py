@@ -45,6 +45,7 @@ def record_temperature(
     date: date_type,
     celsius,
     recorded_by,
+    note: str = "",
 ) -> "models.TemperatureReading":
     _check_same_restaurant(restaurant=restaurant, obj=fridge_unit, label="fridge/freezer")
 
@@ -56,25 +57,37 @@ def record_temperature(
             "restaurant": restaurant,
             "celsius": celsius,
             "recorded_by": recorded_by,
+            "note": note,
         },
     )
     return reading
 
 
 def complete_checklist_item(
-    *, restaurant, checklist_item: "models.ChecklistItem", date: date_type, completed_by
+    *,
+    restaurant,
+    checklist_item: "models.ChecklistItem",
+    date: date_type,
+    completed_by,
+    note: str = "",
 ) -> "models.ChecklistCompletion":
     """Idempotent on purpose: if it's already done today, this just returns
     the existing record rather than erroring - two staff tapping the same
     item within a second of each other is a race worth shrugging off, not
-    surfacing as a failure to either of them."""
+    surfacing as a failure to either of them. `completed_by` is never
+    reassigned on an existing completion (see the test for it), but a note
+    supplied on a re-tap still updates - anyone on the team can leave or
+    correct a comment on a check a colleague already did."""
     _check_same_restaurant(restaurant=restaurant, obj=checklist_item, label="checklist item")
 
-    completion, _created = models.ChecklistCompletion.objects.get_or_create(
+    completion, created = models.ChecklistCompletion.objects.get_or_create(
         checklist_item=checklist_item,
         date=date,
-        defaults={"restaurant": restaurant, "completed_by": completed_by},
+        defaults={"restaurant": restaurant, "completed_by": completed_by, "note": note},
     )
+    if not created and note and completion.note != note:
+        completion.note = note
+        completion.save(update_fields=["note"])
     return completion
 
 
@@ -84,22 +97,31 @@ def uncomplete_checklist_item(*, restaurant, completion: "models.ChecklistComple
 
 
 def complete_checklist_task(
-    *, restaurant, task: "models.ChecklistTask", completed_by, today: date_type
+    *,
+    restaurant,
+    task: "models.ChecklistTask",
+    completed_by,
+    today: date_type,
+    note: str = "",
 ) -> "models.ChecklistTaskCompletion":
     """Same idempotent, shared behaviour as complete_checklist_item - see
-    its docstring. The only extra step is working out which period (today/
-    this week/this month, per the task's template) the completion belongs
-    to, via current_period_start. `today` comes from the caller (the API
-    view, via timezone.localdate()) rather than being computed in here, the
-    same way record_temperature and complete_checklist_item take `date`."""
+    its docstring, including the note-updates-without-reassigning rule. The
+    only extra step is working out which period (today/this week/this
+    month, per the task's template) the completion belongs to, via
+    current_period_start. `today` comes from the caller (the API view, via
+    timezone.localdate()) rather than being computed in here, the same way
+    record_temperature and complete_checklist_item take `date`."""
     _check_same_restaurant(restaurant=restaurant, obj=task, label="checklist task")
 
     period_start = current_period_start(frequency=task.template.frequency, today=today)
-    completion, _created = models.ChecklistTaskCompletion.objects.get_or_create(
+    completion, created = models.ChecklistTaskCompletion.objects.get_or_create(
         task=task,
         period_start=period_start,
-        defaults={"restaurant": restaurant, "completed_by": completed_by},
+        defaults={"restaurant": restaurant, "completed_by": completed_by, "note": note},
     )
+    if not created and note and completion.note != note:
+        completion.note = note
+        completion.save(update_fields=["note"])
     return completion
 
 

@@ -69,6 +69,7 @@ class RecordTemperatureSerializer(serializers.Serializer):
     routine = serializers.ChoiceField(choices=models.Routine.choices)
     date = serializers.DateField(required=False)
     celsius = serializers.DecimalField(max_digits=4, decimal_places=1)
+    note = serializers.CharField(required=False, allow_blank=True, max_length=500)
 
 
 class StaffTemperatureReadingViewSet(
@@ -80,11 +81,19 @@ class StaffTemperatureReadingViewSet(
     """Temperature readings for the caller's restaurant, filterable by
     ?date=&routine=&fridge_unit= - shared across the whole team. See
     apps.compliance.services.completion for why POSTing again for the same
-    fridge/routine/day corrects the existing reading instead of erroring."""
+    fridge/routine/day corrects the existing reading instead of erroring.
+
+    date also takes gte/lte range lookups (?date__gte=&date__lte=) so a
+    manager's history screen can pull a week or month at once instead of
+    one request per day."""
 
     serializer_class = TemperatureReadingSerializer
     permission_classes = [IsStaff]
-    filterset_fields = ("date", "routine", "fridge_unit")
+    filterset_fields = {
+        "date": ["exact", "gte", "lte"],
+        "routine": ["exact"],
+        "fridge_unit": ["exact"],
+    }
     queryset = models.TemperatureReading.objects.select_related("recorded_by", "fridge_unit")
 
     def create(self, request, *args, **kwargs):
@@ -106,6 +115,7 @@ class StaffTemperatureReadingViewSet(
 class CompleteChecklistItemSerializer(serializers.Serializer):
     checklist_item = serializers.PrimaryKeyRelatedField(queryset=models.ChecklistItem.objects.all())
     date = serializers.DateField(required=False)
+    note = serializers.CharField(required=False, allow_blank=True, max_length=500)
 
 
 class StaffChecklistCompletionViewSet(
@@ -184,6 +194,7 @@ class StaffChecklistTaskViewSet(
 
 class CompleteChecklistTaskSerializer(serializers.Serializer):
     task = serializers.PrimaryKeyRelatedField(queryset=models.ChecklistTask.objects.all())
+    note = serializers.CharField(required=False, allow_blank=True, max_length=500)
 
 
 class StaffChecklistTaskCompletionViewSet(
