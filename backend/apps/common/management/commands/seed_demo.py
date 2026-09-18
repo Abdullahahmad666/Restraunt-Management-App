@@ -10,8 +10,10 @@ food-safety check types, for instance - belongs in a data migration instead.
 Builds one restaurant ("Phillys"), one admin and three staff, roughly five
 weeks of rota + attendance history around today (three pay periods - one
 paid, one locked-awaiting-payment, one still open - so every state the pay
-period UI can show has a real example), and a handful of shift-swap
-requests in every status.
+period UI can show has a real example), a handful of shift-swap requests
+in every status, and the compliance opening/closing setup (three fridges/
+freezers, the FSA's own example checklists, today's opening routine half
+done).
 """
 
 import random
@@ -27,6 +29,8 @@ from django.utils import timezone
 from apps.attendance import models as attendance_models
 from apps.attendance.services import swap as swap_service
 from apps.common.roles import Role
+from apps.compliance import models as compliance_models
+from apps.compliance.services import completion as compliance_service
 from apps.notifications.services.rules import notify_admins_of_scan
 from apps.payroll import models as payroll_models
 from apps.payroll.services import pay_periods as pay_periods_service
@@ -92,6 +96,7 @@ class Command(BaseCommand):
         self._close_out_periods(periods)
         self._seed_swap_requests(shifts_by_staff)
         self._seed_a_live_checkin(restaurant, shifts_by_staff)
+        self._seed_compliance(restaurant, next(iter(staff)))
 
         self._print_summary(restaurant, admin, staff, periods)
 
@@ -386,6 +391,95 @@ class Command(BaseCommand):
             )
 
     # -----------------------------------------------------------------
+    # Compliance - fridges/freezers and the opening/closing checklists
+    # -----------------------------------------------------------------
+
+    def _seed_compliance(self, restaurant, first_staff_member) -> None:
+        """Three fridges/freezers and the FSA's own example opening/closing
+        checklists (Safer Food Better Business, "Opening and closing
+        checks"), plus today's opening routine half-done - a fridge and a
+        few checklist items ticked off, the rest still pending - so the
+        progress counters have something real to show on first login
+        rather than every screen starting at 0 of 0.
+        """
+        fridge_1 = compliance_models.FridgeUnit.objects.create(
+            restaurant=restaurant,
+            name="Fridge 1",
+            kind=compliance_models.FridgeUnit.Kind.FRIDGE,
+            recommended_max_celsius=Decimal("5.0"),
+            sort_order=0,
+        )
+        compliance_models.FridgeUnit.objects.create(
+            restaurant=restaurant,
+            name="Fridge 2",
+            kind=compliance_models.FridgeUnit.Kind.FRIDGE,
+            recommended_max_celsius=Decimal("5.0"),
+            sort_order=1,
+        )
+        compliance_models.FridgeUnit.objects.create(
+            restaurant=restaurant,
+            name="Walk-in Freezer",
+            kind=compliance_models.FridgeUnit.Kind.FREEZER,
+            recommended_max_celsius=Decimal("-18.0"),
+            sort_order=2,
+        )
+
+        opening_texts = [
+            "Fridges, chilled display equipment and freezers are working properly",
+            "Other equipment (e.g. oven) is working properly",
+            "Staff are fit for work and wearing clean work clothes",
+            "Food preparation areas are clean and disinfected",
+            "All areas are free from evidence of pest activity",
+            "There is plenty of handwashing and cleaning materials",
+            "Hot running water is available at all sinks and hand wash basins",
+            "Probe thermometer is working and probe wipes are available",
+            "Allergen information is accurate for all items on sale",
+        ]
+        closing_texts = [
+            "All food is covered, labelled and put in the fridge/freezer",
+            "Food on its use-by date has been thrown away",
+            "Dirty cleaning equipment has been cleaned or thrown away",
+            "Waste has been removed and new bags put in the bins",
+            "Food preparation areas are clean and disinfected",
+            "All washing up has been finished",
+            "Floors are swept and clean",
+        ]
+
+        opening_items = [
+            compliance_models.ChecklistItem.objects.create(
+                restaurant=restaurant,
+                routine=compliance_models.Routine.OPENING,
+                text=text,
+                sort_order=index,
+            )
+            for index, text in enumerate(opening_texts)
+        ]
+        for index, text in enumerate(closing_texts):
+            compliance_models.ChecklistItem.objects.create(
+                restaurant=restaurant,
+                routine=compliance_models.Routine.CLOSING,
+                text=text,
+                sort_order=index,
+            )
+
+        today = timezone.localdate()
+        compliance_service.record_temperature(
+            restaurant=restaurant,
+            fridge_unit=fridge_1,
+            routine=compliance_models.Routine.OPENING,
+            date=today,
+            celsius=Decimal("3.5"),
+            recorded_by=first_staff_member,
+        )
+        for item in opening_items[:3]:
+            compliance_service.complete_checklist_item(
+                restaurant=restaurant,
+                checklist_item=item,
+                date=today,
+                completed_by=first_staff_member,
+            )
+
+    # -----------------------------------------------------------------
     # Summary
     # -----------------------------------------------------------------
 
@@ -399,6 +493,8 @@ class Command(BaseCommand):
         labels = ["paid", "locked (awaiting payment)", "open (current)"]
         for period, label in zip(periods, labels, strict=True):
             self.stdout.write(f"  Pay period {period.starts_on} - {period.ends_on}: {label}")
+        self.stdout.write("  Shift swaps: one pending, one approved, one declined, one cancelled.")
         self.stdout.write(
-            "  Shift swaps: one pending, one approved, one declined, one cancelled.\n"
+            "  Compliance: 3 fridges/freezers, opening + closing checklists, "
+            "opening routine already partway done today.\n"
         )
