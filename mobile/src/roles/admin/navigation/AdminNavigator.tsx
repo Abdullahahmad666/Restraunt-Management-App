@@ -95,7 +95,11 @@ export function AdminNavigator(): React.JSX.Element {
       <Stack.Screen name="Rota" component={RotaScreen} options={{title: 'Weekly rota'}} />
       <Stack.Screen name="Payroll" component={PayrollScreen} />
       <Stack.Screen name="StaffBarcode" component={StaffBarcodeScreen} />
-      <Stack.Screen name="ComplianceHistory" component={ComplianceHistoryScreen} />
+      <Stack.Screen
+        name="ComplianceHistory"
+        component={ComplianceHistoryScreen}
+        options={{title: 'Temperature history'}}
+      />
       <Stack.Screen name="Equipment" component={EquipmentScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen

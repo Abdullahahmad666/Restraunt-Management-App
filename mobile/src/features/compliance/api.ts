@@ -50,11 +50,27 @@ export async function listTemperatureReadings(params: {
   return data;
 }
 
+/** Every reading in a date range, most recent first (the model's own
+ * default ordering) - the backend's date__gte/date__lte range lookup, so a
+ * history screen pulls a whole window in one request instead of one call
+ * per day. */
+export async function listTemperatureReadingHistory(params: {
+  dateFrom: string;
+  dateTo: string;
+}): Promise<Paginated<TemperatureReading>> {
+  const {data} = await apiClient.get<Paginated<TemperatureReading>>(
+    endpoints.staff.compliance.temperatureReadings,
+    {params: {date__gte: params.dateFrom, date__lte: params.dateTo, page_size: 100}},
+  );
+  return data;
+}
+
 export async function recordTemperature(input: {
   fridge_unit: string;
   routine: ComplianceRoutine;
   date: string;
   celsius: number;
+  note?: string;
 }): Promise<TemperatureReading> {
   const {data} = await apiClient.post<TemperatureReading>(
     endpoints.staff.compliance.temperatureReadings,
@@ -76,6 +92,7 @@ export async function listChecklistCompletions(params: {
 export async function completeChecklistItem(input: {
   checklist_item: string;
   date: string;
+  note?: string;
 }): Promise<ChecklistCompletion> {
   const {data} = await apiClient.post<ChecklistCompletion>(
     endpoints.staff.compliance.checklistCompletions,
@@ -116,10 +133,13 @@ export async function listChecklistTaskCompletions(
   return data;
 }
 
-export async function completeChecklistTask(task: string): Promise<ChecklistTaskCompletion> {
+export async function completeChecklistTask(input: {
+  task: string;
+  note?: string;
+}): Promise<ChecklistTaskCompletion> {
   const {data} = await apiClient.post<ChecklistTaskCompletion>(
     endpoints.staff.compliance.checklistTaskCompletions,
-    {task},
+    input,
   );
   return data;
 }

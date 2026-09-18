@@ -51,8 +51,14 @@ export function GridTile({icon, label, subtitle, onPress}: Props): React.JSX.Ele
         <View style={styles.iconWrap}>
           <Ionicons name={icon} size={26} color={colors.primary} />
         </View>
-        <Text style={styles.label}>{label}</Text>
-        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        <Text style={styles.label} numberOfLines={2} ellipsizeMode="tail">
+          {label}
+        </Text>
+        {subtitle ? (
+          <Text style={styles.subtitle} numberOfLines={1} ellipsizeMode="tail">
+            {subtitle}
+          </Text>
+        ) : null}
       </Animated.View>
     </Pressable>
   );
@@ -72,8 +78,12 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     // A fixed height, not minHeight - a tile with a subtitle and one without
     // (Notifications has no subtitle) would otherwise size to their own
-    // content and end up visibly different heights in the same row.
-    height: 120,
+    // content and end up visibly different heights in the same row. Tall
+    // enough for a label that wraps to two lines (numberOfLines caps it
+    // there), with overflow hidden as a hard backstop against text ever
+    // spilling past the tile's border.
+    height: 132,
+    overflow: 'hidden',
     justifyContent: 'center',
     gap: spacing.xs,
   },

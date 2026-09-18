@@ -11,6 +11,8 @@ const keys = {
     ['compliance', 'checklist-items', routine] as const,
   temperatureReadings: (params: {date: string; routine: ComplianceRoutine}) =>
     ['compliance', 'temperature-readings', params] as const,
+  temperatureReadingHistory: (params: {dateFrom: string; dateTo: string}) =>
+    ['compliance', 'temperature-reading-history', params] as const,
   checklistCompletions: (date: string) => ['compliance', 'checklist-completions', date] as const,
   adminFridgeUnits: ['compliance', 'admin-fridge-units'] as const,
   adminChecklistItems: (routine: ComplianceRoutine) =>
@@ -48,12 +50,21 @@ export function useTemperatureReadings(params: {date: string; routine: Complianc
   });
 }
 
+export function useTemperatureReadingHistory(params: {dateFrom: string; dateTo: string}) {
+  return useQuery({
+    queryKey: keys.temperatureReadingHistory(params),
+    queryFn: () => api.listTemperatureReadingHistory(params),
+  });
+}
+
 export function useRecordTemperature() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: api.recordTemperature,
-    onSuccess: () =>
-      queryClient.invalidateQueries({queryKey: ['compliance', 'temperature-readings']}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({queryKey: ['compliance', 'temperature-readings']});
+      queryClient.invalidateQueries({queryKey: ['compliance', 'temperature-reading-history']});
+    },
   });
 }
 

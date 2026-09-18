@@ -43,6 +43,7 @@ export type TemperatureReading = {
   routine: ComplianceRoutine;
   date: string;
   celsius: string;
+  note: string;
   recorded_by: string | null;
   recorded_by_name: string | null;
   recorded_at: string;
@@ -55,6 +56,7 @@ export type ChecklistCompletion = {
   id: string;
   checklist_item: string;
   date: string;
+  note: string;
   completed_by: string | null;
   completed_by_name: string | null;
   completed_at: string;
@@ -102,6 +104,7 @@ export type ChecklistTaskCompletion = {
   id: string;
   task: string;
   period_start: string;
+  note: string;
   completed_by: string | null;
   completed_by_name: string | null;
   completed_at: string;

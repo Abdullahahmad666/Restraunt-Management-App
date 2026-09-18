@@ -4,12 +4,14 @@ import {useRoute} from '@react-navigation/native';
 import type {RouteProp} from '@react-navigation/native';
 import {Ionicons} from '@expo/vector-icons';
 
+import {Button} from '../../../components/Button';
 import {Card} from '../../../components/Card';
 import {EmptyState} from '../../../components/EmptyState';
 import {ErrorState} from '../../../components/ErrorState';
 import {FadeIn} from '../../../components/FadeIn';
 import {LoadingView} from '../../../components/LoadingView';
 import {Screen} from '../../../components/Screen';
+import {TextField} from '../../../components/TextField';
 import {describeApiError} from '../../../api/errors';
 import {
   useChecklistCompletions,
@@ -41,6 +43,8 @@ function ChecklistRow({
   const complete = useCompleteChecklistItem();
   const uncomplete = useUncompleteChecklistItem();
   const [error, setError] = useState<string | null>(null);
+  const [editingNote, setEditingNote] = useState(false);
+  const [note, setNote] = useState(completion?.note ?? '');
   const pending = complete.isPending || uncomplete.isPending;
 
   async function onToggle() {
@@ -53,6 +57,16 @@ function ChecklistRow({
       }
     } catch (err) {
       setError(describeApiError(err, 'Could not update that check.'));
+    }
+  }
+
+  async function onSaveNote() {
+    setError(null);
+    try {
+      await complete.mutateAsync({checklist_item: item.id, date, note: note.trim()});
+      setEditingNote(false);
+    } catch (err) {
+      setError(describeApiError(err, 'Could not save that note.'));
     }
   }
 
@@ -69,9 +83,40 @@ function ChecklistRow({
               {completion.completed_by_name} at {formatTime(completion.completed_at)}
             </Text>
           ) : null}
+          {completion?.note && !editingNote ? (
+            <Text style={styles.noteText}>Note: {completion.note}</Text>
+          ) : null}
         </View>
       </Pressable>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+
+      {editingNote ? (
+        <View style={styles.noteEditor}>
+          <TextField
+            label="Note (optional)"
+            placeholder="e.g. Left a message for the next shift"
+            value={note}
+            onChangeText={setNote}
+            multiline
+          />
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          <View style={styles.noteActions}>
+            <Button
+              title="Cancel"
+              variant="secondary"
+              onPress={() => {
+                setNote(completion?.note ?? '');
+                setEditingNote(false);
+              }}
+            />
+            <Button title="Save note" onPress={onSaveNote} loading={complete.isPending} />
+          </View>
+        </View>
+      ) : (
+        <Pressable onPress={() => setEditingNote(true)} hitSlop={8}>
+          <Text style={styles.noteLink}>{completion?.note ? 'Edit note' : 'Add a note'}</Text>
+        </Pressable>
+      )}
+      {error && !editingNote ? <Text style={styles.error}>{error}</Text> : null}
     </Card>
   );
 }
@@ -150,4 +195,14 @@ const styles = StyleSheet.create({
   itemTextDone: {color: colors.textMuted, textDecorationLine: 'line-through'},
   hint: {fontSize: 12, color: colors.textMuted, marginTop: 2},
   error: {color: colors.danger, fontSize: 12, marginTop: spacing.xs},
+  noteText: {fontSize: 12, color: colors.textMuted, marginTop: 2, fontStyle: 'italic'},
+  noteLink: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '600',
+    marginTop: spacing.sm,
+    marginLeft: 34,
+  },
+  noteEditor: {marginTop: spacing.sm, marginLeft: 34, gap: spacing.xs},
+  noteActions: {flexDirection: 'row', gap: spacing.sm, justifyContent: 'flex-end'},
 });

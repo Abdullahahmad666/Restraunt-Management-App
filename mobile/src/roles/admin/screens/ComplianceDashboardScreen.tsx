@@ -149,6 +149,14 @@ export function ComplianceDashboardScreen(): React.JSX.Element {
             onPress={() => navigation.navigate('OtherChecklists')}
           />
         </FadeIn>
+        <FadeIn delay={210} style={styles.tileWrap}>
+          <GridTile
+            icon="time-outline"
+            label="Temperature History"
+            subtitle="Past opening & closing"
+            onPress={() => navigation.navigate('ComplianceHistory')}
+          />
+        </FadeIn>
       </View>
 
       <Text style={styles.heading}>Manage</Text>

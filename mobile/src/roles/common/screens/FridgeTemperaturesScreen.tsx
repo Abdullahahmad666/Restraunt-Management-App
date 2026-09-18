@@ -11,6 +11,8 @@ import {ErrorState} from '../../../components/ErrorState';
 import {FadeIn} from '../../../components/FadeIn';
 import {LoadingView} from '../../../components/LoadingView';
 import {Screen} from '../../../components/Screen';
+import {TemperatureGauge} from '../../../components/TemperatureGauge';
+import {TextField} from '../../../components/TextField';
 import {describeApiError} from '../../../api/errors';
 import {
   useFridgeUnits,
@@ -21,6 +23,7 @@ import {ROUTINE_LABELS} from '../../../features/compliance/types';
 import type {
   ComplianceRoutine,
   FridgeUnit,
+  FridgeUnitKind,
   TemperatureReading,
 } from '../../../features/compliance/types';
 import type {ComplianceStackParamList} from '../../../navigation/types';
@@ -33,6 +36,14 @@ function todayIso(): string {
 }
 
 const STEP = 0.5;
+
+/** The gauge's own min/max, wide enough either side of a typical
+ * recommended maximum to make dragging useful - not the pass/fail
+ * threshold itself, which is still `fridge.recommended_max_celsius`. */
+const GAUGE_RANGE: Record<FridgeUnitKind, {min: number; max: number}> = {
+  FRIDGE: {min: -5, max: 15},
+  FREEZER: {min: -30, max: -5},
+};
 
 function RecordRow({
   fridge,
@@ -50,10 +61,12 @@ function RecordRow({
   const [value, setValue] = useState(() =>
     Number(reading?.celsius ?? fridge.recommended_max_celsius),
   );
+  const [note, setNote] = useState(reading?.note ?? '');
   const [error, setError] = useState<string | null>(null);
 
   const maxAllowed = Number(fridge.recommended_max_celsius);
   const wouldBeWithinRange = value <= maxAllowed;
+  const gaugeRange = GAUGE_RANGE[fridge.kind];
 
   async function onSave() {
     setError(null);
@@ -63,6 +76,7 @@ function RecordRow({
         routine,
         date,
         celsius: value,
+        note: note.trim(),
       });
       setEditing(false);
     } catch (err) {
@@ -102,6 +116,8 @@ function RecordRow({
         ) : null}
       </View>
 
+      {!editing && reading?.note ? <Text style={styles.noteText}>Note: {reading.note}</Text> : null}
+
       {editing ? (
         <View style={styles.editor}>
           <View style={styles.stepper}>
@@ -120,9 +136,24 @@ function RecordRow({
               <Text style={styles.stepButtonText}>+</Text>
             </Pressable>
           </View>
+          <TemperatureGauge
+            min={gaugeRange.min}
+            max={gaugeRange.max}
+            step={STEP}
+            value={value}
+            onChange={setValue}
+            dangerAbove={maxAllowed}
+          />
           <Text style={styles.hint}>
             Recommended range: {fridge.recommended_max_celsius}°C or lower
           </Text>
+          <TextField
+            label="Note (optional)"
+            placeholder="e.g. Door was left ajar overnight"
+            value={note}
+            onChangeText={setNote}
+            multiline
+          />
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <View style={styles.formActions}>
             <Button title="Cancel" variant="secondary" onPress={() => setEditing(false)} />
@@ -214,6 +245,7 @@ const styles = StyleSheet.create({
   readingBadge: {alignItems: 'flex-end'},
   readingValue: {fontSize: 16, fontWeight: '700'},
   readingBy: {fontSize: 11, color: colors.textMuted},
+  noteText: {fontSize: 12, color: colors.textMuted, marginTop: spacing.xs, fontStyle: 'italic'},
   link: {fontSize: 12, color: colors.primary, fontWeight: '600', marginTop: spacing.sm},
   editor: {marginTop: spacing.sm, gap: spacing.sm},
   stepper: {flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.md},
