@@ -57,6 +57,17 @@ export const endpoints = {
       list: `${STAFF}/notifications/`,
       markRead: (id: string) => `${STAFF}/notifications/${id}/mark-read/`,
     },
+    compliance: {
+      fridgeUnits: `${STAFF}/fridge-units/`,
+      checklistItems: `${STAFF}/checklist-items/`,
+      temperatureReadings: `${STAFF}/temperature-readings/`,
+      checklistCompletions: `${STAFF}/checklist-completions/`,
+      checklistCompletion: (id: string) => `${STAFF}/checklist-completions/${id}/`,
+      checklistTemplates: `${STAFF}/checklist-templates/`,
+      checklistTasks: `${STAFF}/checklist-tasks/`,
+      checklistTaskCompletions: `${STAFF}/checklist-task-completions/`,
+      checklistTaskCompletion: (id: string) => `${STAFF}/checklist-task-completions/${id}/`,
+    },
   },
 
   admin: {
@@ -97,6 +108,16 @@ export const endpoints = {
     },
     notifications: {
       list: `${ADMIN}/notifications/`,
+    },
+    compliance: {
+      fridgeUnits: `${ADMIN}/fridge-units/`,
+      fridgeUnit: (id: string) => `${ADMIN}/fridge-units/${id}/`,
+      checklistItems: `${ADMIN}/checklist-items/`,
+      checklistItem: (id: string) => `${ADMIN}/checklist-items/${id}/`,
+      checklistTemplates: `${ADMIN}/checklist-templates/`,
+      checklistTemplate: (id: string) => `${ADMIN}/checklist-templates/${id}/`,
+      checklistTasks: `${ADMIN}/checklist-tasks/`,
+      checklistTask: (id: string) => `${ADMIN}/checklist-tasks/${id}/`,
     },
   },
 } as const;

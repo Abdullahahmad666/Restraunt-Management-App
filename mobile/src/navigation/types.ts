@@ -1,6 +1,7 @@
 import type {NavigatorScreenParams} from '@react-navigation/native';
 
 import type {AttendanceLog, ScanAction, Shift} from '../features/attendance/types';
+import type {ChecklistFrequency, ComplianceRoutine} from '../features/compliance/types';
 
 export type AuthStackParamList = {
   Welcome: undefined;
@@ -31,6 +32,29 @@ export type AuthStackParamList = {
   Join: {code?: string};
 };
 
+/**
+ * The compliance routes the staff and admin stacks both register,
+ * identically - a manager can view and complete a routine exactly like a
+ * staff member can. Defined once so the shared screens in
+ * roles/common/screens (RoutineScreen, FridgeTemperaturesScreen,
+ * ChecklistScreen) have one stack type to navigate against regardless of
+ * which role's navigator actually mounted them.
+ */
+export type ComplianceStackParamList = {
+  // The opening or closing routine's own hub (fridge temps + checklist),
+  // then the two screens it leads into.
+  Routine: {routine: ComplianceRoutine};
+  FridgeTemperatures: {routine: ComplianceRoutine};
+  Checklist: {routine: ComplianceRoutine};
+  // The named daily/weekly/monthly checklists ("Toilet Cleaning", "Monthly
+  // Deep Clean") - a Daily/Weekly/Monthly tab bar, then one named checklist's
+  // tasks. Same shared-completion viewing/completing for both roles as
+  // Routine/Checklist above; only adding/editing templates and tasks is
+  // admin-only (see AdminStackParamList's ManageChecklistTemplates(Tasks)).
+  OtherChecklists: undefined;
+  ChecklistTemplateTasks: {templateId: string; templateName: string};
+};
+
 // ---------------------------------------------------------------------------
 // Staff
 // ---------------------------------------------------------------------------
@@ -46,13 +70,11 @@ export type StaffTabParamList = {
 };
 
 /** Staff tabs plus the screens pushed on top of them. */
-export type StaffStackParamList = {
+export type StaffStackParamList = ComplianceStackParamList & {
   StaffTabs: NavigatorScreenParams<StaffTabParamList>;
   // The staff logs endpoint is list-only (no retrieve-by-id), so the scan
   // result is carried in the route params rather than re-fetched by id.
   ScanResult: {action: ScanAction; log: AttendanceLog};
-  CheckDetail: {taskId: string};
-  CorrectiveAction: {taskId: string};
   MyPay: undefined;
   MyShifts: undefined;
   // The staff shifts endpoint is list-only (no retrieve-by-id, same reason
@@ -88,7 +110,7 @@ export type AdminTabParamList = {
   Profile: undefined;
 };
 
-export type AdminStackParamList = {
+export type AdminStackParamList = ComplianceStackParamList & {
   AdminTabs: NavigatorScreenParams<AdminTabParamList>;
   AttendanceHistory: {staffId?: string};
   // logId corrects an existing log; staffId with no logId creates a new rota
@@ -121,6 +143,15 @@ export type AdminStackParamList = {
   // Every staff-raised swap request across the restaurant, and the
   // approve/decline decision on each.
   SwapRequests: undefined;
+  // Admin-only: registering fridges/freezers and maintaining the
+  // opening/closing checklists - not reachable from the staff side.
+  ManageFridges: undefined;
+  EditFridge: {fridgeId?: string};
+  ManageChecklist: {routine: ComplianceRoutine};
+  // Admin-only: adding/deactivating a frequency's named checklists, and one
+  // checklist's own tasks.
+  ManageChecklistTemplates: {frequency: ChecklistFrequency};
+  ManageChecklistTemplateTasks: {templateId: string; templateName: string};
 };
 
 // ---------------------------------------------------------------------------

@@ -188,6 +188,9 @@ SPECTACULAR_SETTINGS = {
         "ShiftSwapStatusEnum": "apps.attendance.models.SHIFT_SWAP_STATUS_CHOICES",
         "PayPeriodStatusEnum": "apps.payroll.models.PAY_PERIOD_STATUS_CHOICES",
         "NotificationStatusEnum": "apps.notifications.models.NOTIFICATION_STATUS_CHOICES",
+        "ComplianceRoutineEnum": "apps.compliance.models.COMPLIANCE_ROUTINE_CHOICES",
+        "FridgeUnitKindEnum": "apps.compliance.models.FRIDGE_UNIT_KIND_CHOICES",
+        "ChecklistFrequencyEnum": "apps.compliance.models.CHECKLIST_FREQUENCY_CHOICES",
     },
 }
 
