@@ -150,6 +150,14 @@ export function DailyChecksScreen(): React.JSX.Element {
             onPress={() => navigation.navigate('OtherChecklists')}
           />
         </FadeIn>
+        <FadeIn delay={210} style={styles.tileWrap}>
+          <GridTile
+            icon="cube-outline"
+            label="Inventory"
+            subtitle="Stock & invoices"
+            onPress={() => navigation.navigate('InventoryHub')}
+          />
+        </FadeIn>
       </View>
     </Screen>
   );

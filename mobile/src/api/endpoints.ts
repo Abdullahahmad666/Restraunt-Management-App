@@ -68,6 +68,17 @@ export const endpoints = {
       checklistTaskCompletions: `${STAFF}/checklist-task-completions/`,
       checklistTaskCompletion: (id: string) => `${STAFF}/checklist-task-completions/${id}/`,
     },
+    inventory: {
+      items: `${STAFF}/inventory-items/`,
+      movements: `${STAFF}/stock-movements/`,
+      invoiceScans: `${STAFF}/invoice-scans/`,
+      invoiceScan: (id: string) => `${STAFF}/invoice-scans/${id}/`,
+      rescanInvoice: (id: string) => `${STAFF}/invoice-scans/${id}/rescan/`,
+      confirmInvoice: (id: string) => `${STAFF}/invoice-scans/${id}/confirm/`,
+      discardInvoice: (id: string) => `${STAFF}/invoice-scans/${id}/discard/`,
+      invoiceLineItems: `${STAFF}/invoice-line-items/`,
+      invoiceLineItem: (id: string) => `${STAFF}/invoice-line-items/${id}/`,
+    },
   },
 
   admin: {
@@ -118,6 +129,10 @@ export const endpoints = {
       checklistTemplate: (id: string) => `${ADMIN}/checklist-templates/${id}/`,
       checklistTasks: `${ADMIN}/checklist-tasks/`,
       checklistTask: (id: string) => `${ADMIN}/checklist-tasks/${id}/`,
+    },
+    inventory: {
+      items: `${ADMIN}/inventory-items/`,
+      item: (id: string) => `${ADMIN}/inventory-items/${id}/`,
     },
   },
 } as const;

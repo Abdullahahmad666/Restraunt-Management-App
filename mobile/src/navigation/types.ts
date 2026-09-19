@@ -55,6 +55,24 @@ export type ComplianceStackParamList = {
   ChecklistTemplateTasks: {templateId: string; templateName: string};
 };
 
+/**
+ * The inventory routes the staff and admin stacks both register,
+ * identically - a manager scans and reviews an invoice exactly like a
+ * staff member can. Defined once for the same reason as
+ * ComplianceStackParamList above.
+ */
+export type InventoryStackParamList = {
+  // Stock levels, "scan an invoice", and any invoices still awaiting review.
+  InventoryHub: undefined;
+  // A scanned invoice's line items - matching each to a stock item,
+  // correcting what the AI read, and confirming (or discarding) it.
+  InvoiceReview: {invoiceId: string};
+  // Registered on both stacks so InventoryHubScreen can link to it, but
+  // only shown there for an ADMIN user (see its own role check) - the
+  // underlying admin API endpoints reject a staff caller regardless.
+  ManageInventoryItems: undefined;
+};
+
 // ---------------------------------------------------------------------------
 // Staff
 // ---------------------------------------------------------------------------
@@ -70,24 +88,25 @@ export type StaffTabParamList = {
 };
 
 /** Staff tabs plus the screens pushed on top of them. */
-export type StaffStackParamList = ComplianceStackParamList & {
-  StaffTabs: NavigatorScreenParams<StaffTabParamList>;
-  // The staff logs endpoint is list-only (no retrieve-by-id), so the scan
-  // result is carried in the route params rather than re-fetched by id.
-  ScanResult: {action: ScanAction; log: AttendanceLog};
-  MyPay: undefined;
-  MyShifts: undefined;
-  // The staff shifts endpoint is list-only (no retrieve-by-id, same reason
-  // as ScanResult above), so the shift being offered travels as a param
-  // rather than being re-fetched by id. Optional: reached with a shift
-  // already picked (a shift card's "Offer this shift" link) or with none
-  // (Swap requests' "Request a swap" button), in which case the screen's
-  // own first step is picking one.
-  RequestSwap: {shift?: Shift} | undefined;
-  SwapRequests: undefined;
-  ScanHistory: undefined;
-  Notifications: undefined;
-};
+export type StaffStackParamList = ComplianceStackParamList &
+  InventoryStackParamList & {
+    StaffTabs: NavigatorScreenParams<StaffTabParamList>;
+    // The staff logs endpoint is list-only (no retrieve-by-id), so the scan
+    // result is carried in the route params rather than re-fetched by id.
+    ScanResult: {action: ScanAction; log: AttendanceLog};
+    MyPay: undefined;
+    MyShifts: undefined;
+    // The staff shifts endpoint is list-only (no retrieve-by-id, same reason
+    // as ScanResult above), so the shift being offered travels as a param
+    // rather than being re-fetched by id. Optional: reached with a shift
+    // already picked (a shift card's "Offer this shift" link) or with none
+    // (Swap requests' "Request a swap" button), in which case the screen's
+    // own first step is picking one.
+    RequestSwap: {shift?: Shift} | undefined;
+    SwapRequests: undefined;
+    ScanHistory: undefined;
+    Notifications: undefined;
+  };
 
 // ---------------------------------------------------------------------------
 // Admin
@@ -110,49 +129,50 @@ export type AdminTabParamList = {
   Profile: undefined;
 };
 
-export type AdminStackParamList = ComplianceStackParamList & {
-  AdminTabs: NavigatorScreenParams<AdminTabParamList>;
-  AttendanceHistory: {staffId?: string};
-  // logId corrects an existing log; staffId with no logId creates a new rota
-  // shift for that person instead - there is no "create a log" endpoint.
-  AttendanceEdit: {logId?: string; staffId?: string};
-  // Who is checked in right now - reached from the Staff tab, not a tab of
-  // its own now that Staff and Attendance share one tab.
-  AttendanceLive: undefined;
-  // Generates and shows one invite code, on its own page - no roster, no
-  // clutter, just the code plus share/copy. No deep link shown - JoinScreen
-  // already has a type-the-code path, so the code alone is a complete invite.
-  InviteStaff: undefined;
-  // The full roster - the manager themselves, then every staff account.
-  AllStaff: undefined;
-  // One staff member: their info, pay rates, and a way into their shifts.
-  StaffDetail: {staffId: string};
-  // That same staff member's punctuality history - a manager can browse any
-  // month, not just the current one.
-  StaffAnalytics: {staffId: string};
-  // The weekly rota builder: who's on each day, Monday-Sunday, and that
-  // day's estimated staff cost.
-  Rota: undefined;
-  Payroll: undefined;
-  // The venue's single check-in QR code, not a per-staff barcode - there is
-  // no such thing on the backend, only one VenueQRCode per restaurant.
-  StaffBarcode: undefined;
-  ComplianceHistory: undefined;
-  Equipment: undefined;
-  Notifications: undefined;
-  // Every staff-raised swap request across the restaurant, and the
-  // approve/decline decision on each.
-  SwapRequests: undefined;
-  // Admin-only: registering fridges/freezers and maintaining the
-  // opening/closing checklists - not reachable from the staff side.
-  ManageFridges: undefined;
-  EditFridge: {fridgeId?: string};
-  ManageChecklist: {routine: ComplianceRoutine};
-  // Admin-only: adding/deactivating a frequency's named checklists, and one
-  // checklist's own tasks.
-  ManageChecklistTemplates: {frequency: ChecklistFrequency};
-  ManageChecklistTemplateTasks: {templateId: string; templateName: string};
-};
+export type AdminStackParamList = ComplianceStackParamList &
+  InventoryStackParamList & {
+    AdminTabs: NavigatorScreenParams<AdminTabParamList>;
+    AttendanceHistory: {staffId?: string};
+    // logId corrects an existing log; staffId with no logId creates a new rota
+    // shift for that person instead - there is no "create a log" endpoint.
+    AttendanceEdit: {logId?: string; staffId?: string};
+    // Who is checked in right now - reached from the Staff tab, not a tab of
+    // its own now that Staff and Attendance share one tab.
+    AttendanceLive: undefined;
+    // Generates and shows one invite code, on its own page - no roster, no
+    // clutter, just the code plus share/copy. No deep link shown - JoinScreen
+    // already has a type-the-code path, so the code alone is a complete invite.
+    InviteStaff: undefined;
+    // The full roster - the manager themselves, then every staff account.
+    AllStaff: undefined;
+    // One staff member: their info, pay rates, and a way into their shifts.
+    StaffDetail: {staffId: string};
+    // That same staff member's punctuality history - a manager can browse any
+    // month, not just the current one.
+    StaffAnalytics: {staffId: string};
+    // The weekly rota builder: who's on each day, Monday-Sunday, and that
+    // day's estimated staff cost.
+    Rota: undefined;
+    Payroll: undefined;
+    // The venue's single check-in QR code, not a per-staff barcode - there is
+    // no such thing on the backend, only one VenueQRCode per restaurant.
+    StaffBarcode: undefined;
+    ComplianceHistory: undefined;
+    Equipment: undefined;
+    Notifications: undefined;
+    // Every staff-raised swap request across the restaurant, and the
+    // approve/decline decision on each.
+    SwapRequests: undefined;
+    // Admin-only: registering fridges/freezers and maintaining the
+    // opening/closing checklists - not reachable from the staff side.
+    ManageFridges: undefined;
+    EditFridge: {fridgeId?: string};
+    ManageChecklist: {routine: ComplianceRoutine};
+    // Admin-only: adding/deactivating a frequency's named checklists, and one
+    // checklist's own tasks.
+    ManageChecklistTemplates: {frequency: ChecklistFrequency};
+    ManageChecklistTemplateTasks: {templateId: string; templateName: string};
+  };
 
 // ---------------------------------------------------------------------------
 // Root
