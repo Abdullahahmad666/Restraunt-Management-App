@@ -16,6 +16,7 @@ import {ManageChecklistScreen} from '../screens/ManageChecklistScreen';
 import {ManageChecklistTemplatesScreen} from '../screens/ManageChecklistTemplatesScreen';
 import {ManageChecklistTemplateTasksScreen} from '../screens/ManageChecklistTemplateTasksScreen';
 import {ManageFridgesScreen} from '../screens/ManageFridgesScreen';
+import {ManageInventoryItemsScreen} from '../screens/ManageInventoryItemsScreen';
 import {NotificationsScreen} from '../screens/NotificationsScreen';
 import {PayrollScreen} from '../screens/PayrollScreen';
 import {RotaScreen} from '../screens/RotaScreen';
@@ -28,6 +29,8 @@ import {TeamAnalyticsScreen} from '../screens/TeamAnalyticsScreen';
 import {ChecklistScreen} from '../../../roles/common/screens/ChecklistScreen';
 import {ChecklistTemplateTasksScreen} from '../../../roles/common/screens/ChecklistTemplateTasksScreen';
 import {FridgeTemperaturesScreen} from '../../../roles/common/screens/FridgeTemperaturesScreen';
+import {InventoryHubScreen} from '../../../roles/common/screens/InventoryHubScreen';
+import {InvoiceReviewScreen} from '../../../roles/common/screens/InvoiceReviewScreen';
 import {OtherChecklistsScreen} from '../../../roles/common/screens/OtherChecklistsScreen';
 import {ProfileScreen} from '../../../roles/common/screens/ProfileScreen';
 import {RoutineScreen} from '../../../roles/common/screens/RoutineScreen';
@@ -144,6 +147,21 @@ export function AdminNavigator(): React.JSX.Element {
         name="ManageChecklistTemplateTasks"
         component={ManageChecklistTemplateTasksScreen}
         options={{title: 'Manage tasks'}}
+      />
+      <Stack.Screen
+        name="InventoryHub"
+        component={InventoryHubScreen}
+        options={{title: 'Inventory'}}
+      />
+      <Stack.Screen
+        name="InvoiceReview"
+        component={InvoiceReviewScreen}
+        options={{title: 'Invoice'}}
+      />
+      <Stack.Screen
+        name="ManageInventoryItems"
+        component={ManageInventoryItemsScreen}
+        options={{title: 'Manage inventory'}}
       />
     </Stack.Navigator>
   );

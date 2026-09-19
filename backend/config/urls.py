@@ -28,6 +28,7 @@ from apps.audit.api import urls as audit_urls
 from apps.common.views import health_check
 from apps.compliance.api import urls as compliance_urls
 from apps.equipment.api import urls as equipment_urls
+from apps.inventory.api import urls as inventory_urls
 from apps.notifications.api import urls as notifications_urls
 from apps.payroll.api import urls as payroll_urls
 from apps.restaurants.api import urls as restaurants_urls
@@ -39,6 +40,7 @@ DOMAINS = (
     ("attendance", attendance_urls),
     ("payroll", payroll_urls),
     ("compliance", compliance_urls),
+    ("inventory", inventory_urls),
     ("notifications", notifications_urls),
     ("audit", audit_urls),
     # Staff-account management only - login/register/me stay mounted at

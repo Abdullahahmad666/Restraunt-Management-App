@@ -66,3 +66,9 @@
         sync: false
       - key: DEFAULT_FROM_EMAIL
         sync: false
+      # A key from https://console.anthropic.com/ - used by apps.inventory
+      # to read line items off a photographed invoice. Leave unset and
+      # invoice uploads still save, scanning just fails with a friendly
+      # error instead of populating line items.
+      - key: ANTHROPIC_API_KEY
+        sync: false
