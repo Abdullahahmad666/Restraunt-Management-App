@@ -56,6 +56,8 @@ LOCAL_APPS = [
     "apps.payroll",
     # Task 2 - food safety compliance
     "apps.compliance",
+    # Task 3 - stock items and scanned-invoice deliveries
+    "apps.inventory",
     # Cross-cutting
     "apps.notifications",
     "apps.audit",
@@ -194,6 +196,8 @@ SPECTACULAR_SETTINGS = {
         "ComplianceRoutineEnum": "apps.compliance.models.COMPLIANCE_ROUTINE_CHOICES",
         "FridgeUnitKindEnum": "apps.compliance.models.FRIDGE_UNIT_KIND_CHOICES",
         "ChecklistFrequencyEnum": "apps.compliance.models.CHECKLIST_FREQUENCY_CHOICES",
+        "StockMovementReasonEnum": "apps.inventory.models.STOCK_MOVEMENT_REASON_CHOICES",
+        "InvoiceScanStatusEnum": "apps.inventory.models.INVOICE_SCAN_STATUS_CHOICES",
     },
 }
 
@@ -257,3 +261,8 @@ MAILERS = {
     }
 }
 GOOGLE_CLIENT_ID = env("GOOGLE_CLIENT_ID", default="")
+
+# Used by apps.inventory.services.scanning to read a photographed invoice.
+# Blank in an environment that hasn't set one up yet - that service raises
+# a friendly ValidationError rather than a raw auth failure in that case.
+ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
