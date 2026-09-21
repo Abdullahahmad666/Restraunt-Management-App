@@ -17,6 +17,7 @@ import {ManageChecklistTemplatesScreen} from '../screens/ManageChecklistTemplate
 import {ManageChecklistTemplateTasksScreen} from '../screens/ManageChecklistTemplateTasksScreen';
 import {ManageFridgesScreen} from '../screens/ManageFridgesScreen';
 import {ManageInventoryItemsScreen} from '../screens/ManageInventoryItemsScreen';
+import {ManageSourcesScreen} from '../screens/ManageSourcesScreen';
 import {PurchaseHistoryScreen} from '../screens/PurchaseHistoryScreen';
 import {NotificationsScreen} from '../screens/NotificationsScreen';
 import {PayrollScreen} from '../screens/PayrollScreen';
@@ -168,6 +169,11 @@ export function AdminNavigator(): React.JSX.Element {
         name="PurchaseHistory"
         component={PurchaseHistoryScreen}
         options={{title: 'Purchase history'}}
+      />
+      <Stack.Screen
+        name="ManageSources"
+        component={ManageSourcesScreen}
+        options={{title: 'Suppliers & storage'}}
       />
     </Stack.Navigator>
   );

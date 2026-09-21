@@ -18,6 +18,10 @@ const keys = {
   adminItems: ['inventory', 'admin-items'] as const,
   suppliers: ['inventory', 'suppliers'] as const,
   warehouses: ['inventory', 'warehouses'] as const,
+  // Separate keys from the staff lists above: those hold only what is usable,
+  // these also hold what has been retired.
+  adminSuppliers: ['inventory', 'admin-suppliers'] as const,
+  adminWarehouses: ['inventory', 'admin-warehouses'] as const,
   // Filters are part of the key, so changing one refetches rather than
   // showing the previous filter's numbers under the new heading.
   purchases: (filters: PurchaseFilters) => ['inventory', 'purchases', filters] as const,
@@ -208,5 +212,49 @@ export function usePurchaseSummary(filters: PurchaseFilters) {
   return useQuery({
     queryKey: keys.purchaseSummary(filters),
     queryFn: () => api.getPurchaseSummary(filters),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Managing suppliers and warehouses (admin)
+// ---------------------------------------------------------------------------
+
+export function useAdminSuppliers() {
+  return useQuery({queryKey: keys.adminSuppliers, queryFn: api.listAdminSuppliers});
+}
+
+export function useAdminWarehouses() {
+  return useQuery({queryKey: keys.adminWarehouses, queryFn: api.listAdminWarehouses});
+}
+
+/** Retiring one changes what every past invoice appears to say, so these
+ * invalidate the invoice lists as well as their own. */
+function invalidateSources(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({queryKey: ['inventory']});
+}
+
+export function useUpdateSupplier() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({id, input}: {id: string; input: api.UpdateSupplierInput}) =>
+      api.updateSupplier(id, input),
+    onSuccess: () => invalidateSources(queryClient),
+  });
+}
+
+export function useCreateWarehouse() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: api.createWarehouse,
+    onSuccess: () => invalidateSources(queryClient),
+  });
+}
+
+export function useUpdateWarehouse() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({id, input}: {id: string; input: api.UpdateWarehouseInput}) =>
+      api.updateWarehouse(id, input),
+    onSuccess: () => invalidateSources(queryClient),
   });
 }

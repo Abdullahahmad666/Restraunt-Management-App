@@ -230,3 +230,40 @@ export async function getPurchaseSummary(filters: PurchaseFilters = {}): Promise
   });
   return data;
 }
+
+// ---------------------------------------------------------------------------
+// Managing suppliers and warehouses (admin)
+// ---------------------------------------------------------------------------
+//
+// Separate from the staff calls above because they see different rows: staff
+// pick from what is usable, an admin also has to see what has been retired in
+// order to bring it back.
+
+export async function listAdminSuppliers(): Promise<Paginated<Supplier>> {
+  const {data} = await apiClient.get<Paginated<Supplier>>(endpoints.admin.inventory.suppliers);
+  return data;
+}
+
+export type UpdateSupplierInput = Partial<Pick<Supplier, 'name' | 'is_active'>>;
+
+export async function updateSupplier(id: string, input: UpdateSupplierInput): Promise<Supplier> {
+  const {data} = await apiClient.patch<Supplier>(endpoints.admin.inventory.supplier(id), input);
+  return data;
+}
+
+export async function listAdminWarehouses(): Promise<Paginated<Warehouse>> {
+  const {data} = await apiClient.get<Paginated<Warehouse>>(endpoints.admin.inventory.warehouses);
+  return data;
+}
+
+export async function createWarehouse(name: string): Promise<Warehouse> {
+  const {data} = await apiClient.post<Warehouse>(endpoints.admin.inventory.warehouses, {name});
+  return data;
+}
+
+export type UpdateWarehouseInput = Partial<Pick<Warehouse, 'name' | 'is_active'>>;
+
+export async function updateWarehouse(id: string, input: UpdateWarehouseInput): Promise<Warehouse> {
+  const {data} = await apiClient.patch<Warehouse>(endpoints.admin.inventory.warehouse(id), input);
+  return data;
+}

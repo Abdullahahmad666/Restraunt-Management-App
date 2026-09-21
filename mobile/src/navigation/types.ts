@@ -75,6 +75,10 @@ export type InventoryStackParamList = {
   // registered on the admin stack only. What the restaurant buys, from whom,
   // and at what cost.
   PurchaseHistory: undefined;
+  // Tidying the supplier and storage-area lists, both of which fill
+  // themselves - staff add a supplier mid-review, and a storage area is
+  // created from whatever a delivery note says. Admin stack only.
+  ManageSources: undefined;
 };
 
 // ---------------------------------------------------------------------------

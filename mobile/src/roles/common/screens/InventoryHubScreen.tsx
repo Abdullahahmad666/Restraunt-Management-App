@@ -172,8 +172,11 @@ export function InventoryHubScreen(): React.JSX.Element {
             <Pressable onPress={() => navigation.navigate('PurchaseHistory')} hitSlop={8}>
               <Text style={styles.manageLink}>Purchases</Text>
             </Pressable>
+            <Pressable onPress={() => navigation.navigate('ManageSources')} hitSlop={8}>
+              <Text style={styles.manageLink}>Suppliers</Text>
+            </Pressable>
             <Pressable onPress={() => navigation.navigate('ManageInventoryItems')} hitSlop={8}>
-              <Text style={styles.manageLink}>Manage items</Text>
+              <Text style={styles.manageLink}>Items</Text>
             </Pressable>
           </View>
         ) : null}
