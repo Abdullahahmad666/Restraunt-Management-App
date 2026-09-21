@@ -22,7 +22,49 @@ from .common import (
     InvoiceLineItemSerializer,
     InvoiceScanSerializer,
     StockMovementSerializer,
+    SupplierSerializer,
+    WarehouseSerializer,
 )
+
+
+class StaffSupplierViewSet(
+    RestaurantScopedQuerysetMixin,
+    mixins.ListModelMixin,
+    mixins.CreateModelMixin,
+    viewsets.GenericViewSet,
+):
+    """Suppliers to pick from while reviewing an invoice, plus adding one the
+    restaurant has not bought from before - the same shape as adding an
+    inventory item inline. Editing and retiring stay admin-only: those change
+    what every past invoice appears to say."""
+
+    serializer_class = SupplierSerializer
+    permission_classes = [IsStaff]
+    queryset = models.Supplier.objects.all()
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return models.Supplier.objects.none()
+        return super().get_queryset().filter(is_active=True)
+
+    def perform_create(self, serializer):
+        serializer.save(restaurant=self.request.user.restaurant)
+
+
+class StaffWarehouseViewSet(
+    RestaurantScopedQuerysetMixin, mixins.ListModelMixin, viewsets.GenericViewSet
+):
+    """Where a delivery can be sent. Read-only: a warehouse is a physical
+    place someone set up once, not something to invent mid-review."""
+
+    serializer_class = WarehouseSerializer
+    permission_classes = [IsStaff]
+    queryset = models.Warehouse.objects.all()
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return models.Warehouse.objects.none()
+        return super().get_queryset().filter(is_active=True)
 
 
 class StaffInventoryItemViewSet(
@@ -139,6 +181,7 @@ class StaffInvoiceScanViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
     mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
     viewsets.GenericViewSet,
 ):
     """Invoice photos staff have uploaded, with the line items a vision
@@ -147,10 +190,28 @@ class StaffInvoiceScanViewSet(
 
     serializer_class = InvoiceScanSerializer
     permission_classes = [IsStaff]
-    filterset_fields = ("status",)
-    queryset = models.InvoiceScan.objects.select_related("uploaded_by").prefetch_related(
-        "line_items", "line_items__matched_item"
-    )
+    filterset_fields = ("status", "supplier", "warehouse")
+    http_method_names = ["get", "post", "patch", "head", "options"]
+    queryset = models.InvoiceScan.objects.select_related(
+        "uploaded_by", "supplier", "warehouse"
+    ).prefetch_related("line_items", "line_items__matched_item")
+
+    def perform_update(self, serializer):
+        """Only the supplier and warehouse are writable; everything else on
+        this serializer is read-only. Both are checked against the caller's own
+        restaurant - a foreign key is not scoped by the queryset mixin, so
+        without this a staff member could attach another restaurant's supplier
+        to their invoice and quietly corrupt both restaurants' reporting."""
+        if serializer.instance.status != models.InvoiceScan.Status.PENDING:
+            raise DRFValidationError("This invoice has already been confirmed or discarded.")
+
+        restaurant_id = self.request.user.restaurant_id
+        for field, label in (("supplier", "supplier"), ("warehouse", "warehouse")):
+            related = serializer.validated_data.get(field)
+            if related is not None and related.restaurant_id != restaurant_id:
+                raise DRFValidationError(f"That {label} is not part of your restaurant.")
+
+        serializer.save()
 
     def _queue_scan(self, invoice: "models.InvoiceScan") -> None:
         """Hand the photo to the worker and return.

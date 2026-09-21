@@ -5,6 +5,20 @@ from rest_framework import serializers
 from .. import models
 
 
+class SupplierSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Supplier
+        fields = ("id", "name", "contact_email", "contact_phone", "notes", "is_active")
+        read_only_fields = ("id",)
+
+
+class WarehouseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Warehouse
+        fields = ("id", "name", "description", "is_active")
+        read_only_fields = ("id",)
+
+
 class BaseInventoryItemSerializer(serializers.ModelSerializer):
     is_below_par = serializers.BooleanField(read_only=True)
 
@@ -68,6 +82,8 @@ class InvoiceLineItemSerializer(serializers.ModelSerializer):
 class InvoiceScanSerializer(serializers.ModelSerializer):
     line_items = InvoiceLineItemSerializer(many=True, read_only=True)
     uploaded_by_name = serializers.SerializerMethodField()
+    supplier_display = serializers.CharField(source="supplier.name", read_only=True, default=None)
+    warehouse_display = serializers.CharField(source="warehouse.name", read_only=True, default=None)
 
     class Meta:
         model = models.InvoiceScan
@@ -81,6 +97,13 @@ class InvoiceScanSerializer(serializers.ModelSerializer):
             # The client needs this to decide whether the file can be shown as
             # an image at all - a PDF rendered into an <Image> is a blank box.
             "content_type",
+            # The supplier this was matched to, and the raw text the scan read.
+            # Both are shown while reviewing: the name is the evidence for the
+            # match, and the only clue when there is no match to show.
+            "supplier",
+            "supplier_display",
+            "warehouse",
+            "warehouse_display",
             "supplier_name",
             "invoice_date",
             "scan_error",
@@ -91,9 +114,14 @@ class InvoiceScanSerializer(serializers.ModelSerializer):
         )
         read_only_fields = (
             "id",
+            # Set once, at upload. Writable here would mean a PATCH could point
+            # an invoice at a different file after it had been read.
+            "photo",
             "status",
             "scan_state",
             "content_type",
+            "supplier_display",
+            "warehouse_display",
             "supplier_name",
             "invoice_date",
             "scan_error",

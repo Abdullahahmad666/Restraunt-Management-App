@@ -238,6 +238,7 @@ def populate_invoice_from_scan(invoice) -> None:
     the queue retries the job.
     """
     from ..models import InvoiceLineItem, InvoiceScan
+    from .suppliers import match_supplier
 
     invoice.scan_state = InvoiceScan.ScanState.SCANNING
     invoice.scan_error = ""
@@ -279,11 +280,19 @@ def populate_invoice_from_scan(invoice) -> None:
         )
         invoice.supplier_name = str(data.get("supplier_name") or "")[:200]
         invoice.invoice_date = _safe_date(data.get("invoice_date"))
+        # Link to a supplier the restaurant already has, and only that - see
+        # services.suppliers for why a scan never creates one. A blank here is
+        # a question for the reviewer, not a failure.
+        if invoice.supplier_id is None:
+            invoice.supplier = match_supplier(
+                restaurant_id=invoice.restaurant_id, raw_name=invoice.supplier_name
+            )
         invoice.scan_state = InvoiceScan.ScanState.DONE
         invoice.scan_error = ""
         invoice.save(
             update_fields=[
                 "supplier_name",
+                "supplier",
                 "invoice_date",
                 "scan_state",
                 "scan_error",

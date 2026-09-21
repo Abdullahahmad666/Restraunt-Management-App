@@ -47,6 +47,25 @@ class InvoiceScan(BaseModel):
     # so deriving it there silently produced "image/jpeg" for everything -
     # survivable while only photos were allowed, wrong for every PDF.
     content_type = models.CharField(max_length=100, blank=True, default="")
+    # Who supplied it and where it went. Both nullable and both set by a
+    # person: a scan only ever matches a supplier that already exists, because
+    # one invented from a misread line is permanent rubbish in every later
+    # filter. supplier_name below keeps whatever the scan actually read, which
+    # is what the reviewer is shown while picking.
+    supplier = models.ForeignKey(
+        "inventory.Supplier",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="invoices",
+    )
+    warehouse = models.ForeignKey(
+        "inventory.Warehouse",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="invoices",
+    )
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
     scan_state = models.CharField(
         max_length=16, choices=ScanState.choices, default=ScanState.QUEUED

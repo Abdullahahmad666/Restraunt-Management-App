@@ -27,3 +27,17 @@ class InvoiceScanAdmin(admin.ModelAdmin):
 class InvoiceLineItemAdmin(admin.ModelAdmin):
     list_display = ("raw_name", "invoice", "quantity", "unit_price", "matched_item")
     list_filter = ("invoice__status",)
+
+
+@admin.register(models.Supplier)
+class SupplierAdmin(admin.ModelAdmin):
+    list_display = ("name", "restaurant", "contact_email", "is_active")
+    list_filter = ("restaurant", "is_active")
+    search_fields = ("name", "normalized_name")
+    readonly_fields = ("normalized_name",)
+
+
+@admin.register(models.Warehouse)
+class WarehouseAdmin(admin.ModelAdmin):
+    list_display = ("name", "restaurant", "is_active")
+    list_filter = ("restaurant", "is_active")
