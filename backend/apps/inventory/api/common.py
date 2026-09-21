@@ -75,6 +75,9 @@ class InvoiceScanSerializer(serializers.ModelSerializer):
             "id",
             "photo",
             "status",
+            # The client polls this after uploading: QUEUED/SCANNING mean the
+            # line items are not there yet, DONE and FAILED are terminal.
+            "scan_state",
             "supplier_name",
             "invoice_date",
             "scan_error",
@@ -86,6 +89,7 @@ class InvoiceScanSerializer(serializers.ModelSerializer):
         read_only_fields = (
             "id",
             "status",
+            "scan_state",
             "supplier_name",
             "invoice_date",
             "scan_error",

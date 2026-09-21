@@ -3,9 +3,6 @@
 Mounted at /api/v1/staff/inventory/.
 """
 
-from datetime import datetime
-from decimal import Decimal, InvalidOperation
-
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import mixins, serializers, viewsets
 from rest_framework.decorators import action
@@ -14,9 +11,10 @@ from rest_framework.response import Response
 
 from apps.common.api.viewsets import RestaurantScopedQuerysetMixin
 from apps.common.permissions import IsStaff
+from apps.jobs.services import queue
 
+from .. import jobs as inventory_jobs
 from .. import models
-from ..services import scanning as scanning_service
 from ..services import stock as stock_service
 from .common import (
     BaseInventoryItemSerializer,
@@ -24,24 +22,6 @@ from .common import (
     InvoiceScanSerializer,
     StockMovementSerializer,
 )
-
-
-def _safe_decimal(value, default=None):
-    if value is None:
-        return default
-    try:
-        return Decimal(str(value))
-    except (InvalidOperation, ValueError, TypeError):
-        return default
-
-
-def _safe_date(value):
-    if not value:
-        return None
-    try:
-        return datetime.strptime(str(value), "%Y-%m-%d").date()
-    except (ValueError, TypeError):
-        return None
 
 
 class StaffInventoryItemViewSet(
@@ -129,40 +109,18 @@ class StaffInvoiceScanViewSet(
         "line_items", "line_items__matched_item"
     )
 
-    def _populate_from_scan(self, invoice: "models.InvoiceScan") -> None:
-        invoice.photo.open("rb")
-        try:
-            image_bytes = invoice.photo.read()
-        finally:
-            invoice.photo.close()
-        content_type = getattr(invoice.photo.file, "content_type", None) or "image/jpeg"
+    def _queue_scan(self, invoice: "models.InvoiceScan") -> None:
+        """Hand the photo to the worker and return.
 
-        try:
-            data = scanning_service.extract_invoice_data(
-                image_bytes=image_bytes, content_type=content_type
-            )
-        except DjangoValidationError as exc:
-            invoice.scan_error = "; ".join(getattr(exc, "messages", [str(exc)]))[:500]
-            invoice.save(update_fields=["scan_error", "updated_at"])
-            return
-
-        invoice.supplier_name = str(data.get("supplier_name") or "")[:200]
-        invoice.invoice_date = _safe_date(data.get("invoice_date"))
+        Reading an invoice takes seconds of waiting on a vision model. Doing it
+        here would hold one of gunicorn's three workers for the duration, so a
+        few simultaneous uploads would stall every other request in the app.
+        The client polls this invoice until scan_state leaves QUEUED.
+        """
+        invoice.scan_state = models.InvoiceScan.ScanState.QUEUED
         invoice.scan_error = ""
-        invoice.save(update_fields=["supplier_name", "invoice_date", "scan_error", "updated_at"])
-
-        for index, line in enumerate(data.get("line_items") or []):
-            if not isinstance(line, dict):
-                continue
-            models.InvoiceLineItem.objects.create(
-                invoice=invoice,
-                raw_name=str(line.get("name") or "Unnamed item")[:255],
-                quantity=_safe_decimal(line.get("quantity"), default=Decimal("1")),
-                unit=str(line.get("unit") or "")[:32],
-                unit_price=_safe_decimal(line.get("unit_price")),
-                line_total=_safe_decimal(line.get("line_total")),
-                sort_order=index,
-            )
+        invoice.save(update_fields=["scan_state", "scan_error", "updated_at"])
+        queue.enqueue(kind=inventory_jobs.SCAN_INVOICE, payload={"invoice_id": str(invoice.id)})
 
     def create(self, request, *args, **kwargs):
         input_serializer = UploadInvoiceSerializer(data=request.data)
@@ -173,10 +131,11 @@ class StaffInvoiceScanViewSet(
             photo=input_serializer.validated_data["photo"],
             uploaded_by=request.user,
         )
-        self._populate_from_scan(invoice)
-        invoice.refresh_from_db()
+        self._queue_scan(invoice)
 
-        return Response(self.get_serializer(invoice).data, status=201)
+        # 202, not 201: the invoice exists, but the line items the caller
+        # actually wants are not there yet.
+        return Response(self.get_serializer(invoice).data, status=202)
 
     @action(detail=True, methods=["post"])
     def rescan(self, request, pk=None):
@@ -188,9 +147,8 @@ class StaffInvoiceScanViewSet(
             raise DRFValidationError("This invoice has already been confirmed or discarded.")
 
         invoice.line_items.all().delete()
-        self._populate_from_scan(invoice)
-        invoice.refresh_from_db()
-        return Response(self.get_serializer(invoice).data)
+        self._queue_scan(invoice)
+        return Response(self.get_serializer(invoice).data, status=202)
 
     @action(detail=True, methods=["post"])
     def confirm(self, request, pk=None):

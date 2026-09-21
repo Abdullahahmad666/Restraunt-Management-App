@@ -240,6 +240,7 @@ SPECTACULAR_SETTINGS = {
         "ChecklistFrequencyEnum": "apps.compliance.models.CHECKLIST_FREQUENCY_CHOICES",
         "StockMovementReasonEnum": "apps.inventory.models.STOCK_MOVEMENT_REASON_CHOICES",
         "InvoiceScanStatusEnum": "apps.inventory.models.INVOICE_SCAN_STATUS_CHOICES",
+        "InvoiceScanStateEnum": "apps.inventory.models.INVOICE_SCAN_STATE_CHOICES",
     },
 }
 

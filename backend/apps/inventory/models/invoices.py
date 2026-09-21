@@ -18,11 +18,28 @@ class InvoiceScan(BaseModel):
         CONFIRMED = "CONFIRMED", "Confirmed"
         DISCARDED = "DISCARDED", "Discarded"
 
+    class ScanState(models.TextChoices):
+        """How far the AI read has got.
+
+        Deliberately separate from `status`, which is the human review
+        lifecycle. An invoice can be waiting to be read and waiting to be
+        reviewed at the same time, and folding the two into one field makes
+        "scanned but not yet reviewed" impossible to express.
+        """
+
+        QUEUED = "QUEUED", "Waiting to be read"
+        SCANNING = "SCANNING", "Being read"
+        DONE = "DONE", "Read"
+        FAILED = "FAILED", "Could not be read"
+
     restaurant = models.ForeignKey(
         "restaurants.Restaurant", on_delete=models.CASCADE, related_name="invoice_scans"
     )
     photo = models.ImageField(upload_to="invoice_scans/")
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
+    scan_state = models.CharField(
+        max_length=16, choices=ScanState.choices, default=ScanState.QUEUED
+    )
     supplier_name = models.CharField(max_length=200, blank=True, default="")
     invoice_date = models.DateField(null=True, blank=True)
     # Set when the scan itself failed (bad photo, the AI service errored) -
@@ -67,3 +84,4 @@ class InvoiceLineItem(BaseModel):
 # Flat, top-level name for config.settings.base's ENUM_NAME_OVERRIDES - see
 # the matching comment in apps.attendance.models.
 INVOICE_SCAN_STATUS_CHOICES = InvoiceScan.Status.choices
+INVOICE_SCAN_STATE_CHOICES = InvoiceScan.ScanState.choices
