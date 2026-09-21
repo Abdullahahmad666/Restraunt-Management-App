@@ -12,6 +12,7 @@ from rest_framework import mixins, serializers, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 
 from apps.common.api.viewsets import RestaurantScopedQuerysetMixin
 from apps.common.permissions import IsStaff
@@ -19,7 +20,7 @@ from apps.jobs.services import queue
 
 from .. import jobs as inventory_jobs
 from .. import models, selectors
-from ..services import scanning, uploads
+from ..services import scanning, uploads, usage
 from ..services import stock as stock_service
 from .common import (
     BaseInventoryItemSerializer,
@@ -232,6 +233,18 @@ class StaffInvoiceScanViewSet(
 
         serializer.save()
 
+    def get_throttles(self):
+        """Rate-limit only the actions that spend money.
+
+        The viewset-wide `throttle_scope` DRF would otherwise use covers reads
+        too, and a reviewer polling an invoice while it scans would throttle
+        themselves out of watching it finish.
+        """
+        if self.action in {"create", "upload_url", "rescan", "uploaded"}:
+            self.throttle_scope = "invoice_scan"
+            return [ScopedRateThrottle()]
+        return super().get_throttles()
+
     def _queue_scan(self, invoice: "models.InvoiceScan") -> None:
         """Hand the photo to the worker and return.
 
@@ -240,6 +253,13 @@ class StaffInvoiceScanViewSet(
         few simultaneous uploads would stall every other request in the app.
         The client polls this invoice until scan_state leaves QUEUED.
         """
+        if usage.cap_reached(restaurant_id=invoice.restaurant_id):
+            raise DRFValidationError(
+                "This restaurant has reached its invoice scanning limit for the month. "
+                "The invoice is saved - add its items by hand, or ask an admin to raise "
+                "the limit."
+            )
+
         invoice.scan_state = models.InvoiceScan.ScanState.QUEUED
         invoice.scan_error = ""
         invoice.save(update_fields=["scan_state", "scan_error", "updated_at"])

@@ -204,6 +204,9 @@ REST_FRAMEWORK = {
         # Deliberately tight: this endpoint sends mail to an address the
         # caller supplies, so a loose limit makes it a spam relay.
         "password_reset": "5/hour",
+        # Invoice scanning is the only endpoint here that costs money per
+        # call, and every staff account can reach it.
+        "invoice_scan": "40/hour",
         # Looser than the others: the join screen calls this on every load,
         # including re-opens, so it needs headroom register/login don't.
         "invite_lookup": "30/min",
@@ -309,3 +312,8 @@ GOOGLE_CLIENT_ID = env("GOOGLE_CLIENT_ID", default="")
 # Blank in an environment that hasn't set one up yet - that service raises
 # a friendly ValidationError rather than a raw auth failure in that case.
 ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
+
+# Invoices one restaurant may have read per calendar month. 0 means no
+# ceiling, which is the default: a limit nobody chose would refuse real work
+# on the day it was hit. Set one and a bad afternoon costs a known amount.
+INVOICE_SCAN_MONTHLY_CAP = env.int("INVOICE_SCAN_MONTHLY_CAP", default=0)

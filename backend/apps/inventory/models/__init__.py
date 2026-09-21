@@ -12,6 +12,7 @@ from .invoices import (
 from .items import InventoryItem
 from .movements import STOCK_MOVEMENT_REASON_CHOICES, StockMovement
 from .suppliers import Supplier, normalize_supplier_name
+from .usage import ScanUsage
 from .warehouses import Warehouse, normalize_warehouse_name
 
 __all__ = [
@@ -23,6 +24,7 @@ __all__ = [
     "InvoiceLineItem",
     "InvoiceScan",
     "StockMovement",
+    "ScanUsage",
     "Supplier",
     "Warehouse",
     "normalize_item_text",

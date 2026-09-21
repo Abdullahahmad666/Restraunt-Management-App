@@ -265,7 +265,7 @@ def populate_invoice_from_scan(invoice) -> None:
     the queue retries the job.
     """
     from ..models import InvoiceLineItem, InvoiceScan
-    from . import duplicates
+    from . import duplicates, usage
     from .matching import resolve_items
     from .suppliers import match_supplier
     from .warehouses import resolve_warehouse
@@ -301,6 +301,20 @@ def populate_invoice_from_scan(invoice) -> None:
             ]
         )
         return
+
+    # Checked here as well as at upload, because this is the line that spends
+    # the money - the check at upload is a courtesy that avoids queueing work
+    # that will be refused, not the limit itself.
+    if usage.cap_reached(restaurant_id=invoice.restaurant_id):
+        invoice.scan_state = InvoiceScan.ScanState.FAILED
+        invoice.scan_error = (
+            "This restaurant has reached its invoice scanning limit for the month. "
+            "The invoice is saved - add its items by hand, or ask an admin to raise the limit."
+        )
+        invoice.save(update_fields=["file_hash", "scan_state", "scan_error", "updated_at"])
+        return
+
+    usage.record_scan(restaurant_id=invoice.restaurant_id)
 
     try:
         data = extract_invoice_data(

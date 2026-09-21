@@ -77,6 +77,14 @@ envVarGroups:
         sync: false
       - key: AWS_S3_SECRET_ACCESS_KEY
         sync: false
+      # Invoices one restaurant may have read per calendar month. 0 (the
+      # default) means no ceiling; set one and a runaway upload loop costs a
+      # known amount rather than an unknown one. Shared rather than per
+      # service: the API refuses an upload past the ceiling and the worker
+      # refuses to spend on one, and the two disagreeing would let uploads
+      # through that then fail on the worker.
+      - key: INVOICE_SCAN_MONTHLY_CAP
+        value: "0"
 
 services:
   # ---------------------------------------------------------------------------
