@@ -44,6 +44,7 @@ const STATUS_TONE: Record<string, 'neutral' | 'success' | 'warning'> = {
   PENDING: 'warning',
   CONFIRMED: 'success',
   DISCARDED: 'neutral',
+  DUPLICATE: 'neutral',
 };
 
 function LineItemCard({
@@ -386,6 +387,36 @@ export function InvoiceReviewScreen(): React.JSX.Element {
         </Card>
       ) : null}
 
+      {data.status === 'DUPLICATE' ? (
+        <Card>
+          <Text style={styles.error}>
+            This is the same file as an invoice already uploaded, so it has not been read.
+            Confirming it would count the same delivery twice.
+          </Text>
+        </Card>
+      ) : data.duplicate_of ? (
+        <Card>
+          <Text style={styles.warning}>
+            An invoice with this number from this supplier has been uploaded before. It has still
+            been read, so you can compare the two before deciding.
+          </Text>
+        </Card>
+      ) : null}
+
+      {data.reconciliation.status === 'mismatch' ? (
+        <Card>
+          <Text style={styles.warning}>
+            These lines add up to {formatCurrency(data.reconciliation.actual ?? 0)}, but the invoice
+            says {formatCurrency(data.reconciliation.expected ?? 0)} - a difference of{' '}
+            {formatCurrency(data.reconciliation.difference ?? 0)}.
+          </Text>
+          <Text style={styles.hint}>
+            Worth checking a quantity or price before confirming. Delivery charges, discounts and
+            deposits can explain it too.
+          </Text>
+        </Card>
+      ) : null}
+
       <SourceCard invoice={data} locked={locked} />
 
       {data.line_items.map((line, index) => (
@@ -465,6 +496,7 @@ const styles = StyleSheet.create({
   chipLabelActive: {color: '#FFFFFF', fontWeight: '600'},
   removeLink: {fontSize: 12, color: colors.danger, fontWeight: '600'},
   error: {color: colors.danger, fontSize: 12},
+  warning: {color: colors.warning, fontSize: 12},
   actions: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm},
   actionButton: {flexGrow: 1, flexBasis: 120},
 });

@@ -49,7 +49,7 @@ export type Warehouse = {
   is_active: boolean;
 };
 
-export type InvoiceScanStatus = 'PENDING' | 'CONFIRMED' | 'DISCARDED';
+export type InvoiceScanStatus = 'PENDING' | 'CONFIRMED' | 'DISCARDED' | 'DUPLICATE';
 
 /** How far the read has got. Separate from status, which is the human review
  * lifecycle - an invoice can be waiting to be read and waiting to be reviewed
@@ -61,6 +61,19 @@ export type InvoiceScanState = 'AWAITING_UPLOAD' | 'QUEUED' | 'SCANNING' | 'DONE
 export function isScanInProgress(state: InvoiceScanState): boolean {
   return state === 'AWAITING_UPLOAD' || state === 'QUEUED' || state === 'SCANNING';
 }
+
+/** Whether an invoice's lines agree with the total it prints. Computed on
+ * read - a reviewer correcting a quantity changes the answer. */
+export type Reconciliation = {
+  status: 'matches' | 'mismatch' | 'unknown';
+  /** Which printed figure was used. A mismatch against a gross total assumed
+   * to be net is weaker evidence than one against a printed subtotal. */
+  basis: 'subtotal' | 'total_less_tax' | 'total' | 'none';
+  expected: string | null;
+  actual: string | null;
+  difference: string | null;
+  tolerance: string | null;
+};
 
 export type InvoiceLineItem = {
   id: string;
@@ -83,6 +96,14 @@ export type InvoiceScan = {
   content_type: string;
   supplier: string | null;
   supplier_display: string | null;
+  invoice_number: string;
+  delivery_location: string;
+  stated_subtotal: string | null;
+  stated_tax: string | null;
+  stated_total: string | null;
+  /** The earlier invoice this one appears to repeat, if any. */
+  duplicate_of: string | null;
+  reconciliation: Reconciliation;
   warehouse: string | null;
   warehouse_display: string | null;
   /** What this invoice's lines add up to. Null outside the list/detail views

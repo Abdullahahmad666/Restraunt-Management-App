@@ -1,5 +1,6 @@
 """Serializers and querysets for the inventory app that both roles share."""
 
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from .. import models
@@ -79,6 +80,20 @@ class InvoiceLineItemSerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "matched_item_name")
 
 
+class ReconciliationSerializer(serializers.Serializer):
+    """Whether an invoice's lines agree with the total it prints."""
+
+    status = serializers.ChoiceField(choices=["matches", "mismatch", "unknown"])
+    #: Which printed figure this was checked against - a mismatch against a
+    #: gross total assumed to be net is weaker evidence than one against a
+    #: printed subtotal, and the reader should be able to tell.
+    basis = serializers.ChoiceField(choices=["subtotal", "total_less_tax", "total", "none"])
+    expected = serializers.DecimalField(max_digits=14, decimal_places=2, allow_null=True)
+    actual = serializers.DecimalField(max_digits=14, decimal_places=2, allow_null=True)
+    difference = serializers.DecimalField(max_digits=14, decimal_places=2, allow_null=True)
+    tolerance = serializers.DecimalField(max_digits=14, decimal_places=2, allow_null=True)
+
+
 class InvoiceScanSerializer(serializers.ModelSerializer):
     line_items = InvoiceLineItemSerializer(many=True, read_only=True)
     uploaded_by_name = serializers.SerializerMethodField()
@@ -88,6 +103,7 @@ class InvoiceScanSerializer(serializers.ModelSerializer):
     lines_total = serializers.DecimalField(
         max_digits=14, decimal_places=2, read_only=True, default=None
     )
+    reconciliation = serializers.SerializerMethodField()
     warehouse_display = serializers.CharField(source="warehouse.name", read_only=True, default=None)
 
     class Meta:
@@ -125,6 +141,7 @@ class InvoiceScanSerializer(serializers.ModelSerializer):
             "uploaded_by_name",
             "line_items",
             "lines_total",
+            "reconciliation",
             "created_at",
         )
         read_only_fields = (
@@ -154,8 +171,16 @@ class InvoiceScanSerializer(serializers.ModelSerializer):
             "uploaded_by_name",
             "line_items",
             "lines_total",
+            "reconciliation",
             "created_at",
         )
+
+    @extend_schema_field(ReconciliationSerializer)
+    def get_reconciliation(self, obj) -> dict:
+        from ..services.reconciliation import reconcile
+
+        result = reconcile(invoice=obj, lines_total=getattr(obj, "lines_total", None))
+        return ReconciliationSerializer(result).data
 
     def get_uploaded_by_name(self, obj) -> str | None:
         if not obj.uploaded_by_id:
