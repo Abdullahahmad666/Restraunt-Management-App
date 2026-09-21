@@ -17,6 +17,10 @@ class InvoiceScan(BaseModel):
         PENDING = "PENDING", "Pending review"
         CONFIRMED = "CONFIRMED", "Confirmed"
         DISCARDED = "DISCARDED", "Discarded"
+        #: The identical file has been uploaded before. Set automatically and
+        #: terminal, because identical bytes are not evidence of a second
+        #: delivery - they are evidence of the same photo sent twice.
+        DUPLICATE = "DUPLICATE", "Duplicate upload"
 
     class ScanState(models.TextChoices):
         """How far the AI read has got.
@@ -75,6 +79,16 @@ class InvoiceScan(BaseModel):
     #: The supplier's own reference. Kept as read, not cleaned up - it is
     #: half of how a re-uploaded invoice is recognised as one we already have.
     invoice_number = models.CharField(max_length=100, blank=True, default="")
+    #: SHA-256 of the uploaded file, computed on the worker where both upload
+    #: paths converge and the bytes are already in hand. Indexed because every
+    #: scan looks the previous ones up by it.
+    file_hash = models.CharField(max_length=64, blank=True, default="", db_index=True)
+    #: The invoice this one appears to repeat. Set on two different strengths
+    #: of evidence - see services.duplicates - and what the reviewer is shown
+    #: so they can judge rather than being told.
+    duplicate_of = models.ForeignKey(
+        "self", on_delete=models.SET_NULL, null=True, blank=True, related_name="duplicates"
+    )
     #: Where the invoice says the goods went, as printed. The Warehouse this
     #: resolves to is the FK above; this is the text it was resolved from.
     delivery_location = models.CharField(max_length=200, blank=True, default="")

@@ -109,6 +109,10 @@ class InvoiceScanSerializer(serializers.ModelSerializer):
             "supplier_display",
             "warehouse",
             "warehouse_display",
+            # Set when this invoice looks like a repeat. Shown to the
+            # reviewer rather than acted on, except for an identical file -
+            # see services.duplicates.
+            "duplicate_of",
             "supplier_name",
             "invoice_date",
             "invoice_number",
@@ -131,8 +135,13 @@ class InvoiceScanSerializer(serializers.ModelSerializer):
             "status",
             "scan_state",
             "content_type",
+            "duplicate_of",
             "supplier_display",
             "warehouse_display",
+            # Set when this invoice looks like a repeat. Shown to the
+            # reviewer rather than acted on, except for an identical file -
+            # see services.duplicates.
+            "duplicate_of",
             "supplier_name",
             "invoice_date",
             "invoice_number",

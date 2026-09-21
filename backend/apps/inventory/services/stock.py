@@ -54,6 +54,11 @@ def confirm_invoice(
     """
     _check_same_restaurant(restaurant=restaurant, obj=invoice, label="invoice")
 
+    if invoice.status == models.InvoiceScan.Status.DUPLICATE:
+        raise ValidationError(
+            "This is the same file as an invoice already uploaded - confirming it "
+            "would count the same delivery twice."
+        )
     if invoice.status != models.InvoiceScan.Status.PENDING:
         raise ValidationError("This invoice has already been confirmed or discarded.")
 

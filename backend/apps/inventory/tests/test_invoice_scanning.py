@@ -432,3 +432,124 @@ def test_an_invoice_that_states_none_of_that_still_scans(api_client, staff_membe
     assert invoice.scan_state == InvoiceScan.ScanState.DONE
     assert invoice.invoice_number == ""
     assert invoice.stated_total is None
+
+
+# ---------------------------------------------------------------------------
+# The same invoice twice
+# ---------------------------------------------------------------------------
+
+
+def distinct_photo(size):
+    """A photo with different bytes from the last one.
+
+    invoice_photo() renders the same 1x1 PNG every time, which the file-hash
+    check correctly treats as the same file - so a test about two *different*
+    photos of one invoice has to actually produce two.
+    """
+    buffer = io.BytesIO()
+    Image.new("RGB", (size, size)).save(buffer, format="PNG")
+    return SimpleUploadedFile(f"invoice-{size}.png", buffer.getvalue(), content_type="image/png")
+
+
+def _upload_bytes(api_client, photo, result=None):
+    with patch(
+        "apps.inventory.services.scanning.extract_invoice_data",
+        return_value=result if result is not None else SCAN_RESULT,
+    ):
+        response = api_client.post(reverse(STAFF_INVOICES), {"photo": photo}, format="multipart")
+        queue.run_next()
+    return InvoiceScan.objects.get(pk=response.data["id"])
+
+
+def test_the_same_file_twice_is_caught_without_paying_to_read_it(api_client, staff_member):
+    """Identical bytes are not a second delivery, they are the same photo sent
+    twice - and recognising that should not cost what reading it costs."""
+    api_client.force_authenticate(user=staff_member)
+    photo_bytes = invoice_photo().read()
+
+    first = _upload_bytes(
+        api_client, SimpleUploadedFile("a.png", photo_bytes, content_type="image/png")
+    )
+
+    with patch("apps.inventory.services.scanning.extract_invoice_data") as extract:
+        api_client.post(
+            reverse(STAFF_INVOICES),
+            {"photo": SimpleUploadedFile("b.png", photo_bytes, content_type="image/png")},
+            format="multipart",
+        )
+        queue.run_next()
+        extract.assert_not_called()
+
+    second = InvoiceScan.objects.exclude(pk=first.pk).get()
+    assert second.status == InvoiceScan.Status.DUPLICATE
+    assert second.duplicate_of == first
+    assert second.line_items.count() == 0
+
+
+def test_a_duplicate_cannot_be_confirmed_into_stock(api_client, staff_member, chicken):
+    api_client.force_authenticate(user=staff_member)
+    photo_bytes = invoice_photo().read()
+    _upload_bytes(api_client, SimpleUploadedFile("a.png", photo_bytes, content_type="image/png"))
+    _upload_bytes(api_client, SimpleUploadedFile("b.png", photo_bytes, content_type="image/png"))
+
+    duplicate = InvoiceScan.objects.get(status=InvoiceScan.Status.DUPLICATE)
+    response = api_client.post(
+        reverse("v1:staff:inventory:invoice-scan-confirm", kwargs={"pk": duplicate.id})
+    )
+
+    assert response.status_code == 400
+    assert "twice" in str(response.data)
+
+
+def test_a_different_photo_of_the_same_invoice_is_flagged_not_blocked(api_client, staff_member):
+    """Weaker evidence: a supplier can reuse a reference and a scan can misread
+    one, so the reviewer decides. Throwing away a real delivery is worse."""
+    from apps.inventory.models import Supplier
+
+    api_client.force_authenticate(user=staff_member)
+    Supplier.objects.create(restaurant=staff_member.restaurant, name="Fresh Foods Ltd")
+    result = {**SCAN_RESULT, "invoice_number": "INV-77"}
+
+    first = _upload_bytes(api_client, distinct_photo(2), result)
+    second = _upload_bytes(api_client, distinct_photo(3), result)
+
+    assert second.status == InvoiceScan.Status.PENDING, "still reviewable"
+    assert second.duplicate_of == first
+    assert second.line_items.count() == 2, "it was read, so the reviewer can compare"
+
+
+def test_two_suppliers_numbering_from_one_are_not_each_others_duplicates(api_client, staff_member):
+    from apps.inventory.models import Supplier
+
+    api_client.force_authenticate(user=staff_member)
+    Supplier.objects.create(restaurant=staff_member.restaurant, name="Fresh Foods Ltd")
+    Supplier.objects.create(restaurant=staff_member.restaurant, name="Dairy Direct")
+
+    first = _upload_bytes(api_client, distinct_photo(4), {**SCAN_RESULT, "invoice_number": "1"})
+    second = _upload_bytes(
+        api_client,
+        distinct_photo(5),
+        {**SCAN_RESULT, "supplier_name": "Dairy Direct", "invoice_number": "1"},
+    )
+
+    assert first.duplicate_of is None
+    assert second.duplicate_of is None
+
+
+def test_a_discarded_invoice_is_not_worth_duplicating(api_client, staff_member):
+    """The original will never be confirmed, so this copy repeats nothing that
+    counts."""
+    api_client.force_authenticate(user=staff_member)
+    photo_bytes = invoice_photo().read()
+
+    first = _upload_bytes(
+        api_client, SimpleUploadedFile("a.png", photo_bytes, content_type="image/png")
+    )
+    api_client.post(reverse("v1:staff:inventory:invoice-scan-discard", kwargs={"pk": first.id}))
+
+    second = _upload_bytes(
+        api_client, SimpleUploadedFile("b.png", photo_bytes, content_type="image/png")
+    )
+
+    assert second.status == InvoiceScan.Status.PENDING
+    assert second.duplicate_of is None

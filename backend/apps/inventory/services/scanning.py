@@ -265,6 +265,7 @@ def populate_invoice_from_scan(invoice) -> None:
     the queue retries the job.
     """
     from ..models import InvoiceLineItem, InvoiceScan
+    from . import duplicates
     from .matching import resolve_items
     from .suppliers import match_supplier
     from .warehouses import resolve_warehouse
@@ -278,6 +279,28 @@ def populate_invoice_from_scan(invoice) -> None:
         file_bytes = invoice.photo.read()
     finally:
         invoice.photo.close()
+
+    invoice.file_hash = duplicates.hash_file(file_bytes)
+
+    # Checked before the call, not after: recognising the second copy of a
+    # file should not cost what reading it costs.
+    already = duplicates.find_same_file(invoice=invoice, file_hash=invoice.file_hash)
+    if already is not None:
+        invoice.duplicate_of = already
+        invoice.status = InvoiceScan.Status.DUPLICATE
+        invoice.scan_state = InvoiceScan.ScanState.DONE
+        invoice.scan_error = ""
+        invoice.save(
+            update_fields=[
+                "file_hash",
+                "duplicate_of",
+                "status",
+                "scan_state",
+                "scan_error",
+                "updated_at",
+            ]
+        )
+        return
 
     try:
         data = extract_invoice_data(
@@ -335,6 +358,10 @@ def populate_invoice_from_scan(invoice) -> None:
             invoice.warehouse = resolve_warehouse(
                 restaurant_id=invoice.restaurant_id, raw_name=invoice.delivery_location
             )
+        # Weaker evidence than an identical file, so it is recorded and shown
+        # rather than acted on - a supplier can reuse a reference, and a scan
+        # can misread one. Throwing away a real delivery is the worse mistake.
+        invoice.duplicate_of = duplicates.find_same_reference(invoice=invoice)
         invoice.scan_state = InvoiceScan.ScanState.DONE
         invoice.scan_error = ""
         invoice.save(
@@ -342,6 +369,8 @@ def populate_invoice_from_scan(invoice) -> None:
                 "supplier_name",
                 "supplier",
                 "warehouse",
+                "file_hash",
+                "duplicate_of",
                 "invoice_date",
                 "invoice_number",
                 "delivery_location",

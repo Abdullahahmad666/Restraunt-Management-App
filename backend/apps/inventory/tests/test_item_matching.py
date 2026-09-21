@@ -8,6 +8,7 @@ that gets slower the more you use it and one that gets faster.
 
 import io
 from decimal import Decimal
+from itertools import count
 from unittest.mock import patch
 
 import pytest
@@ -26,10 +27,20 @@ pytestmark = pytest.mark.django_db
 INVOICES = "v1:staff:inventory:invoice-scan-list"
 
 
+_photo_counter = count(2)
+
+
 def _png():
+    """A different image each call.
+
+    Two identical files are now recognised as the same upload and the second
+    is never read - correct behaviour, and fatal to a test that scans "the
+    next delivery" using a copy of the first one's photo.
+    """
     buffer = io.BytesIO()
-    Image.new("RGB", (2, 2)).save(buffer, format="PNG")
-    return SimpleUploadedFile("invoice.png", buffer.getvalue(), content_type="image/png")
+    size = next(_photo_counter)
+    Image.new("RGB", (size, size)).save(buffer, format="PNG")
+    return SimpleUploadedFile(f"invoice-{size}.png", buffer.getvalue(), content_type="image/png")
 
 
 @pytest.fixture(autouse=True)
