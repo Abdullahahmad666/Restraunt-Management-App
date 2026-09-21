@@ -12,7 +12,7 @@ from .invoices import (
 from .items import InventoryItem
 from .movements import STOCK_MOVEMENT_REASON_CHOICES, StockMovement
 from .suppliers import Supplier, normalize_supplier_name
-from .warehouses import Warehouse
+from .warehouses import Warehouse, normalize_warehouse_name
 
 __all__ = [
     "INVOICE_SCAN_STATE_CHOICES",
@@ -27,4 +27,5 @@ __all__ = [
     "Warehouse",
     "normalize_item_text",
     "normalize_supplier_name",
+    "normalize_warehouse_name",
 ]

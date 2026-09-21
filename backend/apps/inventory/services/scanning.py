@@ -267,6 +267,7 @@ def populate_invoice_from_scan(invoice) -> None:
     from ..models import InvoiceLineItem, InvoiceScan
     from .matching import resolve_items
     from .suppliers import match_supplier
+    from .warehouses import resolve_warehouse
 
     invoice.scan_state = InvoiceScan.ScanState.SCANNING
     invoice.scan_error = ""
@@ -327,12 +328,20 @@ def populate_invoice_from_scan(invoice) -> None:
             invoice.supplier = match_supplier(
                 restaurant_id=invoice.restaurant_id, raw_name=invoice.supplier_name
             )
+        # Unlike the supplier, this creates what it cannot find - see
+        # services.warehouses for why that trade is acceptable here and
+        # nowhere else. A reviewer can still change it.
+        if invoice.warehouse_id is None:
+            invoice.warehouse = resolve_warehouse(
+                restaurant_id=invoice.restaurant_id, raw_name=invoice.delivery_location
+            )
         invoice.scan_state = InvoiceScan.ScanState.DONE
         invoice.scan_error = ""
         invoice.save(
             update_fields=[
                 "supplier_name",
                 "supplier",
+                "warehouse",
                 "invoice_date",
                 "invoice_number",
                 "delivery_location",

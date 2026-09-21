@@ -383,3 +383,87 @@ def test_the_backfill_normalizes_the_same_way_the_matcher_does(restaurant):
     backfill_suppliers(django_apps, None)
 
     assert match_supplier(restaurant_id=restaurant.id, raw_name="Fresh Foods Limited") is not None
+
+
+# ---------------------------------------------------------------------------
+# Warehouses read off the invoice
+# ---------------------------------------------------------------------------
+
+
+def test_a_scan_creates_a_warehouse_it_has_not_seen(restaurant):
+    from apps.inventory.services.warehouses import resolve_warehouse
+
+    created = resolve_warehouse(restaurant_id=restaurant.id, raw_name="Cellar")
+
+    assert created is not None
+    assert created.name == "Cellar"
+    assert Warehouse.objects.count() == 1
+
+
+def test_the_next_invoice_reuses_it_rather_than_adding_another(restaurant):
+    """A restaurant has a handful of storage areas and they repeat on every
+    delivery note - the second invoice must match the first."""
+    from apps.inventory.services.warehouses import resolve_warehouse
+
+    first = resolve_warehouse(restaurant_id=restaurant.id, raw_name="Cellar")
+    second = resolve_warehouse(restaurant_id=restaurant.id, raw_name="  CELLAR  ")
+
+    assert first == second
+    assert Warehouse.objects.count() == 1
+
+
+def test_a_retired_warehouse_is_reused_not_recreated(restaurant):
+    """Creating a second row with the same name would be worse than naming one
+    an admin has put away."""
+    from apps.inventory.services.warehouses import resolve_warehouse
+
+    retired = Warehouse.objects.create(restaurant=restaurant, name="Cellar", is_active=False)
+
+    assert resolve_warehouse(restaurant_id=restaurant.id, raw_name="cellar") == retired
+    assert Warehouse.objects.count() == 1
+
+
+@pytest.mark.parametrize("junk", ["", "   ", "-", "."])
+def test_nothing_usable_creates_nothing(restaurant, junk):
+    """Most invoices say nothing about where the goods ended up, and a stray
+    character off the page is not a storage area."""
+    from apps.inventory.services.warehouses import resolve_warehouse
+
+    assert resolve_warehouse(restaurant_id=restaurant.id, raw_name=junk) is None
+    assert not Warehouse.objects.exists()
+
+
+def test_two_restaurants_may_each_have_a_cellar(restaurant, other_restaurant):
+    from apps.inventory.services.warehouses import resolve_warehouse
+
+    resolve_warehouse(restaurant_id=restaurant.id, raw_name="Cellar")
+    resolve_warehouse(restaurant_id=other_restaurant.id, raw_name="Cellar")
+
+    assert Warehouse.objects.count() == 2
+
+
+def test_a_scanned_invoice_is_filed_where_it_says_it_went(api_client, staff_member, restaurant):
+    from unittest.mock import patch
+
+    from apps.jobs.services import queue
+
+    api_client.force_authenticate(user=staff_member)
+    scan_result = {
+        "supplier_name": "Fresh Foods Ltd",
+        "invoice_date": None,
+        "delivery_location": "Dry Store",
+        "line_items": [{"name": "Milk", "quantity": 1}],
+    }
+    with patch("apps.inventory.services.scanning.extract_invoice_data", return_value=scan_result):
+        api_client.post(
+            reverse("v1:staff:inventory:invoice-scan-list"),
+            {"photo": _png_upload()},
+            format="multipart",
+        )
+        queue.run_next()
+
+    invoice = InvoiceScan.objects.get()
+    assert invoice.warehouse is not None
+    assert invoice.warehouse.name == "Dry Store"
+    # The text it was resolved from is kept beside it, as the evidence.
+    assert invoice.delivery_location == "Dry Store"
