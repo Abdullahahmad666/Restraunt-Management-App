@@ -17,6 +17,7 @@ import {ManageChecklistTemplatesScreen} from '../screens/ManageChecklistTemplate
 import {ManageChecklistTemplateTasksScreen} from '../screens/ManageChecklistTemplateTasksScreen';
 import {ManageFridgesScreen} from '../screens/ManageFridgesScreen';
 import {ManageInventoryItemsScreen} from '../screens/ManageInventoryItemsScreen';
+import {PurchaseHistoryScreen} from '../screens/PurchaseHistoryScreen';
 import {NotificationsScreen} from '../screens/NotificationsScreen';
 import {PayrollScreen} from '../screens/PayrollScreen';
 import {RotaScreen} from '../screens/RotaScreen';
@@ -162,6 +163,11 @@ export function AdminNavigator(): React.JSX.Element {
         name="ManageInventoryItems"
         component={ManageInventoryItemsScreen}
         options={{title: 'Manage inventory'}}
+      />
+      <Stack.Screen
+        name="PurchaseHistory"
+        component={PurchaseHistoryScreen}
+        options={{title: 'Purchase history'}}
       />
     </Stack.Navigator>
   );

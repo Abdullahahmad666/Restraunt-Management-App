@@ -9,8 +9,15 @@ import type {
   InventoryItem,
   InvoiceLineItem,
   InvoiceScan,
+  PurchaseByItem,
+  PurchaseFilters,
+  PurchasePeriod,
+  PurchaseSummary,
+  PurchaseTimelineRow,
   StockMovement,
   StockMovementReason,
+  Supplier,
+  Warehouse,
 } from './types';
 
 // ---------------------------------------------------------------------------
@@ -155,5 +162,71 @@ export async function updateInventoryItem(
     endpoints.admin.inventory.item(id),
     input,
   );
+  return data;
+}
+
+// ---------------------------------------------------------------------------
+// Suppliers and warehouses
+// ---------------------------------------------------------------------------
+
+export async function listSuppliers(): Promise<Paginated<Supplier>> {
+  const {data} = await apiClient.get<Paginated<Supplier>>(endpoints.staff.inventory.suppliers);
+  return data;
+}
+
+/** Adds a supplier the restaurant has not bought from before. Available to
+ * staff because they hit one mid-review; retiring stays admin-only. */
+export async function createSupplier(name: string): Promise<Supplier> {
+  const {data} = await apiClient.post<Supplier>(endpoints.staff.inventory.suppliers, {name});
+  return data;
+}
+
+export async function listWarehouses(): Promise<Paginated<Warehouse>> {
+  const {data} = await apiClient.get<Paginated<Warehouse>>(endpoints.staff.inventory.warehouses);
+  return data;
+}
+
+export type AssignInvoiceInput = {
+  supplier?: string | null;
+  warehouse?: string | null;
+};
+
+export async function assignInvoice(id: string, input: AssignInvoiceInput): Promise<InvoiceScan> {
+  const {data} = await apiClient.patch<InvoiceScan>(
+    endpoints.staff.inventory.invoiceScan(id),
+    input,
+  );
+  return data;
+}
+
+// ---------------------------------------------------------------------------
+// Purchase history (admin)
+// ---------------------------------------------------------------------------
+
+export async function listPurchasesByItem(
+  filters: PurchaseFilters = {},
+): Promise<{results: PurchaseByItem[]}> {
+  const {data} = await apiClient.get<{results: PurchaseByItem[]}>(
+    endpoints.admin.inventory.purchases,
+    {params: filters},
+  );
+  return data;
+}
+
+export async function getPurchaseTimeline(
+  period: PurchasePeriod,
+  filters: PurchaseFilters = {},
+): Promise<{period: PurchasePeriod; results: PurchaseTimelineRow[]}> {
+  const {data} = await apiClient.get<{period: PurchasePeriod; results: PurchaseTimelineRow[]}>(
+    endpoints.admin.inventory.purchasesTimeline,
+    {params: {...filters, period}},
+  );
+  return data;
+}
+
+export async function getPurchaseSummary(filters: PurchaseFilters = {}): Promise<PurchaseSummary> {
+  const {data} = await apiClient.get<PurchaseSummary>(endpoints.admin.inventory.purchasesSummary, {
+    params: filters,
+  });
   return data;
 }

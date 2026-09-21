@@ -78,6 +78,8 @@ export const endpoints = {
       discardInvoice: (id: string) => `${STAFF}/invoice-scans/${id}/discard/`,
       invoiceLineItems: `${STAFF}/invoice-line-items/`,
       invoiceLineItem: (id: string) => `${STAFF}/invoice-line-items/${id}/`,
+      suppliers: `${STAFF}/suppliers/`,
+      warehouses: `${STAFF}/warehouses/`,
     },
   },
 
@@ -133,6 +135,13 @@ export const endpoints = {
     inventory: {
       items: `${ADMIN}/inventory-items/`,
       item: (id: string) => `${ADMIN}/inventory-items/${id}/`,
+      suppliers: `${ADMIN}/suppliers/`,
+      supplier: (id: string) => `${ADMIN}/suppliers/${id}/`,
+      warehouses: `${ADMIN}/warehouses/`,
+      warehouse: (id: string) => `${ADMIN}/warehouses/${id}/`,
+      purchases: `${ADMIN}/purchases/`,
+      purchasesTimeline: `${ADMIN}/purchases/timeline/`,
+      purchasesSummary: `${ADMIN}/purchases/summary/`,
     },
   },
 } as const;

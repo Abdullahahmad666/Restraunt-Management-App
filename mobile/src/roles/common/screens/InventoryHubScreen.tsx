@@ -168,9 +168,14 @@ export function InventoryHubScreen(): React.JSX.Element {
       <View style={styles.headerRow}>
         <Text style={styles.heading}>Inventory</Text>
         {canManageItems ? (
-          <Pressable onPress={() => navigation.navigate('ManageInventoryItems')} hitSlop={8}>
-            <Text style={styles.manageLink}>Manage items</Text>
-          </Pressable>
+          <View style={styles.headerLinks}>
+            <Pressable onPress={() => navigation.navigate('PurchaseHistory')} hitSlop={8}>
+              <Text style={styles.manageLink}>Purchases</Text>
+            </Pressable>
+            <Pressable onPress={() => navigation.navigate('ManageInventoryItems')} hitSlop={8}>
+              <Text style={styles.manageLink}>Manage items</Text>
+            </Pressable>
+          </View>
         ) : null}
       </View>
 
@@ -249,6 +254,7 @@ export function InventoryHubScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
+  headerLinks: {flexDirection: 'row', gap: spacing.md},
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',

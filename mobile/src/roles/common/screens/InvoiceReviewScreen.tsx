@@ -24,11 +24,18 @@ import {
   useRescanInvoice,
   useUpdateInvoiceLineItem,
 } from '../../../features/inventory/hooks';
+import {
+  useAssignInvoice,
+  useCreateSupplier,
+  useSuppliers,
+  useWarehouses,
+} from '../../../features/inventory/hooks';
 import {isScanInProgress} from '../../../features/inventory/types';
+import type {InvoiceScan} from '../../../features/inventory/types';
 import type {InventoryItem, InvoiceLineItem} from '../../../features/inventory/types';
 import type {InventoryStackParamList} from '../../../navigation/types';
 import {colors, radii, spacing} from '../../../theme';
-import {formatDate} from '../../../utils/format';
+import {formatCurrency, formatDate} from '../../../utils/format';
 
 type Route = RouteProp<InventoryStackParamList, 'InvoiceReview'>;
 type Nav = NativeStackNavigationProp<InventoryStackParamList>;
@@ -171,6 +178,105 @@ function LineItemCard({
   );
 }
 
+/** Picking who supplied an invoice and where it went.
+ *
+ * Both are shown even when the scan matched one already: the match is a
+ * suggestion made from text a model read, and the reviewer is the person who
+ * decides it was right. The raw text the scan read sits underneath as the
+ * evidence for it.
+ */
+function SourceCard({invoice, locked}: {invoice: InvoiceScan; locked: boolean}): React.JSX.Element {
+  const suppliers = useSuppliers();
+  const warehouses = useWarehouses();
+  const assign = useAssignInvoice(invoice.id);
+  const createSupplier = useCreateSupplier();
+  const [error, setError] = useState<string | null>(null);
+
+  const supplierList = suppliers.data?.results ?? [];
+  const warehouseList = warehouses.data?.results ?? [];
+
+  async function onAssign(input: {supplier?: string | null; warehouse?: string | null}) {
+    setError(null);
+    try {
+      await assign.mutateAsync(input);
+    } catch (err) {
+      setError(describeApiError(err, 'Could not update this invoice.'));
+    }
+  }
+
+  async function onAddSupplier() {
+    setError(null);
+    try {
+      const created = await createSupplier.mutateAsync(invoice.supplier_name);
+      await assign.mutateAsync({supplier: created.id});
+    } catch (err) {
+      setError(describeApiError(err, 'Could not add that supplier.'));
+    }
+  }
+
+  // Offered only when the scan read a name that matches nothing we have -
+  // adding a supplier called "" helps nobody.
+  const canAddScannedSupplier =
+    !locked && !invoice.supplier && invoice.supplier_name.trim().length > 0;
+
+  return (
+    <Card style={styles.lineCard}>
+      <Text style={styles.label}>Supplier</Text>
+      {invoice.supplier_name ? (
+        <Text style={styles.hint}>Read from the invoice: {invoice.supplier_name}</Text>
+      ) : null}
+      <View style={styles.chipRow}>
+        {supplierList.map(supplier => {
+          const selected = invoice.supplier === supplier.id;
+          return (
+            <Pressable
+              key={supplier.id}
+              onPress={() => onAssign({supplier: selected ? null : supplier.id})}
+              disabled={locked}
+              style={[styles.chip, selected && styles.chipActive]}>
+              <Text style={[styles.chipLabel, selected && styles.chipLabelActive]}>
+                {supplier.name}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      {canAddScannedSupplier ? (
+        <Button
+          title={`+ New supplier: ${invoice.supplier_name}`}
+          variant="secondary"
+          onPress={onAddSupplier}
+          loading={createSupplier.isPending}
+        />
+      ) : null}
+
+      <Text style={styles.label}>Delivered to</Text>
+      {warehouseList.length === 0 ? (
+        <Text style={styles.hint}>No storage areas set up yet - a manager can add them.</Text>
+      ) : (
+        <View style={styles.chipRow}>
+          {warehouseList.map(warehouse => {
+            const selected = invoice.warehouse === warehouse.id;
+            return (
+              <Pressable
+                key={warehouse.id}
+                onPress={() => onAssign({warehouse: selected ? null : warehouse.id})}
+                disabled={locked}
+                style={[styles.chip, selected && styles.chipActive]}>
+                <Text style={[styles.chipLabel, selected && styles.chipLabelActive]}>
+                  {warehouse.name}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+    </Card>
+  );
+}
+
 /** One scanned invoice's line items - matching each to a stock item,
  * correcting whatever the AI misread, and confirming (which applies every
  * matched line's quantity to stock, see the backend's confirm_invoice) or
@@ -280,11 +386,20 @@ export function InvoiceReviewScreen(): React.JSX.Element {
         </Card>
       ) : null}
 
+      <SourceCard invoice={data} locked={locked} />
+
       {data.line_items.map((line, index) => (
         <FadeIn key={line.id} delay={index * 40}>
           <LineItemCard line={line} items={itemList} invoiceId={invoiceId} locked={locked} />
         </FadeIn>
       ))}
+
+      {data.lines_total !== null && data.line_items.length > 0 ? (
+        <Card style={styles.totalRow}>
+          <Text style={styles.label}>Invoice total</Text>
+          <Text style={styles.total}>{formatCurrency(data.lines_total)}</Text>
+        </Card>
+      ) : null}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -323,6 +438,8 @@ const styles = StyleSheet.create({
   photo: {width: '100%', height: 180, borderRadius: radii.lg, backgroundColor: colors.surface},
   pdfPlaceholder: {alignItems: 'center', justifyContent: 'center', gap: spacing.xs},
   scanningCard: {flexDirection: 'row', alignItems: 'center', gap: spacing.sm},
+  totalRow: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'},
+  total: {fontSize: 20, fontWeight: '700', color: colors.primary},
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',

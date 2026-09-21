@@ -33,6 +33,22 @@ export type StockMovement = {
   created_at: string;
 };
 
+export type Supplier = {
+  id: string;
+  name: string;
+  contact_email: string;
+  contact_phone: string;
+  notes: string;
+  is_active: boolean;
+};
+
+export type Warehouse = {
+  id: string;
+  name: string;
+  description: string;
+  is_active: boolean;
+};
+
 export type InvoiceScanStatus = 'PENDING' | 'CONFIRMED' | 'DISCARDED';
 
 /** How far the read has got. Separate from status, which is the human review
@@ -65,6 +81,13 @@ export type InvoiceScan = {
   status: InvoiceScanStatus;
   scan_state: InvoiceScanState;
   content_type: string;
+  supplier: string | null;
+  supplier_display: string | null;
+  warehouse: string | null;
+  warehouse_display: string | null;
+  /** What this invoice's lines add up to. Null outside the list/detail views
+   * that annotate it. */
+  lines_total: string | null;
   supplier_name: string;
   invoice_date: string | null;
   scan_error: string;
@@ -72,4 +95,46 @@ export type InvoiceScan = {
   uploaded_by_name: string | null;
   line_items: InvoiceLineItem[];
   created_at: string;
+};
+
+/** Filters shared by every purchase-history view, so a chart and the table
+ * under it always describe the same thing. */
+export type PurchaseFilters = {
+  supplier?: string;
+  warehouse?: string;
+  item?: string;
+  date_from?: string;
+  date_to?: string;
+};
+
+export type PurchasePeriod = 'week' | 'month';
+
+export type PurchaseByItem = {
+  item_id: string;
+  item_name: string;
+  item_unit: string;
+  total_quantity: string;
+  total_spend: string;
+  line_count: number;
+  invoice_count: number;
+  last_purchased: string | null;
+  /** Lines where neither a total nor a unit price was legible. Shown rather
+   * than hidden - a figure missing something should say so. */
+  lines_without_price: number;
+};
+
+export type PurchaseTimelineRow = {
+  bucket: string | null;
+  total_spend: string;
+  line_count: number;
+  invoice_count: number;
+};
+
+export type PurchaseSummary = {
+  total_spend: string;
+  line_count: number;
+  invoice_count: number;
+  item_count: number;
+  lines_without_price: number;
+  unmatched_lines: number;
 };

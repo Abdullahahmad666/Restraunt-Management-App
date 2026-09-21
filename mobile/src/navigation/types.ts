@@ -71,6 +71,10 @@ export type InventoryStackParamList = {
   // only shown there for an ADMIN user (see its own role check) - the
   // underlying admin API endpoints reject a staff caller regardless.
   ManageInventoryItems: undefined;
+  // Same arrangement: declared here so the shared hub can link to it, and
+  // registered on the admin stack only. What the restaurant buys, from whom,
+  // and at what cost.
+  PurchaseHistory: undefined;
 };
 
 // ---------------------------------------------------------------------------
