@@ -35,7 +35,15 @@ class InvoiceScan(BaseModel):
     restaurant = models.ForeignKey(
         "restaurants.Restaurant", on_delete=models.CASCADE, related_name="invoice_scans"
     )
-    photo = models.ImageField(upload_to="invoice_scans/")
+    # FileField, not ImageField: suppliers email PDF invoices as often as
+    # staff photograph paper ones, and ImageField runs everything through
+    # Pillow and rejects anything that is not an image.
+    photo = models.FileField(upload_to="invoice_scans/")
+    # Recorded at upload because it cannot be recovered afterwards. A file
+    # read back out of storage on the worker has no content_type attribute,
+    # so deriving it there silently produced "image/jpeg" for everything -
+    # survivable while only photos were allowed, wrong for every PDF.
+    content_type = models.CharField(max_length=100, blank=True, default="")
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
     scan_state = models.CharField(
         max_length=16, choices=ScanState.choices, default=ScanState.QUEUED

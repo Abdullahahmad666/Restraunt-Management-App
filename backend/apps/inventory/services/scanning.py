@@ -23,6 +23,15 @@ logger = logging.getLogger(__name__)
 
 MODEL = "claude-opus-5"
 
+PDF_TYPE = "application/pdf"
+SUPPORTED_IMAGE_TYPES = frozenset({"image/jpeg", "image/png", "image/webp", "image/gif"})
+SUPPORTED_TYPES = SUPPORTED_IMAGE_TYPES | {PDF_TYPE}
+
+# The API caps a request at 32MB, and base64 inflates the file by a third on
+# the way there. 20MB of original file leaves room for the encoding and the
+# prompt; a phone photo is a tenth of that and a scanned PDF rarely close.
+MAX_FILE_BYTES = 20 * 1024 * 1024
+
 # Generous because truncation is indistinguishable from a bad read: the model
 # stops mid-JSON, parsing fails, and the user is told to take a clearer photo
 # for a problem no photo fixes. A long delivery note runs to well over a
@@ -81,6 +90,30 @@ RESPONSE_SCHEMA = {
 }
 
 
+#: Leading bytes that identify a file regardless of what the client called it.
+#: Phones routinely upload a perfectly good PDF as application/octet-stream,
+#: and a whitelist of declared types alone would turn those away.
+_MAGIC = (
+    (b"%PDF", PDF_TYPE),
+    (b"\x89PNG\r\n\x1a\n", "image/png"),
+    (b"\xff\xd8\xff", "image/jpeg"),
+    (b"GIF87a", "image/gif"),
+    (b"GIF89a", "image/gif"),
+)
+
+
+def sniff_content_type(head: bytes, declared: str = "") -> str:
+    """Identify a file from its first bytes, falling back to what the client
+    declared. Returns "" when neither is a type we can read."""
+    for prefix, content_type in _MAGIC:
+        if head.startswith(prefix):
+            return content_type
+    # WebP is a RIFF container - the marker sits after a 4-byte length.
+    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        return "image/webp"
+    return declared if declared in SUPPORTED_TYPES else ""
+
+
 class ScanError(Exception):
     """Base for scan failures. The message is safe to show a user."""
 
@@ -108,14 +141,44 @@ def _client() -> anthropic.Anthropic:
     )
 
 
+def _document_block(*, file_bytes: bytes, content_type: str) -> dict:
+    """The content block carrying the invoice itself.
+
+    A PDF goes as a `document`, not a rasterised page: the API reads PDFs
+    natively, and rendering one to an image first would throw away the crisp
+    text that makes a PDF the easiest case of the three.
+    """
+    encoded = base64.b64encode(file_bytes).decode("ascii")
+
+    if content_type == PDF_TYPE:
+        return {
+            "type": "document",
+            "source": {"type": "base64", "media_type": PDF_TYPE, "data": encoded},
+        }
+    return {
+        "type": "image",
+        "source": {"type": "base64", "media_type": content_type, "data": encoded},
+    }
+
+
 def extract_invoice_data(*, image_bytes: bytes, content_type: str) -> dict:
     """Read the invoice and return the object described by RESPONSE_SCHEMA.
 
     Raises TransientScanError for anything worth retrying and
     PermanentScanError for anything not.
     """
+    content_type = content_type or "image/jpeg"
+    if content_type not in SUPPORTED_TYPES:
+        raise PermanentScanError(
+            "That file type cannot be read - upload a photo (JPEG, PNG or WebP) or a PDF."
+        )
+    if len(image_bytes) > MAX_FILE_BYTES:
+        raise PermanentScanError(
+            "That file is too large to read - upload one under "
+            f"{MAX_FILE_BYTES // (1024 * 1024)}MB."
+        )
+
     client = _client()
-    encoded = base64.b64encode(image_bytes).decode("ascii")
 
     try:
         response = client.messages.create(
@@ -125,14 +188,7 @@ def extract_invoice_data(*, image_bytes: bytes, content_type: str) -> dict:
                 {
                     "role": "user",
                     "content": [
-                        {
-                            "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": content_type or "image/jpeg",
-                                "data": encoded,
-                            },
-                        },
+                        _document_block(file_bytes=image_bytes, content_type=content_type),
                         {"type": "text", "text": PROMPT},
                     ],
                 }
@@ -189,13 +245,15 @@ def populate_invoice_from_scan(invoice) -> None:
 
     invoice.photo.open("rb")
     try:
-        image_bytes = invoice.photo.read()
+        file_bytes = invoice.photo.read()
     finally:
         invoice.photo.close()
-    content_type = getattr(invoice.photo.file, "content_type", None) or "image/jpeg"
 
     try:
-        data = extract_invoice_data(image_bytes=image_bytes, content_type=content_type)
+        data = extract_invoice_data(
+            image_bytes=file_bytes,
+            content_type=invoice.content_type or _type_from_name(invoice.photo.name),
+        )
     except PermanentScanError as exc:
         invoice.scan_state = InvoiceScan.ScanState.FAILED
         invoice.scan_error = str(exc)[:500]
@@ -232,6 +290,25 @@ def populate_invoice_from_scan(invoice) -> None:
                 "updated_at",
             ]
         )
+
+
+#: Fallback for rows uploaded before content_type was recorded. Extension is
+#: weaker evidence than the type the client sent, which is why it is only the
+#: fallback, but it is enough to tell a PDF from a photo.
+_TYPE_BY_EXTENSION = {
+    ".pdf": PDF_TYPE,
+    ".png": "image/png",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+}
+
+
+def _type_from_name(name: str) -> str:
+    from pathlib import PurePosixPath
+
+    return _TYPE_BY_EXTENSION.get(PurePosixPath(name or "").suffix.lower(), "image/jpeg")
 
 
 def _safe_decimal(value, default=None):

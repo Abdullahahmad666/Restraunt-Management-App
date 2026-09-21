@@ -15,6 +15,7 @@ from apps.jobs.services import queue
 
 from .. import jobs as inventory_jobs
 from .. import models
+from ..services import scanning
 from ..services import stock as stock_service
 from .common import (
     BaseInventoryItemSerializer,
@@ -88,7 +89,37 @@ class StaffStockMovementViewSet(
 
 
 class UploadInvoiceSerializer(serializers.Serializer):
-    photo = serializers.ImageField()
+    """A photographed or PDF invoice.
+
+    FileField rather than ImageField - ImageField runs the upload through
+    Pillow, which rejects every PDF. The type is worked out from the file's
+    own leading bytes instead of trusting the declared one, and kept, because
+    a file read back out of storage later has no content type of its own.
+    """
+
+    photo = serializers.FileField()
+
+    def validate(self, attrs):
+        upload = attrs["photo"]
+
+        if upload.size > scanning.MAX_FILE_BYTES:
+            raise serializers.ValidationError(
+                {
+                    "photo": "That file is too large - upload one under "
+                    f"{scanning.MAX_FILE_BYTES // (1024 * 1024)}MB."
+                }
+            )
+
+        head = upload.read(32)
+        upload.seek(0)
+        content_type = scanning.sniff_content_type(head, getattr(upload, "content_type", "") or "")
+        if not content_type:
+            raise serializers.ValidationError(
+                {"photo": "That file cannot be read - upload a photo (JPEG, PNG or WebP) or a PDF."}
+            )
+
+        attrs["content_type"] = content_type
+        return attrs
 
 
 class StaffInvoiceScanViewSet(
@@ -129,6 +160,7 @@ class StaffInvoiceScanViewSet(
         invoice = models.InvoiceScan.objects.create(
             restaurant=request.user.restaurant,
             photo=input_serializer.validated_data["photo"],
+            content_type=input_serializer.validated_data["content_type"],
             uploaded_by=request.user,
         )
         self._queue_scan(invoice)
