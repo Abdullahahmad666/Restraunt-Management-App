@@ -3,7 +3,11 @@
 Mounted at /api/v1/staff/inventory/.
 """
 
+from decimal import Decimal
+
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db.models import DecimalField, Sum, Value
+from django.db.models.functions import Coalesce
 from rest_framework import mixins, serializers, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError as DRFValidationError
@@ -14,7 +18,7 @@ from apps.common.permissions import IsStaff
 from apps.jobs.services import queue
 
 from .. import jobs as inventory_jobs
-from .. import models
+from .. import models, selectors
 from ..services import scanning, uploads
 from ..services import stock as stock_service
 from .common import (
@@ -192,9 +196,24 @@ class StaffInvoiceScanViewSet(
     permission_classes = [IsStaff]
     filterset_fields = ("status", "supplier", "warehouse")
     http_method_names = ["get", "post", "patch", "head", "options"]
-    queryset = models.InvoiceScan.objects.select_related(
-        "uploaded_by", "supplier", "warehouse"
-    ).prefetch_related("line_items", "line_items__matched_item")
+    # Annotated rather than summed per row in the serializer, which would be
+    # one query per invoice on a list of them.
+    queryset = (
+        models.InvoiceScan.objects.select_related("uploaded_by", "supplier", "warehouse")
+        .prefetch_related("line_items", "line_items__matched_item")
+        .annotate(
+            lines_total=Coalesce(
+                Sum(selectors.line_spend("line_items__")),
+                Value(Decimal("0")),
+                output_field=DecimalField(max_digits=14, decimal_places=2),
+            )
+        )
+        # Restated because the annotation's GROUP BY drops the model's default
+        # ordering, and an unordered queryset makes paging through invoices
+        # return rows in whatever order the database felt like - including the
+        # same row twice across two pages.
+        .order_by("-created_at")
+    )
 
     def perform_update(self, serializer):
         """Only the supplier and warehouse are writable; everything else on

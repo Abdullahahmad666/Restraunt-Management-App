@@ -83,6 +83,11 @@ class InvoiceScanSerializer(serializers.ModelSerializer):
     line_items = InvoiceLineItemSerializer(many=True, read_only=True)
     uploaded_by_name = serializers.SerializerMethodField()
     supplier_display = serializers.CharField(source="supplier.name", read_only=True, default=None)
+    # Annotated on the queryset - see StaffInvoiceScanViewSet. Absent when an
+    # invoice is serialized outside that view, which is why it has a default.
+    lines_total = serializers.DecimalField(
+        max_digits=14, decimal_places=2, read_only=True, default=None
+    )
     warehouse_display = serializers.CharField(source="warehouse.name", read_only=True, default=None)
 
     class Meta:
@@ -110,6 +115,7 @@ class InvoiceScanSerializer(serializers.ModelSerializer):
             "uploaded_by",
             "uploaded_by_name",
             "line_items",
+            "lines_total",
             "created_at",
         )
         read_only_fields = (
@@ -128,6 +134,7 @@ class InvoiceScanSerializer(serializers.ModelSerializer):
             "uploaded_by",
             "uploaded_by_name",
             "line_items",
+            "lines_total",
             "created_at",
         )
 
