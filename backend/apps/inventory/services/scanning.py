@@ -238,6 +238,7 @@ def populate_invoice_from_scan(invoice) -> None:
     the queue retries the job.
     """
     from ..models import InvoiceLineItem, InvoiceScan
+    from .matching import resolve_items
     from .suppliers import match_supplier
 
     invoice.scan_state = InvoiceScan.ScanState.SCANNING
@@ -261,21 +262,28 @@ def populate_invoice_from_scan(invoice) -> None:
         invoice.save(update_fields=["scan_state", "scan_error", "updated_at"])
         return
 
+    lines = [line for line in (data.get("line_items") or []) if isinstance(line, dict)]
+    raw_names = [str(line.get("name") or "Unnamed item")[:255] for line in lines]
+    # Anything this restaurant has bought before attaches itself, so a reviewer
+    # only handles what is genuinely new. Resolved in one go rather than per
+    # line - see services.matching.
+    known = resolve_items(restaurant_id=invoice.restaurant_id, raw_names=raw_names)
+
     with transaction.atomic():
         invoice.line_items.all().delete()
         InvoiceLineItem.objects.bulk_create(
             [
                 InvoiceLineItem(
                     invoice=invoice,
-                    raw_name=str(line.get("name") or "Unnamed item")[:255],
+                    raw_name=raw_name,
+                    matched_item=known.get(raw_name),
                     quantity=_safe_decimal(line.get("quantity"), default=1),
                     unit=str(line.get("unit") or "")[:32],
                     unit_price=_safe_decimal(line.get("unit_price")),
                     line_total=_safe_decimal(line.get("line_total")),
                     sort_order=index,
                 )
-                for index, line in enumerate(data.get("line_items") or [])
-                if isinstance(line, dict)
+                for index, (raw_name, line) in enumerate(zip(raw_names, lines, strict=True))
             ]
         )
         invoice.supplier_name = str(data.get("supplier_name") or "")[:200]

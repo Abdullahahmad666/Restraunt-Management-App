@@ -8,6 +8,7 @@ reads - nothing edits that field directly.
 from django.core.exceptions import ValidationError
 
 from .. import models
+from . import matching
 
 
 def _check_same_restaurant(*, restaurant, obj, label: str) -> None:
@@ -75,6 +76,12 @@ def confirm_invoice(
         if line.unit_price is not None:
             line.matched_item.cost_per_unit = line.unit_price
             line.matched_item.save(update_fields=["cost_per_unit", "updated_at"])
+
+    # Remember how these lines were matched, so the next delivery from this
+    # supplier arrives already matched. Confirmation is the right moment: it is
+    # where a person accepted the whole invoice, rather than mid-review where
+    # half the matches are still being corrected.
+    matching.learn_aliases(restaurant=restaurant, invoice=invoice)
 
     invoice.status = models.InvoiceScan.Status.CONFIRMED
     invoice.save(update_fields=["status", "updated_at"])

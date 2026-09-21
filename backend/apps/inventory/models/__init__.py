@@ -2,6 +2,7 @@
 own docstring.
 """
 
+from .aliases import ItemAlias, normalize_item_text
 from .invoices import (
     INVOICE_SCAN_STATE_CHOICES,
     INVOICE_SCAN_STATUS_CHOICES,
@@ -18,10 +19,12 @@ __all__ = [
     "INVOICE_SCAN_STATUS_CHOICES",
     "STOCK_MOVEMENT_REASON_CHOICES",
     "InventoryItem",
+    "ItemAlias",
     "InvoiceLineItem",
     "InvoiceScan",
     "StockMovement",
     "Supplier",
     "Warehouse",
+    "normalize_item_text",
     "normalize_supplier_name",
 ]

@@ -41,3 +41,11 @@ class SupplierAdmin(admin.ModelAdmin):
 class WarehouseAdmin(admin.ModelAdmin):
     list_display = ("name", "restaurant", "is_active")
     list_filter = ("restaurant", "is_active")
+
+
+@admin.register(models.ItemAlias)
+class ItemAliasAdmin(admin.ModelAdmin):
+    list_display = ("text", "item", "restaurant")
+    list_filter = ("restaurant",)
+    search_fields = ("text", "normalized_text")
+    readonly_fields = ("normalized_text",)
