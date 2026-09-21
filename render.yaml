@@ -1,4 +1,5 @@
-# Render Blueprint - deploys the Django API as a Docker web service.
+# Render Blueprint - deploys the Django API and its background worker as
+# Docker services.
 #
 # Deliberately does NOT provision Render's own Postgres: their managed
 # database is no longer free past a 30-day trial. DATABASE_URL below points
@@ -6,22 +7,22 @@
 # tier that works well here. Point it at any Postgres 16 instance you like.
 #
 # Usage: on render.com, New -> Blueprint -> pick this repo. Render reads this
-# file and creates the service below; anything marked `sync: false` it will
+# file and creates the services below; anything marked `sync: false` it will
 # prompt you to fill in rather than guessing.
 #
 # See backend/README.md's "Deploying" section for the full walkthrough.
 #
-# plan: `free` blocks all outbound SMTP traffic (ports 25/465/587) as of
-# Sept 2025 - Gmail-based email (OTP, password reset) hangs for gunicorn's
-# full worker timeout and 500s on every attempt. `starter` (or anything
-# paid) lifts that block and also never spins down on idle, so it doubles
-# as the fix for cold starts. This field is the reason to keep it in sync
-# with whatever you actually pick in the dashboard: Render treats this
-# file as the source of truth on a blueprint sync, so upgrading the plan
-# by hand in the dashboard without updating this too risks a later sync
-# silently downgrading it back to `free`.
-    plan: starter
-    healthCheckPath: /healthz/
+# The `name` of each service is what Render matches an existing service on. A
+# name that does not match something already in the dashboard creates a second
+# service rather than updating the one you have - check both before syncing a
+# blueprint into an account where the API was set up by hand.
+
+# Shared configuration. A group rather than the same list pasted into both
+# services, because two of these must hold the *same* value in each: a
+# per-service `generateValue` would hand the web service and the worker
+# different DJANGO_SECRET_KEYs, and anything one signs the other would reject.
+envVarGroups:
+  - name: invisiko-shared
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: config.settings.production
@@ -33,14 +34,6 @@
       # Your Neon (or other) connection string, e.g.
       # postgres://user:password@host/dbname?sslmode=require
       - key: DATABASE_URL
-        sync: false
-      # Render assigns the actual hostname on first deploy (e.g.
-      # invisiko-api.onrender.com, or something else if that name was
-      # taken) - fill both of these in with it once you see it, then this
-      # service redeploys automatically.
-      - key: ALLOWED_HOSTS
-        sync: false
-      - key: CSRF_TRUSTED_ORIGINS
         sync: false
       # Every timestamp shown to a manager (push notifications, digest
       # emails) is rendered server-side with timezone.localtime(), which
@@ -84,3 +77,60 @@
         sync: false
       - key: AWS_S3_SECRET_ACCESS_KEY
         sync: false
+
+services:
+  # ---------------------------------------------------------------------------
+  # The API.
+  #
+  # plan: `free` blocks all outbound SMTP traffic (ports 25/465/587) as of
+  # Sept 2025 - Gmail-based email (OTP, password reset) hangs for gunicorn's
+  # full worker timeout and 500s on every attempt. `starter` (or anything
+  # paid) lifts that block and also never spins down on idle, so it doubles
+  # as the fix for cold starts. This field is the reason to keep it in sync
+  # with whatever you actually pick in the dashboard: Render treats this
+  # file as the source of truth on a blueprint sync, so upgrading the plan
+  # by hand in the dashboard without updating this too risks a later sync
+  # silently downgrading it back to `free`.
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: invisiko-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: starter
+    healthCheckPath: /healthz/
+    envVars:
+      - fromGroup: invisiko-shared
+      # Render assigns the actual hostname on first deploy (e.g.
+      # invisiko-api.onrender.com, or something else if that name was
+      # taken) - fill both of these in with it once you see it, then this
+      # service redeploys automatically. Web-only: the worker serves no
+      # requests, so it has no hosts to allow and no origins to trust.
+      - key: ALLOWED_HOSTS
+        sync: false
+      - key: CSRF_TRUSTED_ORIGINS
+        sync: false
+
+  # ---------------------------------------------------------------------------
+  # The background worker.
+  #
+  # Drains apps.jobs - invoice scanning above all, which waits on a vision
+  # model for seconds at a time. Run inside a request that wait occupies one
+  # of gunicorn's three workers, so a handful of concurrent uploads stall the
+  # whole API; out here it stalls nothing.
+  #
+  # Same image and same repo as the API, different command. It runs no
+  # migrations: RUN_MIGRATIONS=0 leaves those to the web service, because two
+  # containers booting together race to apply the same ones.
+  # ---------------------------------------------------------------------------
+  - type: worker
+    name: invisiko-worker
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: starter
+    dockerCommand: python manage.py run_jobs
+    envVars:
+      - fromGroup: invisiko-shared
+      - key: RUN_MIGRATIONS
+        value: "0"

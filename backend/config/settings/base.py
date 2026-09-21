@@ -61,6 +61,9 @@ LOCAL_APPS = [
     # Cross-cutting
     "apps.notifications",
     "apps.audit",
+    # Background work. Listed last so every app's jobs.py is importable by the
+    # time JobsConfig.ready() autodiscovers handlers.
+    "apps.jobs",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
