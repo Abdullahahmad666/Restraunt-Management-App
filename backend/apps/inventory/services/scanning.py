@@ -73,6 +73,7 @@ printed. Do not calculate it.
 RESPONSE_SCHEMA = {
     "type": "object",
     "properties": {
+        "document_type": {"type": "string", "enum": ["invoice", "credit_note"]},
         "supplier_name": {"type": ["string", "null"]},
         "invoice_date": {
             "type": ["string", "null"],
@@ -104,6 +105,7 @@ RESPONSE_SCHEMA = {
         },
     },
     "required": [
+        "document_type",
         "supplier_name",
         "invoice_date",
         "invoice_number",
@@ -351,6 +353,11 @@ def populate_invoice_from_scan(invoice) -> None:
                 for index, (raw_name, line) in enumerate(zip(raw_names, lines, strict=True))
             ]
         )
+        invoice.document_type = (
+            InvoiceScan.DocumentType.CREDIT_NOTE
+            if str(data.get("document_type") or "").lower() == "credit_note"
+            else InvoiceScan.DocumentType.INVOICE
+        )
         invoice.supplier_name = str(data.get("supplier_name") or "")[:200]
         invoice.invoice_date = _safe_date(data.get("invoice_date"))
         invoice.invoice_number = str(data.get("invoice_number") or "")[:100]
@@ -380,6 +387,7 @@ def populate_invoice_from_scan(invoice) -> None:
         invoice.scan_error = ""
         invoice.save(
             update_fields=[
+                "document_type",
                 "supplier_name",
                 "supplier",
                 "warehouse",

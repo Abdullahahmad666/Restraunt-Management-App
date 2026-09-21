@@ -111,6 +111,9 @@ class InvoiceScanSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "photo",
+            # An invoice or a credit note. The two look alike on paper and
+            # are opposite in effect, so the app says which it is.
+            "document_type",
             "status",
             # The client polls this after uploading: QUEUED/SCANNING mean the
             # line items are not there yet, DONE and FAILED are terminal.
@@ -146,6 +149,7 @@ class InvoiceScanSerializer(serializers.ModelSerializer):
         )
         read_only_fields = (
             "id",
+            "document_type",
             # Set once, at upload. Writable here would mean a PATCH could point
             # an invoice at a different file after it had been read.
             "photo",

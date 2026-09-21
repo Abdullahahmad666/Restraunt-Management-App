@@ -244,6 +244,7 @@ SPECTACULAR_SETTINGS = {
         "StockMovementReasonEnum": "apps.inventory.models.STOCK_MOVEMENT_REASON_CHOICES",
         "InvoiceScanStatusEnum": "apps.inventory.models.INVOICE_SCAN_STATUS_CHOICES",
         "InvoiceScanStateEnum": "apps.inventory.models.INVOICE_SCAN_STATE_CHOICES",
+        "InvoiceDocumentTypeEnum": "apps.inventory.models.INVOICE_DOCUMENT_TYPE_CHOICES",
     },
 }
 

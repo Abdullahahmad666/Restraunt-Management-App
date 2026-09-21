@@ -20,7 +20,7 @@ says so.
 
 from decimal import Decimal
 
-from django.db.models import Count, DecimalField, F, Max, Q, Sum, Value
+from django.db.models import Case, Count, DecimalField, F, Max, Q, Sum, Value, When
 from django.db.models.functions import Coalesce, TruncDate, TruncMonth, TruncWeek
 
 from .models import InvoiceLineItem, InvoiceScan
@@ -30,6 +30,12 @@ _MONEY = DecimalField(max_digits=14, decimal_places=2)
 
 def line_spend(prefix: str = ""):
     """What a line cost, however the invoice happened to express it.
+
+    Unsigned: this is the figure as printed. Purchase history applies the
+    credit-note sign separately (see SIGNED_LINE_SPEND), while an invoice's
+    own total shows what the page says - a credit note printed as GBP 20 reads
+    as GBP 20 on the page and as -GBP 20 in the month's spending, and both are
+    right.
 
     Takes a prefix so the same definition works whether you are aggregating
     over line items directly or over invoices reaching them through a
@@ -46,6 +52,24 @@ def line_spend(prefix: str = ""):
 
 #: The usual case: aggregating over InvoiceLineItem itself.
 LINE_SPEND = line_spend()
+
+
+def _signed(expression):
+    """Flip the sign for a credit note.
+
+    Without this a credit note *increases* reported spend and reported
+    quantity - the exact opposite of what it records - and a month where a lot
+    went back would look like a month where a lot was bought.
+    """
+    return Case(
+        When(invoice__document_type="CREDIT_NOTE", then=-expression),
+        default=expression,
+        output_field=_MONEY,
+    )
+
+
+SIGNED_LINE_SPEND = _signed(LINE_SPEND)
+SIGNED_QUANTITY = _signed(F("quantity"))
 
 #: The date a purchase belongs to. An invoice's own date when it was legible,
 #: and otherwise the day it was uploaded - close enough for a weekly or
@@ -101,8 +125,8 @@ def purchases_by_item(**filters):
             item_unit=F("matched_item__unit"),
         )
         .annotate(
-            total_quantity=Sum("quantity"),
-            total_spend=Sum(LINE_SPEND),
+            total_quantity=Sum(SIGNED_QUANTITY),
+            total_spend=Sum(SIGNED_LINE_SPEND),
             line_count=Count("id"),
             invoice_count=Count("invoice_id", distinct=True),
             last_purchased=Max("purchase_date"),
@@ -122,7 +146,7 @@ def purchase_timeline(*, period: str = "month", **filters):
         .annotate(bucket=truncate("purchase_date"))
         .values("bucket")
         .annotate(
-            total_spend=Sum(LINE_SPEND),
+            total_spend=Sum(SIGNED_LINE_SPEND),
             line_count=Count("id"),
             invoice_count=Count("invoice_id", distinct=True),
         )
@@ -134,7 +158,7 @@ def purchase_summary(**filters) -> dict:
     """The cumulative figures, over whatever the filters allow."""
     lines = purchase_lines(**filters)
     totals = lines.aggregate(
-        total_spend=Coalesce(Sum(LINE_SPEND), Value(Decimal("0")), output_field=_MONEY),
+        total_spend=Coalesce(Sum(SIGNED_LINE_SPEND), Value(Decimal("0")), output_field=_MONEY),
         line_count=Count("id"),
         invoice_count=Count("invoice_id", distinct=True),
         item_count=Count("matched_item_id", distinct=True),

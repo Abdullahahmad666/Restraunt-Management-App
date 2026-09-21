@@ -22,6 +22,13 @@ class InvoiceScan(BaseModel):
         #: delivery - they are evidence of the same photo sent twice.
         DUPLICATE = "DUPLICATE", "Duplicate upload"
 
+    class DocumentType(models.TextChoices):
+        INVOICE = "INVOICE", "Invoice"
+        #: A supplier crediting goods back - a short delivery, a return,
+        #: something damaged. Structurally identical to an invoice, and the
+        #: exact opposite in effect: its lines came *out* of stock.
+        CREDIT_NOTE = "CREDIT_NOTE", "Credit note"
+
     class ScanState(models.TextChoices):
         """How far the AI read has got.
 
@@ -69,6 +76,9 @@ class InvoiceScan(BaseModel):
         null=True,
         blank=True,
         related_name="invoices",
+    )
+    document_type = models.CharField(
+        max_length=16, choices=DocumentType.choices, default=DocumentType.INVOICE
     )
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
     scan_state = models.CharField(
@@ -141,3 +151,4 @@ class InvoiceLineItem(BaseModel):
 # the matching comment in apps.attendance.models.
 INVOICE_SCAN_STATUS_CHOICES = InvoiceScan.Status.choices
 INVOICE_SCAN_STATE_CHOICES = InvoiceScan.ScanState.choices
+INVOICE_DOCUMENT_TYPE_CHOICES = InvoiceScan.DocumentType.choices
