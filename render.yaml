@@ -72,3 +72,15 @@
       # error instead of populating line items.
       - key: ANTHROPIC_API_KEY
         sync: false
+      # Object storage for uploads - invoice photos, fridge photos, profile
+      # pictures. Required: without a bucket the app writes to the container
+      # filesystem, which Render rebuilds empty on every deploy, and the
+      # service refuses to boot rather than lose uploads that way.
+      - key: AWS_STORAGE_BUCKET_NAME
+        sync: false
+      - key: AWS_S3_REGION_NAME
+        sync: false
+      - key: AWS_S3_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_S3_SECRET_ACCESS_KEY
+        sync: false

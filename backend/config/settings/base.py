@@ -138,6 +138,45 @@ STORAGES = {
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 
+# Uploaded files - invoice photos, fridge photos, profile pictures - go to S3
+# whenever a bucket is configured, and to local disk when one is not.
+#
+# Local disk is fine for development and wrong everywhere else: MEDIA_ROOT
+# lives inside the container, so a deploy rebuilds it empty and every upload
+# is gone. The database keeps a perfectly healthy row - ImageField stores a
+# path, never the bytes - pointing at a file that no longer exists. Production
+# refuses to boot without a bucket for exactly that reason; see
+# config/settings/production.py.
+AWS_STORAGE_BUCKET_NAME = env("AWS_STORAGE_BUCKET_NAME", default="")
+AWS_S3_REGION_NAME = env("AWS_S3_REGION_NAME", default="")
+AWS_S3_ACCESS_KEY_ID = env("AWS_S3_ACCESS_KEY_ID", default="")
+AWS_S3_SECRET_ACCESS_KEY = env("AWS_S3_SECRET_ACCESS_KEY", default="")
+
+if AWS_STORAGE_BUCKET_NAME:
+    STORAGES["default"] = {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+            "bucket_name": AWS_STORAGE_BUCKET_NAME,
+            "region_name": AWS_S3_REGION_NAME,
+            "access_key": AWS_S3_ACCESS_KEY_ID,
+            "secret_key": AWS_S3_SECRET_ACCESS_KEY,
+            "signature_version": "s3v4",
+            # Signed, expiring URLs rather than public objects. An invoice
+            # photo shows a supplier's pricing and a profile picture is
+            # personal - neither should be readable by anyone who guesses a
+            # key. The app must therefore use URLs fresh from the API rather
+            # than caching them past the expiry below.
+            "querystring_auth": True,
+            "querystring_expire": 3600,
+            # Two uploads that happen to share a filename are two files, not
+            # one silently overwriting the other - Django suffixes instead.
+            "file_overwrite": False,
+            # Modern buckets have ACLs disabled (Object Ownership: bucket
+            # owner enforced); sending one is rejected outright.
+            "default_acl": None,
+        },
+    }
+
 # ---------------------------------------------------------------------------
 # Django REST Framework
 # ---------------------------------------------------------------------------
