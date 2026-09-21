@@ -15,7 +15,7 @@ from apps.jobs.services import queue
 
 from .. import jobs as inventory_jobs
 from .. import models
-from ..services import scanning
+from ..services import scanning, uploads
 from ..services import stock as stock_service
 from .common import (
     BaseInventoryItemSerializer,
@@ -122,6 +122,18 @@ class UploadInvoiceSerializer(serializers.Serializer):
         return attrs
 
 
+class UploadUrlSerializer(serializers.Serializer):
+    """Asking for somewhere to upload to.
+
+    Only the type is needed. The key is generated here rather than taken from
+    a client-supplied filename - two phones both sending "invoice.jpg" must
+    not collide, and a path from a client is not one to build storage keys out
+    of.
+    """
+
+    content_type = serializers.ChoiceField(choices=sorted(scanning.SUPPORTED_TYPES))
+
+
 class StaffInvoiceScanViewSet(
     RestaurantScopedQuerysetMixin,
     mixins.ListModelMixin,
@@ -167,6 +179,82 @@ class StaffInvoiceScanViewSet(
 
         # 202, not 201: the invoice exists, but the line items the caller
         # actually wants are not there yet.
+        return Response(self.get_serializer(invoice).data, status=202)
+
+    @action(detail=False, methods=["post"], url_path="upload-url")
+    def upload_url(self, request):
+        """Reserve a row and hand back somewhere to put the file.
+
+        The phone uploads to S3 itself, so a 15MB PDF never passes through a
+        gunicorn worker. It must call `uploaded` afterwards - S3 tells us
+        nothing, so until then this invoice is only a reservation.
+        """
+        if not uploads.direct_upload_available():
+            raise DRFValidationError(
+                "Direct upload is not available on this server - post the file to this "
+                "endpoint instead."
+            )
+
+        input_serializer = UploadUrlSerializer(data=request.data)
+        input_serializer.is_valid(raise_exception=True)
+        content_type = input_serializer.validated_data["content_type"]
+
+        key = uploads.build_key(content_type)
+        invoice = models.InvoiceScan.objects.create(
+            restaurant=request.user.restaurant,
+            photo=key,
+            content_type=content_type,
+            uploaded_by=request.user,
+            scan_state=models.InvoiceScan.ScanState.AWAITING_UPLOAD,
+        )
+        presigned = uploads.presign_upload(key=key, content_type=content_type)
+
+        return Response(
+            {
+                "invoice": self.get_serializer(invoice).data,
+                "upload": {
+                    "url": presigned["url"],
+                    "fields": presigned["fields"],
+                    "expires_in": uploads.UPLOAD_URL_EXPIRY_SECONDS,
+                },
+            },
+            status=201,
+        )
+
+    @action(detail=True, methods=["post"])
+    def uploaded(self, request, pk=None):
+        """The phone says the file landed. Check, then queue the read.
+
+        Checked rather than taken on trust: this is what stops a caller
+        queueing an expensive read of a file that was never uploaded.
+        """
+        invoice = self.get_object()
+        if invoice.scan_state != models.InvoiceScan.ScanState.AWAITING_UPLOAD:
+            raise DRFValidationError("This invoice has already been uploaded.")
+
+        key = uploads.key_for(invoice.photo.name)
+        try:
+            _, content_type = uploads.verify_upload(key=key)
+        except uploads.UploadNotFound:
+            raise DRFValidationError(
+                "That file has not arrived yet - finish uploading it and try again."
+            ) from None
+        except uploads.UploadRejected as exc:
+            # The object is junk, so drop it from the bucket - but keep the row
+            # carrying the reason, the same way a failed scan does. Deleting it
+            # here would not work anyway: DRF rolls the transaction back when it
+            # turns an exception into a 4xx, and ATOMIC_REQUESTS wraps the whole
+            # request, so the delete would be undone on the way out.
+            uploads.delete_object(key=key)
+            invoice.scan_state = models.InvoiceScan.ScanState.FAILED
+            invoice.scan_error = str(exc)[:500]
+            invoice.save(update_fields=["scan_state", "scan_error", "updated_at"])
+            return Response(self.get_serializer(invoice).data, status=400)
+
+        invoice.content_type = content_type
+        invoice.save(update_fields=["content_type", "updated_at"])
+        self._queue_scan(invoice)
+
         return Response(self.get_serializer(invoice).data, status=202)
 
     @action(detail=True, methods=["post"])

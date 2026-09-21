@@ -27,6 +27,9 @@ class InvoiceScan(BaseModel):
         "scanned but not yet reviewed" impossible to express.
         """
 
+        #: A row exists and a key is reserved, but the phone is still sending
+        #: the file straight to S3. Only the direct-upload path uses this.
+        AWAITING_UPLOAD = "AWAITING_UPLOAD", "Waiting for the file"
         QUEUED = "QUEUED", "Waiting to be read"
         SCANNING = "SCANNING", "Being read"
         DONE = "DONE", "Read"
