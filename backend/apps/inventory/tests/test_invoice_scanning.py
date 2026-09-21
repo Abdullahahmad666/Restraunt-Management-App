@@ -390,3 +390,45 @@ def test_an_invoice_stops_saying_scanning_once_the_queue_gives_up(api_client, st
     response = api_client.get(reverse(STAFF_INVOICE_DETAIL, kwargs={"pk": created.data["id"]}))
     assert response.data["scan_state"] == "FAILED"
     assert response.data["scan_error"] != ""
+
+
+def test_the_invoices_own_figures_are_recorded(api_client, staff_member):
+    """The invoice number identifies a re-upload; the stated totals are the
+    only independent thing the lines can be checked against."""
+    api_client.force_authenticate(user=staff_member)
+
+    result = {
+        **SCAN_RESULT,
+        "invoice_number": "INV-2026-0042",
+        "delivery_location": "Cellar",
+        "stated_subtotal": 55,
+        "stated_tax": 11,
+        "stated_total": 66,
+    }
+    with patch("apps.inventory.services.scanning.extract_invoice_data", return_value=result):
+        created = api_client.post(
+            reverse(STAFF_INVOICES), {"photo": invoice_photo()}, format="multipart"
+        )
+        queue.run_next()
+
+    invoice = InvoiceScan.objects.get(pk=created.data["id"])
+    assert invoice.invoice_number == "INV-2026-0042"
+    assert invoice.delivery_location == "Cellar"
+    assert invoice.stated_total == Decimal("66")
+    assert invoice.stated_tax == Decimal("11")
+
+
+def test_an_invoice_that_states_none_of_that_still_scans(api_client, staff_member):
+    """Plenty of delivery notes carry no reference and no totals at all."""
+    api_client.force_authenticate(user=staff_member)
+
+    with patch("apps.inventory.services.scanning.extract_invoice_data", return_value=SCAN_RESULT):
+        created = api_client.post(
+            reverse(STAFF_INVOICES), {"photo": invoice_photo()}, format="multipart"
+        )
+        queue.run_next()
+
+    invoice = InvoiceScan.objects.get(pk=created.data["id"])
+    assert invoice.scan_state == InvoiceScan.ScanState.DONE
+    assert invoice.invoice_number == ""
+    assert invoice.stated_total is None

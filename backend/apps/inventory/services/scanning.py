@@ -47,14 +47,23 @@ REQUEST_TIMEOUT_SECONDS = 120.0
 MAX_SDK_RETRIES = 2
 
 PROMPT = """You are reading a supplier invoice photographed by restaurant \
-staff for stock-taking. Extract every line item you can read.
+staff for stock-taking. Extract every line item you can read, and the details \
+that identify the invoice itself.
 
 Rules:
 - One entry per line item on the invoice, in the order they appear.
 - "quantity" is required for every line item - if it is genuinely illegible, use 1.
 - Use null for any other field you cannot read, rather than guessing.
-- Do not include tax, subtotal, delivery charge or total rows as line items.
+- Do not include tax, subtotal, delivery charge or total rows as line items. \
+Put those in "stated_subtotal", "stated_tax" and "stated_total" instead.
 - "unit" is a short unit of measure if the invoice states one (e.g. "kg", "litre", "box", "each").
+- "invoice_number" is the supplier's own reference for this invoice, however \
+it is labelled - "Invoice No", "Ref", "Document". Not our own order number.
+- "delivery_location" is where the invoice says the goods went, if it names \
+somewhere more specific than the business itself - a site, a branch, a store \
+room. Null when it only repeats the company address.
+- "stated_total" is the invoice's own final amount payable, copied as \
+printed. Do not calculate it.
 """
 
 # Enforced by the API rather than asked for in the prompt, so a response that
@@ -69,6 +78,15 @@ RESPONSE_SCHEMA = {
             "type": ["string", "null"],
             "description": "ISO date, YYYY-MM-DD",
         },
+        "invoice_number": {"type": ["string", "null"]},
+        "delivery_location": {"type": ["string", "null"]},
+        # Read, never computed. The whole point of holding the invoice's own
+        # figure is to have something independent to check the lines against;
+        # a total derived from the same lines it is meant to verify checks
+        # nothing at all.
+        "stated_subtotal": {"type": ["number", "null"]},
+        "stated_tax": {"type": ["number", "null"]},
+        "stated_total": {"type": ["number", "null"]},
         "line_items": {
             "type": "array",
             "items": {
@@ -85,7 +103,16 @@ RESPONSE_SCHEMA = {
             },
         },
     },
-    "required": ["supplier_name", "invoice_date", "line_items"],
+    "required": [
+        "supplier_name",
+        "invoice_date",
+        "invoice_number",
+        "delivery_location",
+        "stated_subtotal",
+        "stated_tax",
+        "stated_total",
+        "line_items",
+    ],
     "additionalProperties": False,
 }
 
@@ -288,6 +315,11 @@ def populate_invoice_from_scan(invoice) -> None:
         )
         invoice.supplier_name = str(data.get("supplier_name") or "")[:200]
         invoice.invoice_date = _safe_date(data.get("invoice_date"))
+        invoice.invoice_number = str(data.get("invoice_number") or "")[:100]
+        invoice.delivery_location = str(data.get("delivery_location") or "")[:200]
+        invoice.stated_subtotal = _safe_decimal(data.get("stated_subtotal"))
+        invoice.stated_tax = _safe_decimal(data.get("stated_tax"))
+        invoice.stated_total = _safe_decimal(data.get("stated_total"))
         # Link to a supplier the restaurant already has, and only that - see
         # services.suppliers for why a scan never creates one. A blank here is
         # a question for the reviewer, not a failure.
@@ -302,6 +334,11 @@ def populate_invoice_from_scan(invoice) -> None:
                 "supplier_name",
                 "supplier",
                 "invoice_date",
+                "invoice_number",
+                "delivery_location",
+                "stated_subtotal",
+                "stated_tax",
+                "stated_total",
                 "scan_state",
                 "scan_error",
                 "updated_at",

@@ -72,6 +72,18 @@ class InvoiceScan(BaseModel):
     )
     supplier_name = models.CharField(max_length=200, blank=True, default="")
     invoice_date = models.DateField(null=True, blank=True)
+    #: The supplier's own reference. Kept as read, not cleaned up - it is
+    #: half of how a re-uploaded invoice is recognised as one we already have.
+    invoice_number = models.CharField(max_length=100, blank=True, default="")
+    #: Where the invoice says the goods went, as printed. The Warehouse this
+    #: resolves to is the FK above; this is the text it was resolved from.
+    delivery_location = models.CharField(max_length=200, blank=True, default="")
+    #: The invoice's own figures, copied rather than computed. Holding them is
+    #: the only way to check the lines against something independent - a total
+    #: derived from the same lines it is meant to verify checks nothing.
+    stated_subtotal = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    stated_tax = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    stated_total = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     # Set when the scan itself failed (bad photo, the AI service errored) -
     # the scan still exists with zero line items so staff can retry or add
     # lines by hand rather than losing the upload.
