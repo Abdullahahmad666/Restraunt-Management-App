@@ -368,3 +368,25 @@ def test_discarding_an_invoice(api_client, staff_member):
     assert response.status_code == 200, response.data
     assert response.data["status"] == "DISCARDED"
     assert InvoiceScan.objects.get(id=created["id"]).status == InvoiceScan.Status.DISCARDED
+
+
+def test_an_invoice_stops_saying_scanning_once_the_queue_gives_up(api_client, staff_member):
+    """A scan that exhausts its retries must not leave the invoice reading
+    "scanning" forever - the app polls that state and would never stop."""
+    api_client.force_authenticate(user=staff_member)
+
+    with patch(
+        "apps.inventory.services.scanning.extract_invoice_data",
+        side_effect=TransientScanError("busy"),
+    ):
+        created = api_client.post(
+            reverse(STAFF_INVOICES), {"photo": invoice_photo()}, format="multipart"
+        )
+        Job.objects.update(max_attempts=1)
+        queue.run_next()
+
+    assert Job.objects.get().status == Job.Status.FAILED
+
+    response = api_client.get(reverse(STAFF_INVOICE_DETAIL, kwargs={"pk": created.data["id"]}))
+    assert response.data["scan_state"] == "FAILED"
+    assert response.data["scan_error"] != ""

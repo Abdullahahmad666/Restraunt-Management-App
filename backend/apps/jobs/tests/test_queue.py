@@ -191,3 +191,66 @@ def test_concurrent_workers_never_claim_the_same_job(handler):
 
     Job.objects.all().delete()
     connection.close()
+
+
+@pytest.fixture
+def handler_that_gives_up():
+    """A handler that always fails, plus a record of the queue telling us so."""
+    gave_up = []
+
+    def _on_failure(**kwargs):
+        gave_up.append(kwargs)
+
+    @registry.job("tests.hopeless", on_permanent_failure=_on_failure)
+    def _hopeless(**kwargs):
+        raise RuntimeError("never works")
+
+    yield gave_up
+    registry._HANDLERS.pop("tests.hopeless", None)
+    registry._FAILURE_HANDLERS.pop("tests.hopeless", None)
+
+
+@pytest.mark.django_db
+def test_giving_up_tells_whatever_was_waiting(handler_that_gives_up):
+    """Otherwise the job's subject keeps the in-progress state its last
+    attempt set, and anything polling it waits forever."""
+    queue.enqueue(kind="tests.hopeless", payload={"invoice_id": "abc"}, max_attempts=2)
+
+    queue.run_next()
+    assert handler_that_gives_up == [], "still had an attempt left"
+
+    Job.objects.update(run_after=timezone.now())
+    queue.run_next()
+
+    assert Job.objects.get().status == Job.Status.FAILED
+    assert handler_that_gives_up == [{"invoice_id": "abc"}]
+
+
+@pytest.mark.django_db
+def test_giving_up_on_a_stale_job_also_notifies(handler_that_gives_up):
+    queue.enqueue(kind="tests.hopeless", payload={"invoice_id": "abc"}, max_attempts=1)
+    queue.claim_next()
+    Job.objects.update(started_at=timezone.now() - timedelta(hours=1))
+
+    queue.requeue_stale()
+
+    assert Job.objects.get().status == Job.Status.FAILED
+    assert handler_that_gives_up == [{"invoice_id": "abc"}]
+
+
+@pytest.mark.django_db
+def test_a_broken_failure_handler_does_not_break_the_queue():
+    def _explode(**kwargs):
+        raise RuntimeError("the notifier is broken too")
+
+    @registry.job("tests.double-trouble", on_permanent_failure=_explode)
+    def _hopeless(**kwargs):
+        raise RuntimeError("never works")
+
+    try:
+        queue.enqueue(kind="tests.double-trouble", max_attempts=1)
+        queue.run_next()
+        assert Job.objects.get().status == Job.Status.FAILED
+    finally:
+        registry._HANDLERS.pop("tests.double-trouble", None)
+        registry._FAILURE_HANDLERS.pop("tests.double-trouble", None)

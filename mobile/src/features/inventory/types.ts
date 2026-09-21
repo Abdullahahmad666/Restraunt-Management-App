@@ -35,6 +35,17 @@ export type StockMovement = {
 
 export type InvoiceScanStatus = 'PENDING' | 'CONFIRMED' | 'DISCARDED';
 
+/** How far the read has got. Separate from status, which is the human review
+ * lifecycle - an invoice can be waiting to be read and waiting to be reviewed
+ * at the same time. */
+export type InvoiceScanState = 'AWAITING_UPLOAD' | 'QUEUED' | 'SCANNING' | 'DONE' | 'FAILED';
+
+/** True while the worker still owes us line items, which is when the review
+ * screen shows progress rather than an empty invoice. */
+export function isScanInProgress(state: InvoiceScanState): boolean {
+  return state === 'AWAITING_UPLOAD' || state === 'QUEUED' || state === 'SCANNING';
+}
+
 export type InvoiceLineItem = {
   id: string;
   invoice: string;
@@ -52,6 +63,8 @@ export type InvoiceScan = {
   id: string;
   photo: string;
   status: InvoiceScanStatus;
+  scan_state: InvoiceScanState;
+  content_type: string;
   supplier_name: string;
   invoice_date: string | null;
   scan_error: string;

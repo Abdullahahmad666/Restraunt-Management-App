@@ -24,12 +24,22 @@ from collections.abc import Callable
 from django.core.exceptions import ImproperlyConfigured
 
 _HANDLERS: dict[str, Callable] = {}
+_FAILURE_HANDLERS: dict[str, Callable] = {}
 
 
-def job(kind: str) -> Callable:
-    """Register the decorated function as the handler for `kind`."""
+def job(kind: str, *, on_permanent_failure: Callable | None = None) -> Callable:
+    """Register the decorated function as the handler for `kind`.
+
+    `on_permanent_failure` is called with the same payload once the queue has
+    given up - the last attempt has been used, or a worker died with none
+    left. Without it, whatever the job was meant to update keeps whatever
+    in-progress state it was put into, and anything watching that state waits
+    forever for an answer that is never coming.
+    """
 
     def decorator(func: Callable) -> Callable:
+        if on_permanent_failure is not None:
+            _FAILURE_HANDLERS[kind] = on_permanent_failure
         existing = _HANDLERS.get(kind)
         # Django imports a module once, but a stale .pyc or a module reachable
         # by two import paths has bitten people here. Registering the same
@@ -56,6 +66,11 @@ def handler_for(kind: str) -> Callable:
             f"No handler registered for job kind {kind!r}. "
             f"Registered kinds: {sorted(_HANDLERS) or 'none'}."
         ) from None
+
+
+def failure_handler_for(kind: str) -> Callable | None:
+    """What to run when the queue gives up on `kind`, if anything does."""
+    return _FAILURE_HANDLERS.get(kind)
 
 
 def registered_kinds() -> list[str]:

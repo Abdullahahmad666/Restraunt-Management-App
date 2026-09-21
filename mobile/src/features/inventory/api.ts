@@ -3,6 +3,7 @@
 import {apiClient} from '../../api/client';
 import {endpoints} from '../../api/endpoints';
 import type {Paginated} from '../../types/api';
+import type {PreparedFile} from '../../utils/media';
 import type {
   AdminInventoryItem,
   InventoryItem,
@@ -66,36 +67,32 @@ export async function getInvoiceScan(id: string): Promise<InvoiceScan> {
   return data;
 }
 
-/** Uploads the photo and waits for the vision model to read it - can take
- * well past the app's normal request timeout, so this call gets its own,
- * longer one rather than the shared default. */
-const SCAN_TIMEOUT_MS = 60_000;
+/** Sending the file itself can be slow on restaurant wifi, so the upload gets
+ * a longer timeout than the shared default. It no longer waits for the read -
+ * that happens on the server's worker, and the response comes back as soon as
+ * the bytes have landed. */
+const UPLOAD_TIMEOUT_MS = 60_000;
 
-export async function uploadInvoice(uri: string): Promise<InvoiceScan> {
-  const extension = uri.split('.').pop()?.toLowerCase() ?? 'jpg';
-  const mime = extension === 'png' ? 'image/png' : 'image/jpeg';
-
+export async function uploadInvoice(file: PreparedFile): Promise<InvoiceScan> {
   const form = new FormData();
   form.append('photo', {
-    uri,
-    name: `invoice.${extension}`,
-    type: mime,
+    uri: file.uri,
+    name: file.name,
+    type: file.mimeType,
   } as unknown as Blob);
 
   const {data} = await apiClient.post<InvoiceScan>(endpoints.staff.inventory.invoiceScans, form, {
     headers: {'Content-Type': 'multipart/form-data'},
     transformRequest: value => value,
-    timeout: SCAN_TIMEOUT_MS,
+    timeout: UPLOAD_TIMEOUT_MS,
   });
   return data;
 }
 
+/** Queues a fresh read of the same file. Returns straight away - poll the
+ * invoice's scan_state for the result. */
 export async function rescanInvoice(id: string): Promise<InvoiceScan> {
-  const {data} = await apiClient.post<InvoiceScan>(
-    endpoints.staff.inventory.rescanInvoice(id),
-    undefined,
-    {timeout: SCAN_TIMEOUT_MS},
-  );
+  const {data} = await apiClient.post<InvoiceScan>(endpoints.staff.inventory.rescanInvoice(id));
   return data;
 }
 

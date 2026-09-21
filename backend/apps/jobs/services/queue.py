@@ -25,7 +25,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from ..models import Job
-from ..registry import handler_for
+from ..registry import failure_handler_for, handler_for
 
 logger = logging.getLogger(__name__)
 
@@ -90,18 +90,34 @@ def _succeed(job: Job) -> None:
     job.save(update_fields=["status", "finished_at", "updated_at"])
 
 
+def _give_up(job: Job) -> None:
+    """Mark the job failed for good, and tell whatever was waiting on it.
+
+    The notification matters more than it looks: a job that gives up silently
+    leaves its subject in whatever in-progress state the handler set, and
+    anything polling that state waits forever for an answer nobody will send.
+    """
+    job.status = Job.Status.FAILED
+    job.finished_at = timezone.now()
+    job.save(update_fields=["status", "error", "finished_at", "updated_at"])
+    logger.error("Job %s (%s) failed permanently after %s attempts", job.id, job.kind, job.attempts)
+
+    notify = failure_handler_for(job.kind)
+    if notify is None:
+        return
+    try:
+        notify(**job.payload)
+    except Exception:  # noqa: BLE001 - a broken notifier must not break the queue
+        logger.exception("Failure handler for job %s (%s) raised", job.id, job.kind)
+
+
 def _fail(job: Job, exc: BaseException) -> None:
     """Back to the queue with a delay while attempts remain, FAILED once they
     run out."""
     job.error = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))[-4000:]
 
     if job.attempts >= job.max_attempts:
-        job.status = Job.Status.FAILED
-        job.finished_at = timezone.now()
-        job.save(update_fields=["status", "error", "finished_at", "updated_at"])
-        logger.error(
-            "Job %s (%s) failed permanently after %s attempts", job.id, job.kind, job.attempts
-        )
+        _give_up(job)
         return
 
     job.status = Job.Status.QUEUED
@@ -158,10 +174,8 @@ def requeue_stale(*, older_than: timedelta = STALE_AFTER) -> int:
     requeued = 0
     for job in stale:
         if job.attempts >= job.max_attempts:
-            job.status = Job.Status.FAILED
-            job.finished_at = timezone.now()
             job.error = "Worker stopped before this job finished, and no attempts remained."
-            job.save(update_fields=["status", "finished_at", "error", "updated_at"])
+            _give_up(job)
         else:
             job.status = Job.Status.QUEUED
             job.started_at = None

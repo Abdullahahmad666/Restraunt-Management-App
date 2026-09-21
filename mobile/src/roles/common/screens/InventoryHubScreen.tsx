@@ -2,7 +2,6 @@ import React, {useState} from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import * as ImagePicker from 'expo-image-picker';
 import {Ionicons} from '@expo/vector-icons';
 
 import {Badge} from '../../../components/Badge';
@@ -15,6 +14,12 @@ import {LoadingView} from '../../../components/LoadingView';
 import {Screen} from '../../../components/Screen';
 import {TextField} from '../../../components/TextField';
 import {describeApiError} from '../../../api/errors';
+import {
+  captureInvoice,
+  describePermissionDenied,
+  PermissionDenied,
+  type CaptureSource,
+} from '../../../features/inventory/capture';
 import {
   useAdjustStock,
   useInventoryItems,
@@ -116,27 +121,21 @@ export function InventoryHubScreen(): React.JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const canManageItems = useAuthStore(state => Boolean(state.user && isAdmin(state.user.role)));
 
-  async function onScan(fromCamera: boolean) {
+  async function onScan(source: CaptureSource) {
     setError(null);
-    const permission = fromCamera
-      ? await ImagePicker.requestCameraPermissionsAsync()
-      : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      setError(
-        fromCamera ? 'Camera access is off for Invisiko.' : 'Photo access is off for Invisiko.',
-      );
-      return;
-    }
-    const result = fromCamera
-      ? await ImagePicker.launchCameraAsync({quality: 0.7})
-      : await ImagePicker.launchImageLibraryAsync({mediaTypes: ['images'], quality: 0.7});
-    if (result.canceled || !result.assets[0]) {
-      return;
-    }
     try {
-      const invoice = await uploadInvoice.mutateAsync(result.assets[0].uri);
+      const file = await captureInvoice(source);
+      if (!file) {
+        return;
+      }
+      const invoice = await uploadInvoice.mutateAsync(file);
+      // The read has only been queued - the review screen polls for it.
       navigation.navigate('InvoiceReview', {invoiceId: invoice.id});
     } catch (err) {
+      if (err instanceof PermissionDenied) {
+        setError(describePermissionDenied(err.source));
+        return;
+      }
       setError(describeApiError(err, 'Could not upload that invoice.'));
     }
   }
@@ -177,15 +176,15 @@ export function InventoryHubScreen(): React.JSX.Element {
 
       <Card style={styles.scanCard}>
         <Text style={styles.hint}>
-          Photograph a delivery invoice - the app reads off the items, quantities and prices for you
-          to check before they're added to stock.
+          Photograph a delivery invoice, or pick a PDF a supplier sent you - the app reads off the
+          items, quantities and prices for you to check before they're added to stock.
         </Text>
         {error ? <Text style={styles.error}>{error}</Text> : null}
         <View style={styles.chipRow}>
           <View style={styles.scanButton}>
             <Button
               title="Take photo"
-              onPress={() => onScan(true)}
+              onPress={() => onScan('camera')}
               loading={uploadInvoice.isPending}
             />
           </View>
@@ -193,11 +192,17 @@ export function InventoryHubScreen(): React.JSX.Element {
             <Button
               title="Choose photo"
               variant="secondary"
-              onPress={() => onScan(false)}
+              onPress={() => onScan('library')}
               loading={uploadInvoice.isPending}
             />
           </View>
         </View>
+        <Button
+          title="Upload a PDF"
+          variant="secondary"
+          onPress={() => onScan('document')}
+          loading={uploadInvoice.isPending}
+        />
       </Card>
 
       {pendingList.length > 0 ? (

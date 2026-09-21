@@ -10,6 +10,7 @@ import {Button} from '../../../components/Button';
 import {Screen} from '../../../components/Screen';
 import {TextField} from '../../../components/TextField';
 import {describeApiError} from '../../../api/errors';
+import {compressImage, EQUIPMENT_PHOTO} from '../../../utils/media';
 import {
   useAdminFridgeUnits,
   useCreateFridgeUnit,
@@ -63,13 +64,21 @@ export function EditFridgeScreen(): React.JSX.Element {
       mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [4, 3],
-      quality: 0.7,
+      // Compressed below rather than here, so every upload in the app uses
+      // one set of profiles - see utils/media.ts.
+      quality: 1,
     });
     if (result.canceled || !result.assets[0]) {
       return;
     }
     try {
-      await uploadPhoto.mutateAsync({id: existing.id, uri: result.assets[0].uri});
+      const asset = result.assets[0];
+      const prepared = await compressImage(asset.uri, EQUIPMENT_PHOTO, {
+        width: asset.width,
+        height: asset.height,
+        name: 'fridge.jpg',
+      });
+      await uploadPhoto.mutateAsync({id: existing.id, uri: prepared.uri});
     } catch (err) {
       setError(describeApiError(err, 'Could not upload that photo.'));
     }

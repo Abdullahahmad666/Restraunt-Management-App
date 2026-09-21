@@ -16,7 +16,24 @@ logger = logging.getLogger(__name__)
 SCAN_INVOICE = "inventory.scan_invoice"
 
 
-@job(SCAN_INVOICE)
+def scan_gave_up(*, invoice_id: str) -> None:
+    """The queue has stopped retrying this scan.
+
+    Without this the invoice keeps the SCANNING state its last attempt set,
+    and the app polls it forever waiting for line items nobody is still trying
+    to produce. Staff get told, and can rescan or key the invoice in by hand.
+    """
+    updated = InvoiceScan.objects.filter(
+        pk=invoice_id, scan_state=InvoiceScan.ScanState.SCANNING
+    ).update(
+        scan_state=InvoiceScan.ScanState.FAILED,
+        scan_error="Could not read that invoice - try again, or add the items by hand.",
+    )
+    if updated:
+        logger.warning("Gave up scanning invoice %s", invoice_id)
+
+
+@job(SCAN_INVOICE, on_permanent_failure=scan_gave_up)
 def scan_invoice(*, invoice_id: str) -> None:
     """Read a freshly uploaded invoice photo into line items.
 

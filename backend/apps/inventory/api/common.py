@@ -78,6 +78,9 @@ class InvoiceScanSerializer(serializers.ModelSerializer):
             # The client polls this after uploading: QUEUED/SCANNING mean the
             # line items are not there yet, DONE and FAILED are terminal.
             "scan_state",
+            # The client needs this to decide whether the file can be shown as
+            # an image at all - a PDF rendered into an <Image> is a blank box.
+            "content_type",
             "supplier_name",
             "invoice_date",
             "scan_error",
@@ -90,6 +93,7 @@ class InvoiceScanSerializer(serializers.ModelSerializer):
             "id",
             "status",
             "scan_state",
+            "content_type",
             "supplier_name",
             "invoice_date",
             "scan_error",

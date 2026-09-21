@@ -4,6 +4,7 @@ import {Ionicons} from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 
 import {describeApiError} from '../../../api/errors';
+import {AVATAR, compressImage} from '../../../utils/media';
 import {ConfirmDialog} from '../../../components/ConfirmDialog';
 import {Field} from '../../../components/Field';
 import {FormError} from '../../../components/FormError';
@@ -124,9 +125,9 @@ export function ProfileScreen(): React.JSX.Element {
       mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
-      // Avatars render small. A full-resolution upload is slow on a kitchen's
-      // wifi and gains nothing anyone can see.
-      quality: 0.7,
+      // Left uncompressed here and squeezed deliberately below - two lossy
+      // passes with different settings is worse than one we control.
+      quality: 1,
     };
 
     const result =
@@ -140,7 +141,15 @@ export function ProfileScreen(): React.JSX.Element {
 
     setUploading(true);
     try {
-      setUser(await uploadAvatar(result.assets[0].uri));
+      // Avatars render small. A full-resolution upload is slow on a kitchen's
+      // wifi and gains nothing anyone can see.
+      const asset = result.assets[0];
+      const prepared = await compressImage(asset.uri, AVATAR, {
+        width: asset.width,
+        height: asset.height,
+        name: 'avatar.jpg',
+      });
+      setUser(await uploadAvatar(prepared.uri));
     } catch (err) {
       setError(describeApiError(err, 'Could not upload that photo.'));
     } finally {

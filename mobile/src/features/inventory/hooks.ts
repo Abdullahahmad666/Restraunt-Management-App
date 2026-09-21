@@ -2,6 +2,12 @@
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 
 import * as api from './api';
+import {isScanInProgress} from './types';
+
+/** How often to ask whether the worker has finished reading an invoice.
+ * Frequent enough to feel immediate, rare enough not to hammer the API while
+ * someone leaves the screen open. */
+const SCAN_POLL_MS = 2000;
 
 const keys = {
   items: ['inventory', 'items'] as const,
@@ -58,6 +64,12 @@ export function useInvoiceScan(id: string) {
     queryKey: keys.invoiceScan(id),
     queryFn: () => api.getInvoiceScan(id),
     enabled: Boolean(id),
+    // Reading happens on a worker, so the invoice arrives empty and fills in
+    // afterwards. Poll while that is outstanding and stop the moment it is
+    // not - the server always reaches DONE or FAILED, including when it gives
+    // up, so this terminates rather than spinning.
+    refetchInterval: query =>
+      query.state.data && isScanInProgress(query.state.data.scan_state) ? SCAN_POLL_MS : false,
   });
 }
 

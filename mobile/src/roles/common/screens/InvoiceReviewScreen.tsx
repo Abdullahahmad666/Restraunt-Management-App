@@ -1,8 +1,9 @@
 import React, {useState} from 'react';
-import {Image, Pressable, StyleSheet, Text, View} from 'react-native';
+import {ActivityIndicator, Image, Pressable, StyleSheet, Text, View} from 'react-native';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
+import {Ionicons} from '@expo/vector-icons';
 
 import {Badge} from '../../../components/Badge';
 import {Button} from '../../../components/Button';
@@ -23,6 +24,7 @@ import {
   useRescanInvoice,
   useUpdateInvoiceLineItem,
 } from '../../../features/inventory/hooks';
+import {isScanInProgress} from '../../../features/inventory/types';
 import type {InventoryItem, InvoiceLineItem} from '../../../features/inventory/types';
 import type {InventoryStackParamList} from '../../../navigation/types';
 import {colors, radii, spacing} from '../../../theme';
@@ -234,18 +236,46 @@ export function InvoiceReviewScreen(): React.JSX.Element {
     }
   }
 
+  const scanning = isScanInProgress(data.scan_state);
+
   return (
     <Screen>
-      <Image source={{uri: data.photo}} style={styles.photo} />
+      {data.content_type === 'application/pdf' ? (
+        <View style={[styles.photo, styles.pdfPlaceholder]}>
+          <Ionicons name="document-text-outline" size={40} color={colors.textMuted} />
+          <Text style={styles.hint}>PDF invoice</Text>
+        </View>
+      ) : (
+        <Image source={{uri: data.photo}} style={styles.photo} />
+      )}
       <View style={styles.headerRow}>
         <Text style={styles.heading}>{data.supplier_name || 'Invoice review'}</Text>
         <Badge label={data.status} tone={STATUS_TONE[data.status] ?? 'neutral'} />
       </View>
       {data.invoice_date ? <Text style={styles.hint}>{formatDate(data.invoice_date)}</Text> : null}
 
+      {scanning ? (
+        <Card style={styles.scanningCard}>
+          <ActivityIndicator color={colors.primary} />
+          <Text style={styles.hint}>
+            Reading this invoice - the items will appear here in a moment. You can leave this screen
+            and come back.
+          </Text>
+        </Card>
+      ) : null}
+
       {data.scan_error ? (
         <Card>
           <Text style={styles.error}>{data.scan_error}</Text>
+          <Button title="Try scanning again" onPress={onRescan} loading={rescan.isPending} />
+        </Card>
+      ) : null}
+
+      {!scanning && !data.scan_error && data.line_items.length === 0 ? (
+        <Card>
+          <Text style={styles.hint}>
+            Nothing was read off this invoice. Try scanning again, or add the items by hand.
+          </Text>
           <Button title="Try scanning again" onPress={onRescan} loading={rescan.isPending} />
         </Card>
       ) : null}
@@ -291,6 +321,8 @@ export function InvoiceReviewScreen(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   photo: {width: '100%', height: 180, borderRadius: radii.lg, backgroundColor: colors.surface},
+  pdfPlaceholder: {alignItems: 'center', justifyContent: 'center', gap: spacing.xs},
+  scanningCard: {flexDirection: 'row', alignItems: 'center', gap: spacing.sm},
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
