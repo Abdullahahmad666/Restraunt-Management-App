@@ -280,6 +280,18 @@ LOGGING = {
         "console": {"class": "logging.StreamHandler", "formatter": "verbose"},
     },
     "root": {"handlers": ["console"], "level": env("LOG_LEVEL", default="INFO")},
+    "loggers": {
+        # These three are extraordinarily chatty at DEBUG - a single S3 upload
+        # writes a hundred lines about event hooks and signature calculation,
+        # which buries the traceback you turned DEBUG on to read. Pinned at
+        # INFO so LOG_LEVEL=DEBUG stays usable for our own code.
+        "botocore": {"level": "INFO"},
+        "boto3": {"level": "INFO"},
+        "s3transfer": {"level": "INFO"},
+        "urllib3": {"level": "INFO"},
+        # Same story: it logs every locale lookup for every provider on import.
+        "faker": {"level": "INFO"},
+    },
 }
 
 # ---------------------------------------------------------------------------

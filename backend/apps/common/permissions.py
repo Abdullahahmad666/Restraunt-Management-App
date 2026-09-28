@@ -15,14 +15,34 @@ class HasRole(BasePermission):
     Deliberately checks the role on every request rather than caching it on the
     token. A demoted user loses access on their next call, not whenever their
     access token happens to expire.
+
+    Also requires a restaurant. Both /api/v1/staff/ and /api/v1/admin/ are
+    restaurant-scoped by definition, and every write behind them reads
+    request.user.restaurant to decide what it belongs to. Reads already failed
+    closed - RestaurantScopedQuerysetMixin returns nothing for a user without
+    one - but writes read it straight through, so a user in that state got a
+    500 and a NOT NULL violation from the database rather than an answer.
     """
 
     allowed_roles: frozenset[str] = frozenset()
     message = "Your role does not have access to this resource."
+    no_restaurant_message = (
+        "Your account is not linked to a restaurant yet, so there is nothing here to show. "
+        "Ask a manager to add you to one."
+    )
 
     def has_permission(self, request, view):
         user = getattr(request, "user", None)
-        return bool(user and user.is_authenticated and user.role in self.allowed_roles)
+        if not (user and user.is_authenticated and user.role in self.allowed_roles):
+            return False
+
+        if getattr(user, "restaurant_id", None) is None:
+            # Set on the instance so DRF renders this rather than the generic
+            # role message - "your role does not have access" is actively
+            # misleading when the role is fine and the link is what is missing.
+            self.message = self.no_restaurant_message
+            return False
+        return True
 
 
 class IsAdmin(HasRole):
