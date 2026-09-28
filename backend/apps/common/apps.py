@@ -30,6 +30,13 @@ class CommonConfig(AppConfig):
 
         env_file = settings.BASE_DIR / ".env"
 
-        @receiver(autoreload_started, dispatch_uid="common.watch_env_file")
+        # weak=False matters. This receiver is a local function, so once this
+        # method returns nothing holds a reference to it - and Django's
+        # default weak connection lets it be collected and silently
+        # disconnected. It then works or does not depending on when garbage
+        # collection happens to run, which is the worst of both.
+        @receiver(autoreload_started, dispatch_uid="common.watch_env_file", weak=False)
         def _watch(sender, **kwargs):
-            sender.watch_file(env_file)
+            # `extra_files`, not a watch_file() call: BaseReloader exposes the
+            # set directly and has no such method in this version of Django.
+            sender.extra_files.add(env_file)
