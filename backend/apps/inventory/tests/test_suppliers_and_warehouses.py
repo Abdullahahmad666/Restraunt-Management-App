@@ -16,6 +16,7 @@ from PIL import Image
 from apps.common.roles import Role
 from apps.inventory.models import InvoiceScan, Supplier, Warehouse, normalize_supplier_name
 from apps.inventory.services.suppliers import match_supplier
+from apps.inventory.tests.factories import line, scan_result
 from apps.restaurants.models import Restaurant
 
 pytestmark = pytest.mark.django_db
@@ -285,12 +286,8 @@ def test_a_scan_links_itself_to_a_supplier_the_restaurant_already_has(
     supplier = Supplier.objects.create(restaurant=restaurant, name="Fresh Foods Ltd")
     api_client.force_authenticate(user=staff_member)
 
-    scan_result = {
-        "supplier_name": "FRESH FOODS LTD.",
-        "invoice_date": None,
-        "line_items": [{"name": "Milk", "quantity": 1}],
-    }
-    with patch("apps.inventory.services.scanning.extract_invoice_data", return_value=scan_result):
+    result = scan_result(supplier_name="FRESH FOODS LTD.", items=[line("Milk")])
+    with patch("apps.inventory.services.scanning.extract_invoice_data", return_value=result):
         api_client.post(
             reverse("v1:staff:inventory:invoice-scan-list"),
             {"photo": _png_upload()},
@@ -312,12 +309,8 @@ def test_a_scan_of_an_unknown_supplier_leaves_it_for_the_reviewer(
     from apps.jobs.services import queue
 
     api_client.force_authenticate(user=staff_member)
-    scan_result = {
-        "supplier_name": "Someone New Ltd",
-        "invoice_date": None,
-        "line_items": [{"name": "Milk", "quantity": 1}],
-    }
-    with patch("apps.inventory.services.scanning.extract_invoice_data", return_value=scan_result):
+    result = scan_result(supplier_name="Someone New Ltd", items=[line("Milk")])
+    with patch("apps.inventory.services.scanning.extract_invoice_data", return_value=result):
         api_client.post(
             reverse("v1:staff:inventory:invoice-scan-list"),
             {"photo": _png_upload()},
@@ -448,13 +441,8 @@ def test_a_scanned_invoice_is_filed_where_it_says_it_went(api_client, staff_memb
     from apps.jobs.services import queue
 
     api_client.force_authenticate(user=staff_member)
-    scan_result = {
-        "supplier_name": "Fresh Foods Ltd",
-        "invoice_date": None,
-        "delivery_location": "Dry Store",
-        "line_items": [{"name": "Milk", "quantity": 1}],
-    }
-    with patch("apps.inventory.services.scanning.extract_invoice_data", return_value=scan_result):
+    result = scan_result(shipping_address="Dry Store", items=[line("Milk")])
+    with patch("apps.inventory.services.scanning.extract_invoice_data", return_value=result):
         api_client.post(
             reverse("v1:staff:inventory:invoice-scan-list"),
             {"photo": _png_upload()},

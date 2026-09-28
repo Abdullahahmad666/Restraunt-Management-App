@@ -21,6 +21,7 @@ from PIL import Image
 from apps.common.roles import Role
 from apps.inventory.models import InventoryItem, InvoiceScan
 from apps.inventory.services.scanning import PermanentScanError, TransientScanError
+from apps.inventory.tests.factories import line, party, scan_result
 from apps.jobs.models import Job
 from apps.jobs.services import queue
 from apps.restaurants.models import Restaurant
@@ -67,20 +68,13 @@ def chicken(restaurant):
     )
 
 
-SCAN_RESULT = {
-    "supplier_name": "Fresh Foods Ltd",
-    "invoice_date": "2026-09-15",
-    "line_items": [
-        {
-            "name": "Chicken Breast",
-            "quantity": 10,
-            "unit": "kg",
-            "unit_price": 4.5,
-            "line_total": 45,
-        },
-        {"name": "Basmati Rice", "quantity": 5, "unit": "kg", "unit_price": 2, "line_total": 10},
+SCAN_RESULT = scan_result(
+    invoice_date="2026-09-15",
+    items=[
+        line("Chicken Breast", quantity=10, unit_price=4.5, line_total=45, size="kg"),
+        line("Basmati Rice", quantity=5, unit_price=2, line_total=10, size="kg"),
     ],
-}
+)
 
 
 @pytest.fixture(autouse=True)
@@ -193,11 +187,7 @@ def test_rescan_replaces_the_line_items(api_client, staff_member):
     created = _upload(api_client, SCAN_RESULT).data
     assert len(created["line_items"]) == 2
 
-    new_result = {
-        "supplier_name": None,
-        "invoice_date": None,
-        "line_items": [{"name": "Milk", "quantity": 1}],
-    }
+    new_result = scan_result(supplier_name=None, items=[line("Milk")])
     with patch("apps.inventory.services.scanning.extract_invoice_data", return_value=new_result):
         queued = api_client.post(
             reverse("v1:staff:inventory:invoice-scan-rescan", kwargs={"pk": created["id"]})
@@ -289,13 +279,7 @@ def test_confirming_applies_stock_and_cost_from_matched_lines(api_client, staff_
     api_client.force_authenticate(user=staff_member)
     created = _upload(
         api_client,
-        {
-            "supplier_name": "Fresh Foods Ltd",
-            "invoice_date": None,
-            "line_items": [
-                {"name": "Chicken Breast", "quantity": 10, "unit": "kg", "unit_price": 4.5}
-            ],
-        },
+        scan_result(items=[line("Chicken Breast", quantity=10, unit_price=4.5, size="kg")]),
     ).data
     line_id = created["line_items"][0]["id"]
     api_client.patch(
@@ -319,7 +303,7 @@ def test_confirming_twice_is_rejected(api_client, staff_member, chicken):
     api_client.force_authenticate(user=staff_member)
     created = _upload(
         api_client,
-        {"supplier_name": None, "invoice_date": None, "line_items": [{"name": "x", "quantity": 1}]},
+        scan_result(supplier_name=None, items=[line("x")]),
     ).data
     line_id = created["line_items"][0]["id"]
     api_client.patch(
@@ -338,7 +322,7 @@ def test_line_items_cannot_be_edited_after_confirmation(api_client, staff_member
     api_client.force_authenticate(user=staff_member)
     created = _upload(
         api_client,
-        {"supplier_name": None, "invoice_date": None, "line_items": [{"name": "x", "quantity": 1}]},
+        scan_result(supplier_name=None, items=[line("x")]),
     ).data
     line_id = created["line_items"][0]["id"]
     api_client.patch(
@@ -400,10 +384,10 @@ def test_the_invoices_own_figures_are_recorded(api_client, staff_member):
     result = {
         **SCAN_RESULT,
         "invoice_number": "INV-2026-0042",
-        "delivery_location": "Cellar",
-        "stated_subtotal": 55,
-        "stated_tax": 11,
-        "stated_total": 66,
+        "shipping_address": "Cellar",
+        "subtotal": 55,
+        "tax_total": 11,
+        "total": 66,
     }
     with patch("apps.inventory.services.scanning.extract_invoice_data", return_value=result):
         created = api_client.post(
@@ -529,7 +513,7 @@ def test_two_suppliers_numbering_from_one_are_not_each_others_duplicates(api_cli
     second = _upload_bytes(
         api_client,
         distinct_photo(5),
-        {**SCAN_RESULT, "supplier_name": "Dairy Direct", "invoice_number": "1"},
+        {**SCAN_RESULT, "supplier": party("Dairy Direct"), "invoice_number": "1"},
     )
 
     assert first.duplicate_of is None

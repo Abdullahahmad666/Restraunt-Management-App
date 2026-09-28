@@ -19,6 +19,7 @@ from PIL import Image
 from apps.common.roles import Role
 from apps.inventory.models import InventoryItem, InvoiceScan, ItemAlias, normalize_item_text
 from apps.inventory.services import matching
+from apps.inventory.tests.factories import line, scan_result
 from apps.jobs.services import queue
 from apps.restaurants.models import Restaurant
 
@@ -73,11 +74,7 @@ def ketchup(restaurant):
 
 
 def _scan(api_client, names):
-    result = {
-        "supplier_name": "Fresh Foods Ltd",
-        "invoice_date": None,
-        "line_items": [{"name": name, "quantity": 1, "unit_price": 2} for name in names],
-    }
+    result = scan_result(items=[line(name, unit_price=2) for name in names])
     with patch("apps.inventory.services.scanning.extract_invoice_data", return_value=result):
         response = api_client.post(reverse(INVOICES), {"photo": _png()}, format="multipart")
         queue.run_next()

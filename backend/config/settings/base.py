@@ -309,10 +309,13 @@ MAILERS = {
 }
 GOOGLE_CLIENT_ID = env("GOOGLE_CLIENT_ID", default="")
 
-# Used by apps.inventory.services.scanning to read a photographed invoice.
-# Blank in an environment that hasn't set one up yet - that service raises
-# a friendly ValidationError rather than a raw auth failure in that case.
-ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
+# Invoice extraction. Blank in an environment that has not set one up -
+# uploads still save and scanning fails with a friendly error rather than a
+# raw auth failure.
+OPENAI_API_KEY = env("OPENAI_API_KEY", default="")
+# Configurable so a model can be changed, or rolled back, without a deploy of
+# new code - the one setting here most likely to need moving in a hurry.
+OPENAI_MODEL = env("OPENAI_MODEL", default="gpt-6-luna")
 
 # Invoices one restaurant may have read per calendar month. 0 means no
 # ceiling, which is the default: a limit nobody chose would refuse real work

@@ -59,12 +59,16 @@ envVarGroups:
         sync: false
       - key: DEFAULT_FROM_EMAIL
         sync: false
-      # A key from https://console.anthropic.com/ - used by apps.inventory
-      # to read line items off a photographed invoice. Leave unset and
-      # invoice uploads still save, scanning just fails with a friendly
-      # error instead of populating line items.
-      - key: ANTHROPIC_API_KEY
+      # A key from https://platform.openai.com/ - used by apps.inventory to
+      # read line items off a photographed invoice. Leave unset and invoice
+      # uploads still save, scanning just fails with a friendly error instead
+      # of populating line items.
+      - key: OPENAI_API_KEY
         sync: false
+      # Which model reads them. Here rather than in code so it can be changed,
+      # or rolled back, without a deploy.
+      - key: OPENAI_MODEL
+        value: gpt-6-luna
       # Object storage for uploads - invoice photos, fridge photos, profile
       # pictures. Required: without a bucket the app writes to the container
       # filesystem, which Render rebuilds empty on every deploy, and the

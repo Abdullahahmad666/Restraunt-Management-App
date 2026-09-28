@@ -14,7 +14,7 @@ from PIL import Image
 
 from apps.common.roles import Role
 from apps.inventory.models import InvoiceScan
-from apps.inventory.services import scanning
+from apps.inventory.services import extraction, rasterise, scanning
 from apps.restaurants.models import Restaurant
 
 pytestmark = pytest.mark.django_db
@@ -145,18 +145,55 @@ def test_sniffing_falls_back_to_a_credible_declared_type():
 # ---------------------------------------------------------------------------
 
 
-def test_a_pdf_is_sent_as_a_document_not_a_picture_of_one():
-    block = scanning._document_block(file_bytes=PDF_BYTES, content_type="application/pdf")
+def real_pdf(pages=1):
+    """A genuinely valid PDF. Pillow writes one, which beats a hand-rolled
+    byte string that only has to survive a magic-number check."""
+    first, *rest = [Image.new("RGB", (120, 160), "white") for _ in range(pages)]
+    buffer = io.BytesIO()
+    first.save(buffer, format="PDF", save_all=bool(rest), append_images=rest)
+    return buffer.getvalue()
 
-    assert block["type"] == "document"
-    assert block["source"]["media_type"] == "application/pdf"
+
+def test_a_photo_is_sent_as_one_image():
+    parts = extraction._pages_for(file_bytes=png_bytes(), content_type="image/png")
+
+    assert len(parts) == 1
+    assert parts[0]["type"] == "input_image"
+    assert parts[0]["image_url"].startswith("data:image/png;base64,")
 
 
-def test_a_photo_is_sent_as_an_image():
-    block = scanning._document_block(file_bytes=png_bytes(), content_type="image/png")
+def test_a_pdf_is_rendered_to_one_image_per_page():
+    parts = extraction._pages_for(file_bytes=real_pdf(pages=3), content_type="application/pdf")
 
-    assert block["type"] == "image"
-    assert block["source"]["media_type"] == "image/png"
+    assert len(parts) == 3
+    assert all(part["type"] == "input_image" for part in parts)
+    # Rendered, so they arrive as JPEGs rather than as the PDF itself.
+    assert all(part["image_url"].startswith("data:image/jpeg;base64,") for part in parts)
+
+
+def test_pages_are_sent_at_full_detail():
+    """Dot-matrix print, carbon copies and watermarked scans need it - "low"
+    downsamples past the point those are readable."""
+    parts = extraction._pages_for(file_bytes=png_bytes(), content_type="image/png")
+
+    assert parts[0]["detail"] == "high"
+
+
+def test_a_pdf_longer_than_an_invoice_is_refused():
+    """Every page costs money whether it holds line items or terms and
+    conditions - and reading only the first few would drop most of a long
+    document's lines with nothing to show that it had happened."""
+    with pytest.raises(extraction.PermanentScanError) as caught:
+        extraction._pages_for(
+            file_bytes=real_pdf(pages=rasterise.MAX_PAGES + 1), content_type="application/pdf"
+        )
+
+    assert "pages" in str(caught.value)
+
+
+def test_a_corrupt_pdf_fails_with_something_a_person_can_act_on():
+    with pytest.raises(extraction.PermanentScanError):
+        extraction._pages_for(file_bytes=b"%PDF-1.7 not really", content_type="application/pdf")
 
 
 def test_an_unsupported_type_never_reaches_the_api():

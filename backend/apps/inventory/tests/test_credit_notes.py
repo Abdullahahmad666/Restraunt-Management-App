@@ -21,6 +21,7 @@ from PIL import Image
 
 from apps.common.roles import Role
 from apps.inventory.models import InventoryItem, InvoiceScan, StockMovement
+from apps.inventory.tests.factories import line, scan_result
 from apps.jobs.services import queue
 from apps.restaurants.models import Restaurant
 
@@ -74,20 +75,18 @@ def chicken(restaurant):
 
 def scan_and_confirm(api_client, chicken, *, document_type, quantity, unit_price, size):
     """Scan a document, match its one line, and confirm it."""
-    result = {
-        "document_type": document_type,
-        "supplier_name": "Fresh Foods Ltd",
-        "invoice_date": None,
-        "line_items": [
-            {
-                "name": "Chicken",
-                "quantity": quantity,
-                "unit": "kg",
-                "unit_price": unit_price,
-                "line_total": quantity * unit_price,
-            }
+    result = scan_result(
+        document_type=document_type,
+        items=[
+            line(
+                "Chicken",
+                quantity=quantity,
+                unit_price=unit_price,
+                line_total=quantity * unit_price,
+                size="kg",
+            )
         ],
-    }
+    )
     with patch("apps.inventory.services.scanning.extract_invoice_data", return_value=result):
         created = api_client.post(reverse(INVOICES), {"photo": _png(size)}, format="multipart")
         queue.run_next()
@@ -203,15 +202,12 @@ def test_a_negative_line_on_a_normal_invoice_subtracts(api_client, staff_member,
     """Suppliers credit a single line on an otherwise normal invoice. The
     prompt reserves a negative quantity for exactly that."""
     api_client.force_authenticate(user=staff_member)
-    result = {
-        "document_type": "invoice",
-        "supplier_name": "Fresh Foods Ltd",
-        "invoice_date": None,
-        "line_items": [
-            {"name": "Chicken", "quantity": 10, "unit": "kg", "unit_price": 5, "line_total": 50},
-            {"name": "Chicken", "quantity": -2, "unit": "kg", "unit_price": 5, "line_total": -10},
-        ],
-    }
+    result = scan_result(
+        items=[
+            line("Chicken", quantity=10, unit_price=5, line_total=50, size="kg"),
+            line("Chicken", quantity=-2, unit_price=5, line_total=-10, size="kg"),
+        ]
+    )
     with patch("apps.inventory.services.scanning.extract_invoice_data", return_value=result):
         created = api_client.post(reverse(INVOICES), {"photo": _png(9)}, format="multipart")
         queue.run_next()
@@ -229,15 +225,12 @@ def test_the_same_item_on_two_lines_does_not_lose_one_of_them(api_client, staff_
     same starting value. Adding to that in Python and writing it back erases
     whichever line was applied first."""
     api_client.force_authenticate(user=staff_member)
-    result = {
-        "document_type": "invoice",
-        "supplier_name": "Fresh Foods Ltd",
-        "invoice_date": None,
-        "line_items": [
-            {"name": "Chicken", "quantity": 3, "unit": "kg", "unit_price": 5, "line_total": 15},
-            {"name": "Chicken", "quantity": 7, "unit": "kg", "unit_price": 5, "line_total": 35},
-        ],
-    }
+    result = scan_result(
+        items=[
+            line("Chicken", quantity=3, unit_price=5, line_total=15, size="kg"),
+            line("Chicken", quantity=7, unit_price=5, line_total=35, size="kg"),
+        ]
+    )
     with patch("apps.inventory.services.scanning.extract_invoice_data", return_value=result):
         created = api_client.post(reverse(INVOICES), {"photo": _png(11)}, format="multipart")
         queue.run_next()

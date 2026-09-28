@@ -16,6 +16,7 @@ from PIL import Image
 from apps.common.roles import Role
 from apps.inventory.models import InvoiceScan, ScanUsage
 from apps.inventory.services import usage
+from apps.inventory.tests.factories import line, scan_result
 from apps.jobs.services import queue
 from apps.restaurants.models import Restaurant
 
@@ -23,11 +24,7 @@ pytestmark = pytest.mark.django_db
 
 INVOICES = "v1:staff:inventory:invoice-scan-list"
 
-SCAN_RESULT = {
-    "supplier_name": "Fresh Foods Ltd",
-    "invoice_date": None,
-    "line_items": [{"name": "Milk", "quantity": 1}],
-}
+SCAN_RESULT = scan_result(items=[line("Milk")])
 
 
 def _png(size):

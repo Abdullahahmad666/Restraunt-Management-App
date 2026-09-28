@@ -1,122 +1,45 @@
-"""Turning a photographed invoice into structured line items via a
-vision-capable AI model.
+"""Orchestrating one reading of one invoice.
 
-This only ever produces a *proposal*. `populate_invoice_from_scan` writes the
-InvoiceLineItem rows, all still PENDING, and nothing touches actual stock until
-a human reviews, corrects and confirms it (see services.stock.confirm_invoice).
-A misread quantity is an annoyance to fix in review; the same misread silently
-applied to stock and cost figures is a real problem, so this is not trusted
-further than "a first draft".
+The call itself lives in services.extraction; this is what surrounds it -
+recognising a file we have already read, staying inside the month's ceiling,
+mapping what comes back onto our own rows, and recording a failure in a way a
+person can act on.
 
 Runs on the background worker, not in the request - see apps.inventory.jobs.
 """
 
-import base64
-import json
 import logging
+from datetime import datetime
+from decimal import Decimal, InvalidOperation
+from pathlib import PurePosixPath
 
-import anthropic
-from django.conf import settings
 from django.db import transaction
+
+from .extraction import (
+    MAX_FILE_BYTES,
+    PDF_TYPE,
+    SUPPORTED_IMAGE_TYPES,
+    SUPPORTED_TYPES,
+    PermanentScanError,
+    ScanError,
+    TransientScanError,
+    extract_invoice_data,
+)
 
 logger = logging.getLogger(__name__)
 
-MODEL = "claude-opus-5"
-
-PDF_TYPE = "application/pdf"
-SUPPORTED_IMAGE_TYPES = frozenset({"image/jpeg", "image/png", "image/webp", "image/gif"})
-SUPPORTED_TYPES = SUPPORTED_IMAGE_TYPES | {PDF_TYPE}
-
-# The API caps a request at 32MB, and base64 inflates the file by a third on
-# the way there. 20MB of original file leaves room for the encoding and the
-# prompt; a phone photo is a tenth of that and a scanned PDF rarely close.
-MAX_FILE_BYTES = 20 * 1024 * 1024
-
-# Generous because truncation is indistinguishable from a bad read: the model
-# stops mid-JSON, parsing fails, and the user is told to take a clearer photo
-# for a problem no photo fixes. A long delivery note runs to well over a
-# hundred lines.
-MAX_TOKENS = 8000
-
-# We are on a worker, so this can be patient - the queue's own retry is what
-# handles a genuinely stuck call.
-REQUEST_TIMEOUT_SECONDS = 120.0
-
-# The queue retries the whole job with backoff, so the SDK only needs to cover
-# the momentary blips that a retry seconds later would fix.
-MAX_SDK_RETRIES = 2
-
-PROMPT = """You are reading a supplier invoice photographed by restaurant \
-staff for stock-taking. Extract every line item you can read, and the details \
-that identify the invoice itself.
-
-Rules:
-- One entry per line item on the invoice, in the order they appear.
-- "quantity" is required for every line item - if it is genuinely illegible, use 1.
-- Use null for any other field you cannot read, rather than guessing.
-- Do not include tax, subtotal, delivery charge or total rows as line items. \
-Put those in "stated_subtotal", "stated_tax" and "stated_total" instead.
-- "unit" is a short unit of measure if the invoice states one (e.g. "kg", "litre", "box", "each").
-- "invoice_number" is the supplier's own reference for this invoice, however \
-it is labelled - "Invoice No", "Ref", "Document". Not our own order number.
-- "delivery_location" is where the invoice says the goods went, if it names \
-somewhere more specific than the business itself - a site, a branch, a store \
-room. Null when it only repeats the company address.
-- "stated_total" is the invoice's own final amount payable, copied as \
-printed. Do not calculate it.
-"""
-
-# Enforced by the API rather than asked for in the prompt, so a response that
-# parses is guaranteed to have this shape. The old prompt-only version failed
-# open: any stray sentence around the JSON surfaced to staff as "try a clearer
-# photo".
-RESPONSE_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "document_type": {"type": "string", "enum": ["invoice", "credit_note"]},
-        "supplier_name": {"type": ["string", "null"]},
-        "invoice_date": {
-            "type": ["string", "null"],
-            "description": "ISO date, YYYY-MM-DD",
-        },
-        "invoice_number": {"type": ["string", "null"]},
-        "delivery_location": {"type": ["string", "null"]},
-        # Read, never computed. The whole point of holding the invoice's own
-        # figure is to have something independent to check the lines against;
-        # a total derived from the same lines it is meant to verify checks
-        # nothing at all.
-        "stated_subtotal": {"type": ["number", "null"]},
-        "stated_tax": {"type": ["number", "null"]},
-        "stated_total": {"type": ["number", "null"]},
-        "line_items": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "name": {"type": "string"},
-                    "quantity": {"type": "number"},
-                    "unit": {"type": ["string", "null"]},
-                    "unit_price": {"type": ["number", "null"]},
-                    "line_total": {"type": ["number", "null"]},
-                },
-                "required": ["name", "quantity", "unit", "unit_price", "line_total"],
-                "additionalProperties": False,
-            },
-        },
-    },
-    "required": [
-        "document_type",
-        "supplier_name",
-        "invoice_date",
-        "invoice_number",
-        "delivery_location",
-        "stated_subtotal",
-        "stated_tax",
-        "stated_total",
-        "line_items",
-    ],
-    "additionalProperties": False,
-}
+__all__ = [
+    "MAX_FILE_BYTES",
+    "PDF_TYPE",
+    "SUPPORTED_IMAGE_TYPES",
+    "SUPPORTED_TYPES",
+    "PermanentScanError",
+    "ScanError",
+    "TransientScanError",
+    "extract_invoice_data",
+    "populate_invoice_from_scan",
+    "sniff_content_type",
+]
 
 
 #: Leading bytes that identify a file regardless of what the client called it.
@@ -143,116 +66,52 @@ def sniff_content_type(head: bytes, declared: str = "") -> str:
     return declared if declared in SUPPORTED_TYPES else ""
 
 
-class ScanError(Exception):
-    """Base for scan failures. The message is safe to show a user."""
+#: Fallback for rows uploaded before content_type was recorded. Extension is
+#: weaker evidence than the type the client sent, which is why it is only the
+#: fallback, but it is enough to tell a PDF from a photo.
+_TYPE_BY_EXTENSION = {
+    ".pdf": PDF_TYPE,
+    ".png": "image/png",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+}
 
 
-class TransientScanError(ScanError):
-    """Worth another go later - rate limited, overloaded, network trouble.
-
-    Raised out of the job so the queue retries it with backoff.
-    """
+def _type_from_name(name: str) -> str:
+    return _TYPE_BY_EXTENSION.get(PurePosixPath(name or "").suffix.lower(), "image/jpeg")
 
 
-class PermanentScanError(ScanError):
-    """Retrying will not help - no API key, a rejected request, an unreadable
-    photo. Recorded on the invoice so staff can retake or key it in by hand.
-    """
-
-
-def _client() -> anthropic.Anthropic:
-    if not settings.ANTHROPIC_API_KEY:
-        raise PermanentScanError("Invoice scanning is not configured on this server.")
-    return anthropic.Anthropic(
-        api_key=settings.ANTHROPIC_API_KEY,
-        timeout=REQUEST_TIMEOUT_SECONDS,
-        max_retries=MAX_SDK_RETRIES,
-    )
-
-
-def _document_block(*, file_bytes: bytes, content_type: str) -> dict:
-    """The content block carrying the invoice itself.
-
-    A PDF goes as a `document`, not a rasterised page: the API reads PDFs
-    natively, and rendering one to an image first would throw away the crisp
-    text that makes a PDF the easiest case of the three.
-    """
-    encoded = base64.b64encode(file_bytes).decode("ascii")
-
-    if content_type == PDF_TYPE:
-        return {
-            "type": "document",
-            "source": {"type": "base64", "media_type": PDF_TYPE, "data": encoded},
-        }
-    return {
-        "type": "image",
-        "source": {"type": "base64", "media_type": content_type, "data": encoded},
-    }
-
-
-def extract_invoice_data(*, image_bytes: bytes, content_type: str) -> dict:
-    """Read the invoice and return the object described by RESPONSE_SCHEMA.
-
-    Raises TransientScanError for anything worth retrying and
-    PermanentScanError for anything not.
-    """
-    content_type = content_type or "image/jpeg"
-    if content_type not in SUPPORTED_TYPES:
-        raise PermanentScanError(
-            "That file type cannot be read - upload a photo (JPEG, PNG or WebP) or a PDF."
-        )
-    if len(image_bytes) > MAX_FILE_BYTES:
-        raise PermanentScanError(
-            "That file is too large to read - upload one under "
-            f"{MAX_FILE_BYTES // (1024 * 1024)}MB."
-        )
-
-    client = _client()
-
+def _safe_decimal(value, default=None):
+    if value is None:
+        return default if default is None else Decimal(str(default))
     try:
-        response = client.messages.create(
-            model=MODEL,
-            max_tokens=MAX_TOKENS,
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        _document_block(file_bytes=image_bytes, content_type=content_type),
-                        {"type": "text", "text": PROMPT},
-                    ],
-                }
-            ],
-            output_config={"format": {"type": "json_schema", "schema": RESPONSE_SCHEMA}},
-        )
-    except (anthropic.RateLimitError, anthropic.InternalServerError) as exc:
-        raise TransientScanError(
-            "The invoice scanning service is busy - this will be retried automatically."
-        ) from exc
-    except (anthropic.APIConnectionError, anthropic.APITimeoutError) as exc:
-        raise TransientScanError(
-            "Could not reach the invoice scanning service - this will be retried automatically."
-        ) from exc
-    except anthropic.APIStatusError as exc:
-        # 400/401/403/413 and friends: the request itself is wrong, and sending
-        # it again unchanged produces the same answer.
-        logger.exception("Invoice scan rejected by the API")
-        raise PermanentScanError(
-            "Could not read that invoice - the scanning service rejected it."
-        ) from exc
+        return Decimal(str(value))
+    except (InvalidOperation, ValueError, TypeError):
+        return default if default is None else Decimal(str(default))
 
-    if response.stop_reason == "refusal":
-        raise PermanentScanError("Could not read that invoice - the scan was declined.")
 
+def _safe_date(value):
+    if not value:
+        return None
     try:
-        text = next(block.text for block in response.content if block.type == "text")
-        data = json.loads(text)
-    except (StopIteration, json.JSONDecodeError, TypeError, ValueError) as exc:
-        raise PermanentScanError("Could not read that invoice - try a clearer photo.") from exc
+        return datetime.strptime(str(value), "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        return None
 
-    if not isinstance(data, dict) or not isinstance(data.get("line_items"), list):
-        raise PermanentScanError("Could not read that invoice - try a clearer photo.")
 
-    return data
+def _party_name(data: dict, key: str) -> str:
+    """The supplier's or customer's name, from the nested object it arrives in.
+
+    Defensive about the shape because getting this wrong is not a crash but a
+    silent swap: record the customer as the supplier and every invoice files
+    itself under the restaurant's own name.
+    """
+    party = data.get(key)
+    if not isinstance(party, dict):
+        return ""
+    return str(party.get("name") or "")
 
 
 def populate_invoice_from_scan(invoice) -> None:
@@ -329,8 +188,11 @@ def populate_invoice_from_scan(invoice) -> None:
         invoice.save(update_fields=["scan_state", "scan_error", "updated_at"])
         return
 
-    lines = [line for line in (data.get("line_items") or []) if isinstance(line, dict)]
-    raw_names = [str(line.get("name") or "Unnamed item")[:255] for line in lines]
+    lines = [line for line in (data.get("items") or []) if isinstance(line, dict)]
+    # The description is what a person reads and what an alias is learned
+    # against, so a line with none is still kept rather than dropped - a
+    # nameless row is visible and gets corrected, a missing one is not.
+    raw_names = [str(line.get("description") or "Unnamed item")[:255] for line in lines]
     # Anything this restaurant has bought before attaches itself, so a reviewer
     # only handles what is genuinely new. Resolved in one go rather than per
     # line - see services.matching.
@@ -345,7 +207,11 @@ def populate_invoice_from_scan(invoice) -> None:
                     raw_name=raw_name,
                     matched_item=known.get(raw_name),
                     quantity=_safe_decimal(line.get("quantity"), default=1),
-                    unit=str(line.get("unit") or "")[:32],
+                    # The pack size as printed - "330ML", "25KG". Not the same
+                    # thing as the inventory item's own unit, which is what
+                    # the restaurant counts in; matching the two is the
+                    # reviewer's job.
+                    unit=str(line.get("size") or "")[:32],
                     unit_price=_safe_decimal(line.get("unit_price")),
                     line_total=_safe_decimal(line.get("line_total")),
                     sort_order=index,
@@ -358,13 +224,16 @@ def populate_invoice_from_scan(invoice) -> None:
             if str(data.get("document_type") or "").lower() == "credit_note"
             else InvoiceScan.DocumentType.INVOICE
         )
-        invoice.supplier_name = str(data.get("supplier_name") or "")[:200]
+        invoice.supplier_name = _party_name(data, "supplier")[:200]
         invoice.invoice_date = _safe_date(data.get("invoice_date"))
         invoice.invoice_number = str(data.get("invoice_number") or "")[:100]
-        invoice.delivery_location = str(data.get("delivery_location") or "")[:200]
-        invoice.stated_subtotal = _safe_decimal(data.get("stated_subtotal"))
-        invoice.stated_tax = _safe_decimal(data.get("stated_tax"))
-        invoice.stated_total = _safe_decimal(data.get("stated_total"))
+        # The delivery address, which is where a storage area is resolved from.
+        # Often the same as the billing address, in which case it names the
+        # business and resolves to nothing - which is the right outcome.
+        invoice.delivery_location = str(data.get("shipping_address") or "")[:200]
+        invoice.stated_subtotal = _safe_decimal(data.get("subtotal"))
+        invoice.stated_tax = _safe_decimal(data.get("tax_total"))
+        invoice.stated_total = _safe_decimal(data.get("total"))
         # Link to a supplier the restaurant already has, and only that - see
         # services.suppliers for why a scan never creates one. A blank here is
         # a question for the reviewer, not a failure.
