@@ -102,7 +102,9 @@ def test_direct_upload_is_not_offered_without_a_bucket(api_client, staff_member,
     response = _request_url(api_client)
 
     assert response.status_code == 400
-    assert "not available" in str(response.data).lower()
+    # Plain language, not "on this server": this can reach a screen someone is
+    # holding over a delivery note.
+    assert "unavailable" in str(response.data).lower()
 
 
 # ---------------------------------------------------------------------------

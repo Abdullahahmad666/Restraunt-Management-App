@@ -169,8 +169,8 @@ def populate_invoice_from_scan(invoice) -> None:
     if usage.cap_reached(restaurant_id=invoice.restaurant_id):
         invoice.scan_state = InvoiceScan.ScanState.FAILED
         invoice.scan_error = (
-            "This restaurant has reached its invoice scanning limit for the month. "
-            "The invoice is saved - add its items by hand, or ask an admin to raise the limit."
+            "You have reached this month's limit for reading invoices. The invoice is "
+            "saved - add its items by hand, or ask a manager to raise the limit."
         )
         invoice.save(update_fields=["file_hash", "scan_state", "scan_error", "updated_at"])
         return

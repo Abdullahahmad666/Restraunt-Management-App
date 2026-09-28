@@ -328,6 +328,10 @@ OPENAI_API_KEY = env("OPENAI_API_KEY", default="")
 # Configurable so a model can be changed, or rolled back, without a deploy of
 # new code - the one setting here most likely to need moving in a hurry.
 OPENAI_MODEL = env("OPENAI_MODEL", default="gpt-6-luna")
+# How long one read may take. The worker runs jobs one at a time, so a call
+# that hangs holds up every invoice behind it; giving up and letting the queue
+# retry recovers just as well and fails where someone can see it.
+OPENAI_TIMEOUT_SECONDS = env.int("OPENAI_TIMEOUT_SECONDS", default=60)
 
 # Invoices one restaurant may have read per calendar month. 0 means no
 # ceiling, which is the default: a limit nobody chose would refuse real work

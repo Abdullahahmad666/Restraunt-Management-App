@@ -6,6 +6,7 @@ Mounted at /api/v1/staff/inventory/.
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.files.storage import default_storage
 from django.db.models import DecimalField, Sum, Value
 from django.db.models.functions import Coalesce
 from rest_framework import mixins, serializers, viewsets
@@ -255,9 +256,8 @@ class StaffInvoiceScanViewSet(
         """
         if usage.cap_reached(restaurant_id=invoice.restaurant_id):
             raise DRFValidationError(
-                "This restaurant has reached its invoice scanning limit for the month. "
-                "The invoice is saved - add its items by hand, or ask an admin to raise "
-                "the limit."
+                "You have reached this month's limit for reading invoices. The invoice is "
+                "saved - add its items by hand, or ask a manager to raise the limit."
             )
 
         invoice.scan_state = models.InvoiceScan.ScanState.QUEUED
@@ -268,14 +268,32 @@ class StaffInvoiceScanViewSet(
     def create(self, request, *args, **kwargs):
         input_serializer = UploadInvoiceSerializer(data=request.data)
         input_serializer.is_valid(raise_exception=True)
+        content_type = input_serializer.validated_data["content_type"]
 
-        invoice = models.InvoiceScan.objects.create(
-            restaurant=request.user.restaurant,
-            photo=input_serializer.validated_data["photo"],
-            content_type=input_serializer.validated_data["content_type"],
-            uploaded_by=request.user,
+        # Stored under a generated key rather than the name the phone sent.
+        # Passing the upload to the model used the client's filename, which is
+        # guessable and carries whatever the file happened to be called - the
+        # first real upload landed as the customer's company name. The
+        # pre-signed path already generated keys; this makes the two agree.
+        key = default_storage.save(
+            uploads.build_key(content_type), input_serializer.validated_data["photo"]
         )
-        self._queue_scan(invoice)
+
+        try:
+            invoice = models.InvoiceScan.objects.create(
+                restaurant=request.user.restaurant,
+                photo=key,
+                content_type=content_type,
+                uploaded_by=request.user,
+            )
+            self._queue_scan(invoice)
+        except Exception:
+            # The bytes are already in the bucket by this point, and the
+            # request's transaction cannot take them back out - a rollback
+            # undoes the row and leaves the object behind, paid for and
+            # referenced by nothing.
+            default_storage.delete(key)
+            raise
 
         # 202, not 201: the invoice exists, but the line items the caller
         # actually wants are not there yet.
@@ -290,9 +308,12 @@ class StaffInvoiceScanViewSet(
         nothing, so until then this invoice is only a reservation.
         """
         if not uploads.direct_upload_available():
+            # The client is meant to fall back to posting the file itself, so
+            # this is really an API-contract answer - but it can reach a
+            # screen, and "on this server" is not something to put in front of
+            # someone holding a delivery note.
             raise DRFValidationError(
-                "Direct upload is not available on this server - post the file to this "
-                "endpoint instead."
+                "Uploading is unavailable at the moment - please try again later."
             )
 
         input_serializer = UploadUrlSerializer(data=request.data)
@@ -337,7 +358,7 @@ class StaffInvoiceScanViewSet(
             _, content_type = uploads.verify_upload(key=key)
         except uploads.UploadNotFound:
             raise DRFValidationError(
-                "That file has not arrived yet - finish uploading it and try again."
+                "That file has not finished uploading yet - please try again."
             ) from None
         except uploads.UploadRejected as exc:
             # The object is junk, so drop it from the bucket - but keep the row

@@ -33,13 +33,26 @@ SUPPORTED_TYPES = SUPPORTED_IMAGE_TYPES | {PDF_TYPE}
 #: tenth of this and a scanned delivery note rarely close.
 MAX_FILE_BYTES = 20 * 1024 * 1024
 
-#: Patient because this runs on a worker; the queue's own retry handles a call
-#: that genuinely hangs.
-REQUEST_TIMEOUT_SECONDS = 180.0
+
+def _timeout() -> float:
+    """How long to wait on one call.
+
+    Short on purpose. The worker runs jobs one at a time, so a call that hangs
+    holds up every invoice behind it - three minutes of waiting, times three
+    attempts, is ten minutes where nothing else is read. Giving up quickly and
+    letting the queue retry with backoff recovers from a blip just as well and
+    fails visibly instead of silently.
+
+    Configurable because the right number depends on the model: a reasoning
+    model on a multi-page delivery note genuinely takes longer than a fast one
+    on a receipt, and that should not need a deploy to change.
+    """
+    return float(getattr(settings, "OPENAI_TIMEOUT_SECONDS", 60) or 60)
+
 
 #: Covers the momentary blip a retry seconds later would fix. Anything longer
 #: is the queue's job, with its own backoff.
-MAX_SDK_RETRIES = 2
+MAX_SDK_RETRIES = 1
 
 
 PROMPT = """Extract structured data from the provided invoice image or PDF.
@@ -172,6 +185,23 @@ RESPONSE_SCHEMA = {
 }
 
 
+#: What staff see when the cause is ours rather than theirs - no key, no
+#: credit, a rejected request. They cannot act on any of it, and naming
+#: servers, accounts or status codes in an app used on a kitchen counter only
+#: turns "this did not work" into "this did not work and I am worried". The
+#: detail goes to the log, where somebody can use it.
+UNAVAILABLE = (
+    "Invoice reading is unavailable at the moment. The invoice has been saved - "
+    "add its items by hand, or try again later."
+)
+
+#: What they see when the picture is the problem, which they *can* act on.
+UNREADABLE = "Could not read that invoice - try a clearer photo, or add the items by hand."
+
+#: What they see when it is worth waiting.
+BUSY = "Could not read that invoice just now - it will try again automatically."
+
+
 class ScanError(Exception):
     """Base for scan failures. The message is safe to show a user."""
 
@@ -185,12 +215,42 @@ class PermanentScanError(ScanError):
     photo, a page that is not an invoice at all."""
 
 
+#: A 429 that will never clear on its own. The provider reports the family in
+#: `type` and the specific cause in `code`, and both spellings have been seen,
+#: so both are matched.
+_OUT_OF_CREDIT = frozenset({"insufficient_quota", "credit_balance_exhausted"})
+
+
+def _is_out_of_credit(exc) -> bool:
+    """Whether a 429 means "no money" rather than "too fast".
+
+    Defensive about the shape: this only chooses between two ways of handling
+    an error that has already happened, and guessing wrong should fall back to
+    the ordinary path rather than raise something new from inside an error
+    handler.
+    """
+    markers = set()
+    body = getattr(exc, "body", None)
+    if isinstance(body, dict):
+        for key in ("code", "type"):
+            if body.get(key):
+                markers.add(str(body[key]))
+        error = body.get("error")
+        if isinstance(error, dict):
+            for key in ("code", "type"):
+                if error.get(key):
+                    markers.add(str(error[key]))
+    if getattr(exc, "code", None):
+        markers.add(str(exc.code))
+    return bool(markers & _OUT_OF_CREDIT)
+
+
 def _client() -> openai.OpenAI:
     if not settings.OPENAI_API_KEY:
-        raise PermanentScanError("Invoice scanning is not configured on this server.")
+        raise PermanentScanError(UNAVAILABLE)
     return openai.OpenAI(
         api_key=settings.OPENAI_API_KEY,
-        timeout=REQUEST_TIMEOUT_SECONDS,
+        timeout=_timeout(),
         max_retries=MAX_SDK_RETRIES,
     )
 
@@ -263,21 +323,53 @@ def extract_invoice_data(*, image_bytes: bytes, content_type: str) -> dict:
             # deliberately rather than by leaving a default on.
             store=False,
         )
-    except (openai.RateLimitError, openai.InternalServerError) as exc:
-        raise TransientScanError(
-            "The invoice scanning service is busy - this will be retried automatically."
-        ) from exc
+    except openai.RateLimitError as exc:
+        # A 429 means two very different things. Too many requests per minute
+        # clears on its own and is worth retrying; no credit on the account
+        # never does, and retrying it three times over seven minutes only
+        # delays telling someone the thing they need to hear.
+        if _is_out_of_credit(exc):
+            # Loud in the log, because this needs an operator and nobody else
+            # can do anything about it.
+            logger.error(
+                "INVOICE SCANNING IS OUT OF CREDIT - no invoice will be read until the "
+                "account is topped up (model=%s)",
+                settings.OPENAI_MODEL,
+            )
+            raise PermanentScanError(UNAVAILABLE) from exc
+
+        logger.warning(
+            "Invoice scan will be retried: %s (model=%s)", type(exc).__name__, settings.OPENAI_MODEL
+        )
+        raise TransientScanError(BUSY) from exc
+    except openai.InternalServerError as exc:
+        logger.warning(
+            "Invoice scan will be retried: %s (model=%s)", type(exc).__name__, settings.OPENAI_MODEL
+        )
+        raise TransientScanError(BUSY) from exc
     except (openai.APIConnectionError, openai.APITimeoutError) as exc:
-        raise TransientScanError(
-            "Could not reach the invoice scanning service - this will be retried automatically."
-        ) from exc
+        # Logged rather than swallowed. Without this, a call that never came
+        # back looked exactly like a bad key or a model name that does not
+        # exist, and there was nothing anywhere saying which.
+        logger.warning(
+            "Invoice scan did not complete within %ss: %s (model=%s)",
+            _timeout(),
+            type(exc).__name__,
+            settings.OPENAI_MODEL,
+        )
+        raise TransientScanError(BUSY) from exc
     except openai.APIStatusError as exc:
-        # 400/401/403/413: the request itself is wrong, and sending it again
-        # unchanged produces the same answer.
-        logger.exception("Invoice scan rejected by the API")
-        raise PermanentScanError(
-            "Could not read that invoice - the scanning service rejected it."
-        ) from exc
+        # 400/401/403/404/413: the request itself is wrong, and sending it
+        # again unchanged produces the same answer. The status and the model
+        # are the two things worth knowing, and a wrong model name shows up
+        # here as a 404.
+        logger.error(
+            "Invoice scan rejected: HTTP %s from the API (model=%s) - %s",
+            getattr(exc, "status_code", "?"),
+            settings.OPENAI_MODEL,
+            getattr(exc, "message", str(exc))[:400],
+        )
+        raise PermanentScanError(UNAVAILABLE) from exc
 
     return _parse(response)
 
@@ -285,12 +377,12 @@ def extract_invoice_data(*, image_bytes: bytes, content_type: str) -> dict:
 def _parse(response) -> dict:
     text = getattr(response, "output_text", None)
     if not text:
-        raise PermanentScanError("Could not read that invoice - try a clearer photo.")
+        raise PermanentScanError(UNREADABLE)
 
     try:
         data = json.loads(text)
     except (json.JSONDecodeError, TypeError, ValueError) as exc:
-        raise PermanentScanError("Could not read that invoice - try a clearer photo.") from exc
+        raise PermanentScanError(UNREADABLE) from exc
 
     if not isinstance(data, dict):
         raise PermanentScanError("Could not read that invoice - try a clearer photo.")

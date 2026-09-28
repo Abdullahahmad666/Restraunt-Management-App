@@ -69,6 +69,10 @@ envVarGroups:
       # or rolled back, without a deploy.
       - key: OPENAI_MODEL
         value: gpt-6-luna
+      # How long one read may wait before giving up. The worker runs jobs one
+      # at a time, so a call that hangs holds up every invoice behind it.
+      - key: OPENAI_TIMEOUT_SECONDS
+        value: "60"
       # Object storage for uploads - invoice photos, fridge photos, profile
       # pictures. Required: without a bucket the app writes to the container
       # filesystem, which Render rebuilds empty on every deploy, and the
