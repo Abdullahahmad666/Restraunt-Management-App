@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {Pressable, StyleSheet, Text, View} from 'react-native';
+import {ActivityIndicator, Pressable, StyleSheet, Text, View} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {Ionicons} from '@expo/vector-icons';
@@ -31,15 +31,72 @@ import {
 import type {InventoryItem, StockMovementReason} from '../../../features/inventory/types';
 import type {InventoryStackParamList} from '../../../navigation/types';
 import {useAuthStore} from '../../../store/authStore';
-import {colors, spacing} from '../../../theme';
+import {colors, radii, spacing} from '../../../theme';
 import {isAdmin} from '../../../types/roles';
 
 type Nav = NativeStackNavigationProp<InventoryStackParamList>;
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
+
+/**
+ * The three ways an invoice gets in.
+ *
+ * Peers, drawn the same. They used to be one filled button and two outlined
+ * ones, which in this palette is how a *chosen* thing looks - so "Take photo"
+ * read as already selected, and tapping either of the others left it looking
+ * that way.
+ */
+const SCAN_OPTIONS: {source: CaptureSource; label: string; icon: IconName}[] = [
+  {source: 'camera', label: 'Take photo', icon: 'camera-outline'},
+  {source: 'library', label: 'From gallery', icon: 'images-outline'},
+  {source: 'document', label: 'Upload a PDF', icon: 'document-text-outline'},
+];
 
 const QUICK_REASONS: (SegmentedOption<StockMovementReason> & {sign: 1 | -1})[] = [
   {value: 'DELIVERY', label: 'Add stock', icon: 'arrow-down-circle-outline', sign: 1},
   {value: 'WASTE', label: 'Remove (waste)', icon: 'trash-outline', sign: -1},
 ];
+
+/**
+ * One of the three, with the press dip every other control has and an amber
+ * outline for as long as its upload is running.
+ *
+ * Which one was tapped is the whole point: a picker takes a moment to open,
+ * and a file takes longer than that to upload, so without it the screen sits
+ * there looking like the tap missed. The other two go quiet meanwhile rather
+ * than all three spinning at once, which is what they used to do - every
+ * button shared one `loading` flag, so the app appeared to be doing three
+ * things when it was doing one.
+ */
+function ScanOption({
+  option,
+  busy,
+  disabled,
+  onPress,
+}: {
+  option: (typeof SCAN_OPTIONS)[number];
+  busy: boolean;
+  disabled: boolean;
+  onPress: () => void;
+}): React.JSX.Element {
+  return (
+    <PressableScale
+      onPress={onPress}
+      disabled={busy || disabled}
+      accessibilityRole="button"
+      accessibilityState={{busy, disabled: busy || disabled}}
+      accessibilityLabel={option.label}
+      style={[styles.scanOption, busy && styles.scanOptionBusy, disabled && styles.scanOptionOff]}>
+      {busy ? (
+        <ActivityIndicator color={colors.primary} />
+      ) : (
+        <Ionicons name={option.icon} size={22} color={colors.primary} />
+      )}
+      <Text style={styles.scanOptionLabel} numberOfLines={2}>
+        {option.label}
+      </Text>
+    </PressableScale>
+  );
+}
 
 function ItemRow({item}: {item: InventoryItem}): React.JSX.Element {
   const adjust = useAdjustStock();
@@ -119,10 +176,13 @@ export function InventoryHubScreen(): React.JSX.Element {
   const pending = useInvoiceScans('PENDING');
   const uploadInvoice = useUploadInvoice();
   const [error, setError] = useState<string | null>(null);
+  // Which of the three is working, rather than merely that something is.
+  const [busySource, setBusySource] = useState<CaptureSource | null>(null);
   const canManageItems = useAuthStore(state => Boolean(state.user && isAdmin(state.user.role)));
 
   async function onScan(source: CaptureSource) {
     setError(null);
+    setBusySource(source);
     try {
       const file = await captureInvoice(source);
       if (!file) {
@@ -137,6 +197,11 @@ export function InventoryHubScreen(): React.JSX.Element {
         return;
       }
       setError(describeApiError(err, 'Could not upload that invoice.'));
+    } finally {
+      // Runs on the way out too. The screen stays mounted under the review
+      // screen we navigate to, and coming back to three dead buttons would be
+      // worse than the flicker of clearing it.
+      setBusySource(null);
     }
   }
 
@@ -165,22 +230,19 @@ export function InventoryHubScreen(): React.JSX.Element {
         pending.refetch();
       }}
       refreshing={items.isRefetching || pending.isRefetching}>
-      <View style={styles.headerRow}>
-        <Text style={styles.heading}>Inventory</Text>
-        {canManageItems ? (
-          <View style={styles.headerLinks}>
-            <Pressable onPress={() => navigation.navigate('PurchaseHistory')} hitSlop={8}>
-              <Text style={styles.manageLink}>Purchases</Text>
-            </Pressable>
-            <Pressable onPress={() => navigation.navigate('ManageSources')} hitSlop={8}>
-              <Text style={styles.manageLink}>Suppliers</Text>
-            </Pressable>
-            <Pressable onPress={() => navigation.navigate('ManageInventoryItems')} hitSlop={8}>
-              <Text style={styles.manageLink}>Items</Text>
-            </Pressable>
-          </View>
-        ) : null}
-      </View>
+      {canManageItems ? (
+        <View style={styles.headerLinks}>
+          <Pressable onPress={() => navigation.navigate('PurchaseHistory')} hitSlop={8}>
+            <Text style={styles.manageLink}>Purchases</Text>
+          </Pressable>
+          <Pressable onPress={() => navigation.navigate('ManageSources')} hitSlop={8}>
+            <Text style={styles.manageLink}>Suppliers</Text>
+          </Pressable>
+          <Pressable onPress={() => navigation.navigate('ManageInventoryItems')} hitSlop={8}>
+            <Text style={styles.manageLink}>Items</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       <Card style={styles.scanCard}>
         <Text style={styles.hint}>
@@ -189,28 +251,16 @@ export function InventoryHubScreen(): React.JSX.Element {
         </Text>
         {error ? <Text style={styles.error}>{error}</Text> : null}
         <View style={styles.buttonRow}>
-          <View style={styles.scanButton}>
-            <Button
-              title="Take photo"
-              onPress={() => onScan('camera')}
-              loading={uploadInvoice.isPending}
+          {SCAN_OPTIONS.map(option => (
+            <ScanOption
+              key={option.source}
+              option={option}
+              busy={busySource === option.source}
+              disabled={busySource !== null && busySource !== option.source}
+              onPress={() => onScan(option.source)}
             />
-          </View>
-          <View style={styles.scanButton}>
-            <Button
-              title="Choose photo"
-              variant="secondary"
-              onPress={() => onScan('library')}
-              loading={uploadInvoice.isPending}
-            />
-          </View>
+          ))}
         </View>
-        <Button
-          title="Upload a PDF"
-          variant="secondary"
-          onPress={() => onScan('document')}
-          loading={uploadInvoice.isPending}
-        />
       </Card>
 
       {pendingList.length > 0 ? (
@@ -258,17 +308,32 @@ export function InventoryHubScreen(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   headerLinks: {flexDirection: 'row', gap: spacing.md},
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  heading: {fontSize: 20, fontWeight: '700', color: colors.text},
   manageLink: {fontSize: 13, color: colors.primary, fontWeight: '600'},
   sectionTitle: {fontSize: 16, fontWeight: '700', color: colors.text, marginTop: spacing.sm},
-  buttonRow: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm},
+  buttonRow: {flexDirection: 'row', gap: spacing.sm},
+  scanOption: {
+    // Equal thirds: three of anything in a row on a narrow phone only works
+    // if none of them is wider than the others.
+    flex: 1,
+    minHeight: 88,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    padding: spacing.sm,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceRaised,
+  },
+  scanOptionBusy: {borderColor: colors.primary},
+  scanOptionOff: {opacity: 0.4},
+  scanOptionLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text,
+    textAlign: 'center',
+  },
   scanCard: {gap: spacing.sm},
-  scanButton: {flexGrow: 1, flexBasis: 120},
   row: {flexDirection: 'row', alignItems: 'center', gap: spacing.sm},
   rowText: {flex: 1},
   name: {fontSize: 15, fontWeight: '600', color: colors.text},
