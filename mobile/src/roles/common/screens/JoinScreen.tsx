@@ -114,7 +114,7 @@ export function JoinScreen(): React.JSX.Element {
       // submitting regardless - this screen stays mounted underneath and
       // would otherwise show a stuck spinner if someone navigates back.
       setSubmitting(false);
-      navigation.navigate('VerifyEmail', {email: trimmedEmail, password});
+      navigation.navigate('VerifyEmail', {email: trimmedEmail, password, who: 'staff'});
     } catch (err) {
       const perField = fieldErrors(err);
       setFields(perField);
@@ -157,7 +157,7 @@ export function JoinScreen(): React.JSX.Element {
           <PrimaryButton
             label="Back to sign in"
             variant="secondary"
-            onPress={() => navigation.navigate('Login')}
+            onPress={() => navigation.navigate('Login', {who: 'staff'})}
           />
         </View>
       </AuthScreen>
@@ -189,7 +189,7 @@ export function JoinScreen(): React.JSX.Element {
           <PrimaryButton
             label="Back to sign in"
             variant="secondary"
-            onPress={() => navigation.navigate('Login')}
+            onPress={() => navigation.navigate('Login', {who: 'staff'})}
           />
         </View>
       </AuthScreen>

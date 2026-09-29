@@ -9,7 +9,7 @@ import {PrimaryButton} from '../../../components/PrimaryButton';
 import {SegmentedToggle, type SegmentedOption} from '../../../components/SegmentedToggle';
 import {TypeOn} from '../../../components/TypeOn';
 import {colors, spacing, typography} from '../../../theme';
-import type {AuthStackParamList} from '../../../navigation/types';
+import type {Audience, AuthStackParamList} from '../../../navigation/types';
 
 type Nav = NativeStackNavigationProp<AuthStackParamList, 'Welcome'>;
 
@@ -17,9 +17,7 @@ type Nav = NativeStackNavigationProp<AuthStackParamList, 'Welcome'>;
 // continuous moment rather than a splash-then-app jump.
 const logo = require('../../../../assets/images/splash-icon.png');
 
-type Who = 'manager' | 'staff';
-
-const WHO: SegmentedOption<Who>[] = [
+const WHO: SegmentedOption<Audience>[] = [
   {value: 'manager', label: 'Manager', icon: 'briefcase-outline'},
   {value: 'staff', label: 'Staff', icon: 'people-outline'},
 ];
@@ -58,7 +56,7 @@ const SECOND_LINE_AT = FIRST_LINE_AT + PROMISE.length * SPEED + 180;
 export function WelcomeScreen(): React.JSX.Element {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
-  const [who, setWho] = useState<Who>('manager');
+  const [who, setWho] = useState<Audience>('manager');
 
   return (
     <View
@@ -120,7 +118,7 @@ export function WelcomeScreen(): React.JSX.Element {
           <PrimaryButton
             label="Sign in"
             variant="secondary"
-            onPress={() => navigation.navigate('Login')}
+            onPress={() => navigation.navigate('Login', {who})}
           />
         </View>
 

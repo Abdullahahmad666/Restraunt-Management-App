@@ -113,7 +113,7 @@ export function SetupTakeawayScreen(): React.JSX.Element {
       // submitting regardless - this screen stays mounted underneath and
       // would otherwise show a stuck spinner if someone navigates back.
       setSubmitting(false);
-      navigation.navigate('VerifyEmail', {email: trimmedEmail, password});
+      navigation.navigate('VerifyEmail', {email: trimmedEmail, password, who: 'manager'});
     } catch (err) {
       const perField = fieldErrors(err);
       setFields(perField);
@@ -220,7 +220,10 @@ export function SetupTakeawayScreen(): React.JSX.Element {
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>Already have an account?</Text>
-        <Pressable onPress={() => navigation.navigate('Login')} disabled={submitting} hitSlop={8}>
+        <Pressable
+          onPress={() => navigation.navigate('Login', {who: 'manager'})}
+          disabled={submitting}
+          hitSlop={8}>
           <Text style={styles.link}>Sign in</Text>
         </Pressable>
       </View>

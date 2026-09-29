@@ -105,7 +105,7 @@ export function VerifyEmailScreen(): React.JSX.Element {
         <PrimaryButton
           label="Back to sign in"
           variant="secondary"
-          onPress={() => navigation.navigate('Login')}
+          onPress={() => navigation.navigate('Login', {who: params.who})}
           disabled={submitting}
         />
       </View>
