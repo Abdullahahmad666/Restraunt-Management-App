@@ -1,18 +1,27 @@
 import React from 'react';
-import {ActivityIndicator, Pressable, StyleSheet, Text} from 'react-native';
 
-import {colors, radii, spacing} from '../theme';
-
-type Variant = 'primary' | 'secondary' | 'danger';
+import {PrimaryButton, type ButtonVariant} from './PrimaryButton';
 
 type ButtonProps = {
   title: string;
   onPress: () => void;
-  variant?: Variant;
+  variant?: ButtonVariant;
   loading?: boolean;
   disabled?: boolean;
 };
 
+/**
+ * PrimaryButton under a second name, kept because two dozen screens import it.
+ *
+ * It used to be a separate implementation, and the two drifted: this one filled
+ * `danger` solid red where the other outlined it, and tinted `secondary` amber
+ * where the other used a neutral hairline. Two buttons that looked different
+ * for no reason a user could name, picked between by whichever import the
+ * screen happened to have.
+ *
+ * New screens should import PrimaryButton directly; this exists so that is a
+ * tidy-up rather than a prerequisite.
+ */
 export function Button({
   title,
   onPress,
@@ -20,45 +29,13 @@ export function Button({
   loading = false,
   disabled = false,
 }: ButtonProps): React.JSX.Element {
-  const isDisabled = disabled || loading;
-
   return (
-    <Pressable
+    <PrimaryButton
+      label={title}
       onPress={onPress}
-      disabled={isDisabled}
-      style={({pressed}) => [
-        styles.base,
-        variantStyles[variant],
-        isDisabled && styles.disabled,
-        pressed && !isDisabled && styles.pressed,
-      ]}>
-      {loading ? (
-        <ActivityIndicator color={variant === 'secondary' ? colors.primary : '#FFFFFF'} />
-      ) : (
-        <Text style={[styles.label, variant === 'secondary' && styles.labelSecondary]}>
-          {title}
-        </Text>
-      )}
-    </Pressable>
+      variant={variant}
+      loading={loading}
+      disabled={disabled}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  base: {
-    borderRadius: radii.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pressed: {opacity: 0.85},
-  disabled: {opacity: 0.5},
-  label: {color: '#FFFFFF', fontSize: 16, fontWeight: '600'},
-  labelSecondary: {color: colors.primary},
-});
-
-const variantStyles = StyleSheet.create({
-  primary: {backgroundColor: colors.primary},
-  secondary: {backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.primary},
-  danger: {backgroundColor: colors.danger},
-});
