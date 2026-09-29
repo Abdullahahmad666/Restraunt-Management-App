@@ -71,7 +71,12 @@ export function InviteStaffScreen(): React.JSX.Element {
     return <LoadingView />;
   }
 
-  const shareMessage = `You're invited to join the team on Invisiko. Install the app, tap "Join a team" and enter this code: ${code}`;
+  // Walks them through what they will actually see. "Join a team" was a
+  // button that has never existed on the welcome screen; someone following
+  // that to the letter had nothing to tap.
+  const shareMessage =
+    `You're invited to join the team on Invisiko. Install the app, choose Staff on the ` +
+    `welcome screen, then tap "Enter your invite code" and use this one: ${code}`;
 
   async function onCopy() {
     await Clipboard.setStringAsync(code as string);
@@ -88,9 +93,9 @@ export function InviteStaffScreen(): React.JSX.Element {
     <Screen>
       <Text style={styles.heading}>Invite your team</Text>
       <Text style={styles.hint}>
-        Share this code with everyone you want to join. Anyone can enter it on the Join screen to
-        create their own account - it keeps working for the whole team until you generate a new one
-        below.
+        Share this code with everyone you want to join. They choose Staff when they open the app and
+        enter it to create their own account - it keeps working for the whole team until you
+        generate a new one below.
       </Text>
 
       <View style={styles.codeBox}>

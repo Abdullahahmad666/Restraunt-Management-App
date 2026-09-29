@@ -213,8 +213,8 @@ export function SetupTakeawayScreen(): React.JSX.Element {
         />
 
         <Text style={styles.legal}>
-          By continuing you agree to our <Text style={styles.legalLink}>Terms</Text> and{' '}
-          <Text style={styles.legalLink}>Privacy Policy</Text>
+          By continuing you agree to our <Text style={styles.legalName}>Terms</Text> and{' '}
+          <Text style={styles.legalName}>Privacy Policy</Text>
         </Text>
       </View>
 
@@ -242,7 +242,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.xs,
   },
-  legalLink: {color: colors.primary, fontWeight: '600'},
+  // Named, not linked. These were amber and bold like every tappable thing
+  // in the app while having no onPress and nowhere to send anyone - style
+  // them back up once there is a page to open.
+  legalName: {color: colors.text, fontWeight: '600'},
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',

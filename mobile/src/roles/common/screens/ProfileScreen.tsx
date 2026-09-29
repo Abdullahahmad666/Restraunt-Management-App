@@ -285,8 +285,9 @@ export function ProfileScreen(): React.JSX.Element {
         <View style={styles.warning}>
           <Ionicons name="alert-circle-outline" size={18} color={colors.warning} />
           <Text style={styles.warningText}>
-            Your account is not attached to a restaurant yet, so your screens will be empty. Ask an
-            admin for an invite code, or to add you to the team.
+            Your account is not attached to a restaurant yet, so your screens will be empty. Ask
+            your manager to add you - an invite code is only read while an account is being created,
+            so a new one will not fix this account.
           </Text>
         </View>
       ) : null}

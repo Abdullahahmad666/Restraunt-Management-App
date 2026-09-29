@@ -41,8 +41,9 @@ export function PendingApprovalScreen(): React.JSX.Element {
 
       <Text style={styles.title}>Your takeaway is being reviewed</Text>
       <Text style={styles.body}>
-        We&apos;ve sent your details for approval. Once it&apos;s reviewed, you&apos;ll be able to
-        sign in and start setting up your team - no need to do anything else in the meantime.
+        We&apos;ve sent your details for approval. You are already signed in - once it&apos;s
+        approved, this screen gives way to your dashboard and you can start setting up your team.
+        Nothing else to do in the meantime.
       </Text>
 
       <View style={styles.actions}>

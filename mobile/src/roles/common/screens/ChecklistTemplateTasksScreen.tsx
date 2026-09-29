@@ -158,7 +158,7 @@ export function ChecklistTemplateTasksScreen(): React.JSX.Element {
       {taskList.length === 0 ? (
         <EmptyState
           title="No tasks yet"
-          body="Ask your manager to add them in Manage compliance."
+          body="Ask your manager to add them - they are set up under Manage on the Checks tab."
         />
       ) : (
         taskList.map((task, index) => (

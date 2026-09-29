@@ -7,7 +7,7 @@ export function EquipmentScreen(): React.JSX.Element {
   return (
     <ComingSoon
       title="Equipment"
-      body="The equipment app has no backend yet - once it does, temperature thresholds and service history will show up here."
+      body="Service history and temperature limits for your equipment will live here. Nothing to set up yet."
     />
   );
 }

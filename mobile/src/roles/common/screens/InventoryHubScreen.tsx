@@ -243,7 +243,7 @@ export function InventoryHubScreen(): React.JSX.Element {
       {itemList.length === 0 ? (
         <EmptyState
           title="No stock items yet"
-          body="Scan your first invoice, or add items from Manage inventory."
+          body="Scan your first invoice - a manager can also add items by hand."
         />
       ) : (
         itemList.map((item, index) => (
