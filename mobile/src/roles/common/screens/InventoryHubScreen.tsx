@@ -12,6 +12,7 @@ import {ErrorState} from '../../../components/ErrorState';
 import {FadeIn} from '../../../components/FadeIn';
 import {LoadingView} from '../../../components/LoadingView';
 import {Screen} from '../../../components/Screen';
+import {SegmentedToggle, type SegmentedOption} from '../../../components/SegmentedToggle';
 import {TextField} from '../../../components/TextField';
 import {describeApiError} from '../../../api/errors';
 import {
@@ -29,14 +30,14 @@ import {
 import type {InventoryItem, StockMovementReason} from '../../../features/inventory/types';
 import type {InventoryStackParamList} from '../../../navigation/types';
 import {useAuthStore} from '../../../store/authStore';
-import {colors, radii, spacing} from '../../../theme';
+import {colors, spacing} from '../../../theme';
 import {isAdmin} from '../../../types/roles';
 
 type Nav = NativeStackNavigationProp<InventoryStackParamList>;
 
-const QUICK_REASONS: {value: StockMovementReason; label: string; sign: 1 | -1}[] = [
-  {value: 'DELIVERY', label: 'Add stock', sign: 1},
-  {value: 'WASTE', label: 'Remove (waste)', sign: -1},
+const QUICK_REASONS: (SegmentedOption<StockMovementReason> & {sign: 1 | -1})[] = [
+  {value: 'DELIVERY', label: 'Add stock', icon: 'arrow-down-circle-outline', sign: 1},
+  {value: 'WASTE', label: 'Remove (waste)', icon: 'trash-outline', sign: -1},
 ];
 
 function ItemRow({item}: {item: InventoryItem}): React.JSX.Element {
@@ -83,18 +84,16 @@ function ItemRow({item}: {item: InventoryItem}): React.JSX.Element {
 
       {editing ? (
         <View style={styles.editor}>
-          <View style={styles.chipRow}>
-            {QUICK_REASONS.map(option => (
-              <Pressable
-                key={option.value}
-                onPress={() => setReason(option.value)}
-                style={[styles.chip, reason === option.value && styles.chipActive]}>
-                <Text style={[styles.chipLabel, reason === option.value && styles.chipLabelActive]}>
-                  {option.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+          {/* Two directions, one of which subtracts - worth showing both at
+              once and sliding between them, because picking the wrong one
+              moves stock the wrong way. */}
+          <SegmentedToggle
+            options={QUICK_REASONS}
+            value={reason}
+            onChange={setReason}
+            accessibilityLabel="Add stock or remove it"
+            compact
+          />
           <TextField
             label={`Quantity (${item.unit})`}
             keyboardType="decimal-pad"
@@ -188,7 +187,7 @@ export function InventoryHubScreen(): React.JSX.Element {
           items, quantities and prices for you to check before they're added to stock.
         </Text>
         {error ? <Text style={styles.error}>{error}</Text> : null}
-        <View style={styles.chipRow}>
+        <View style={styles.buttonRow}>
           <View style={styles.scanButton}>
             <Button
               title="Take photo"
@@ -266,6 +265,7 @@ const styles = StyleSheet.create({
   heading: {fontSize: 20, fontWeight: '700', color: colors.text},
   manageLink: {fontSize: 13, color: colors.primary, fontWeight: '600'},
   sectionTitle: {fontSize: 16, fontWeight: '700', color: colors.text, marginTop: spacing.sm},
+  buttonRow: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm},
   scanCard: {gap: spacing.sm},
   scanButton: {flexGrow: 1, flexBasis: 120},
   row: {flexDirection: 'row', alignItems: 'center', gap: spacing.sm},
@@ -273,16 +273,5 @@ const styles = StyleSheet.create({
   name: {fontSize: 15, fontWeight: '600', color: colors.text},
   hint: {fontSize: 12, color: colors.textMuted, marginTop: 2},
   editor: {marginTop: spacing.sm, gap: spacing.sm},
-  chipRow: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm},
-  chip: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.lg,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-  },
-  chipActive: {backgroundColor: colors.primary, borderColor: colors.primary},
-  chipLabel: {fontSize: 13, color: colors.text},
-  chipLabelActive: {color: '#FFFFFF', fontWeight: '600'},
   error: {color: colors.danger, fontSize: 12},
 });

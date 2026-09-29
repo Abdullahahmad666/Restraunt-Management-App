@@ -8,6 +8,7 @@ import {Ionicons} from '@expo/vector-icons';
 import {Badge} from '../../../components/Badge';
 import {Button} from '../../../components/Button';
 import {Card} from '../../../components/Card';
+import {FilterChip} from '../../../components/FilterChip';
 import {ErrorState} from '../../../components/ErrorState';
 import {FadeIn} from '../../../components/FadeIn';
 import {LoadingView} from '../../../components/LoadingView';
@@ -143,20 +144,15 @@ function LineItemCard({
 
       <Text style={styles.label}>Match to inventory item</Text>
       <View style={styles.chipRow}>
-        {items.map(item => {
-          const selected = line.matched_item === item.id;
-          return (
-            <Pressable
-              key={item.id}
-              onPress={() => onMatch(item.id)}
-              disabled={locked}
-              style={[styles.chip, selected && styles.chipActive]}>
-              <Text style={[styles.chipLabel, selected && styles.chipLabelActive]}>
-                {item.name}
-              </Text>
-            </Pressable>
-          );
-        })}
+        {items.map(item => (
+          <FilterChip
+            key={item.id}
+            label={item.name}
+            selected={line.matched_item === item.id}
+            disabled={locked}
+            onPress={() => onMatch(item.id)}
+          />
+        ))}
       </View>
 
       {!line.matched_item && !locked ? (
@@ -230,15 +226,13 @@ function SourceCard({invoice, locked}: {invoice: InvoiceScan; locked: boolean}):
         {supplierList.map(supplier => {
           const selected = invoice.supplier === supplier.id;
           return (
-            <Pressable
+            <FilterChip
               key={supplier.id}
-              onPress={() => onAssign({supplier: selected ? null : supplier.id})}
+              label={supplier.name}
+              selected={selected}
               disabled={locked}
-              style={[styles.chip, selected && styles.chipActive]}>
-              <Text style={[styles.chipLabel, selected && styles.chipLabelActive]}>
-                {supplier.name}
-              </Text>
-            </Pressable>
+              onPress={() => onAssign({supplier: selected ? null : supplier.id})}
+            />
           );
         })}
       </View>
@@ -259,15 +253,13 @@ function SourceCard({invoice, locked}: {invoice: InvoiceScan; locked: boolean}):
           {warehouseList.map(warehouse => {
             const selected = invoice.warehouse === warehouse.id;
             return (
-              <Pressable
+              <FilterChip
                 key={warehouse.id}
-                onPress={() => onAssign({warehouse: selected ? null : warehouse.id})}
+                label={warehouse.name}
+                selected={selected}
                 disabled={locked}
-                style={[styles.chip, selected && styles.chipActive]}>
-                <Text style={[styles.chipLabel, selected && styles.chipLabelActive]}>
-                  {warehouse.name}
-                </Text>
-              </Pressable>
+                onPress={() => onAssign({warehouse: selected ? null : warehouse.id})}
+              />
             );
           })}
         </View>
@@ -484,16 +476,6 @@ const styles = StyleSheet.create({
   pairField: {flex: 1},
   label: {fontSize: 13, fontWeight: '600', color: colors.textMuted},
   chipRow: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs},
-  chip: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.lg,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-  },
-  chipActive: {backgroundColor: colors.primary, borderColor: colors.primary},
-  chipLabel: {fontSize: 13, color: colors.text},
-  chipLabelActive: {color: '#FFFFFF', fontWeight: '600'},
   removeLink: {fontSize: 12, color: colors.danger, fontWeight: '600'},
   error: {color: colors.danger, fontSize: 12},
   warning: {color: colors.warning, fontSize: 12},

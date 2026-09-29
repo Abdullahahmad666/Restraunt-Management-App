@@ -8,6 +8,10 @@ type Props = {
   label: string;
   selected: boolean;
   onPress: () => void;
+  /** Still shown, and still showing whether it is the picked one - an invoice
+   * that has been confirmed keeps its supplier on screen, it just cannot be
+   * reassigned. */
+  disabled?: boolean;
 };
 
 /**
@@ -25,13 +29,14 @@ type Props = {
  * combination this palette does not allow: `onPrimary` is near-black because
  * white on amber fails contrast.
  */
-export function FilterChip({label, selected, onPress}: Props): React.JSX.Element {
+export function FilterChip({label, selected, onPress, disabled = false}: Props): React.JSX.Element {
   return (
     <PressableScale
       onPress={onPress}
+      disabled={disabled}
       accessibilityRole="button"
-      accessibilityState={{selected}}
-      style={[styles.chip, selected && styles.selected]}>
+      accessibilityState={{selected, disabled}}
+      style={[styles.chip, selected && styles.selected, disabled && styles.disabled]}>
       <Text style={[styles.label, selected && styles.labelSelected]} numberOfLines={1}>
         {label}
       </Text>
@@ -53,6 +58,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   selected: {backgroundColor: colors.primary, borderColor: colors.primary},
+  disabled: {opacity: 0.5},
   label: {fontSize: 13, color: colors.text},
   labelSelected: {color: colors.onPrimary, fontWeight: '600'},
 });

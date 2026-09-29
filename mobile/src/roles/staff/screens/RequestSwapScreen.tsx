@@ -7,6 +7,7 @@ import type {RouteProp} from '@react-navigation/native';
 import {Button} from '../../../components/Button';
 import {Card} from '../../../components/Card';
 import {EmptyState} from '../../../components/EmptyState';
+import {FilterChip} from '../../../components/FilterChip';
 import {ErrorState} from '../../../components/ErrorState';
 import {LoadingView} from '../../../components/LoadingView';
 import {Screen} from '../../../components/Screen';
@@ -20,7 +21,7 @@ import {
 import {JOB_TITLE_LABELS} from '../../../features/attendance/types';
 import type {Shift} from '../../../features/attendance/types';
 import type {StaffStackParamList} from '../../../navigation/types';
-import {colors, radii, spacing} from '../../../theme';
+import {colors, spacing} from '../../../theme';
 import {LOCALE, formatTime, fullName} from '../../../utils/format';
 
 type Nav = NativeStackNavigationProp<StaffStackParamList>;
@@ -170,19 +171,14 @@ function OfferForm({
         />
       ) : (
         <View style={styles.chipRow}>
-          {colleagues.data?.results.map(colleague => {
-            const selected = targetId === colleague.id;
-            return (
-              <Pressable
-                key={colleague.id}
-                onPress={() => setTargetId(colleague.id)}
-                style={[styles.chip, selected && styles.chipSelected]}>
-                <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
-                  {fullName(colleague)}
-                </Text>
-              </Pressable>
-            );
-          })}
+          {colleagues.data?.results.map(colleague => (
+            <FilterChip
+              key={colleague.id}
+              label={fullName(colleague)}
+              selected={targetId === colleague.id}
+              onPress={() => setTargetId(colleague.id)}
+            />
+          ))}
         </View>
       )}
 
@@ -214,16 +210,6 @@ const styles = StyleSheet.create({
   pickCard: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
   pickLink: {fontSize: 13, color: colors.primary, fontWeight: '700'},
   chipRow: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm},
-  chip: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.pill,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-  },
-  chipSelected: {backgroundColor: colors.primary, borderColor: colors.primary},
-  chipText: {fontSize: 13, color: colors.text},
-  chipTextSelected: {color: '#FFFFFF', fontWeight: '700'},
   hint: {fontSize: 12, color: colors.textMuted, textAlign: 'center'},
   error: {color: colors.danger, fontSize: 13},
 });
