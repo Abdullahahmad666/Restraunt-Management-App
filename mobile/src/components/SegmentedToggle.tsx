@@ -7,7 +7,11 @@ import {colors, radii, spacing} from '../theme';
 export type SegmentedOption<T extends string> = {
   value: T;
   label: string;
-  icon: React.ComponentProps<typeof Ionicons>['name'];
+  /** Optional: an icon earns its place when it names a *kind* of person or
+   * thing ("Manager", "Staff"). On a filter row of plain adjectives - All, On
+   * shift, Closed - it decorates without adding meaning, and eats the width
+   * the labels need. */
+  icon?: React.ComponentProps<typeof Ionicons>['name'];
 };
 
 /**
@@ -27,11 +31,15 @@ export function SegmentedToggle<T extends string>({
   value,
   onChange,
   accessibilityLabel,
+  compact = false,
 }: {
   options: SegmentedOption<T>[];
   value: T;
   onChange: (value: T) => void;
   accessibilityLabel?: string;
+  /** Sized to sit above a list as a filter rather than to be the thing on
+   * screen someone came to press. */
+  compact?: boolean;
 }): React.JSX.Element {
   const [trackWidth, setTrackWidth] = useState(0);
   const index = Math.max(
@@ -87,16 +95,26 @@ export function SegmentedToggle<T extends string>({
           <Pressable
             key={option.value}
             onPress={() => onChange(option.value)}
-            style={styles.segment}
+            style={[styles.segment, compact && styles.segmentCompact]}
             accessibilityRole="tab"
             accessibilityState={{selected}}
             accessibilityLabel={option.label}>
-            <Ionicons
-              name={option.icon}
-              size={16}
-              color={selected ? colors.onPrimary : colors.textMuted}
-            />
-            <Text style={[styles.label, selected && styles.labelSelected]}>{option.label}</Text>
+            {option.icon ? (
+              <Ionicons
+                name={option.icon}
+                size={compact ? 14 : 16}
+                color={selected ? colors.onPrimary : colors.textMuted}
+              />
+            ) : null}
+            <Text
+              style={[
+                styles.label,
+                compact && styles.labelCompact,
+                selected && styles.labelSelected,
+              ]}
+              numberOfLines={1}>
+              {option.label}
+            </Text>
           </Pressable>
         );
       })}
@@ -131,6 +149,8 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingVertical: spacing.sm,
   },
+  segmentCompact: {paddingVertical: spacing.xs},
   label: {fontSize: 14, fontWeight: '600', color: colors.textMuted},
+  labelCompact: {fontSize: 13},
   labelSelected: {color: colors.onPrimary},
 });

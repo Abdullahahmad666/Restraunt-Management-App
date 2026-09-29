@@ -6,15 +6,17 @@
  * chart that disagrees with the table beneath it is worse than no chart.
  */
 import React, {useMemo, useState} from 'react';
-import {Pressable, StyleSheet, Text, View} from 'react-native';
+import {StyleSheet, Text, View} from 'react-native';
 
 import {BarChart} from '../../../components/BarChart';
 import {Card} from '../../../components/Card';
 import {EmptyState} from '../../../components/EmptyState';
 import {ErrorState} from '../../../components/ErrorState';
 import {FadeIn} from '../../../components/FadeIn';
+import {FilterChip} from '../../../components/FilterChip';
 import {LoadingView} from '../../../components/LoadingView';
 import {Screen} from '../../../components/Screen';
+import {SegmentedToggle, type SegmentedOption} from '../../../components/SegmentedToggle';
 import {describeApiError} from '../../../api/errors';
 import {
   usePurchaseSummary,
@@ -28,10 +30,10 @@ import type {
   PurchaseFilters,
   PurchasePeriod,
 } from '../../../features/inventory/types';
-import {colors, radii, spacing} from '../../../theme';
+import {colors, spacing} from '../../../theme';
 import {formatCurrency, formatDate} from '../../../utils/format';
 
-const PERIODS: {value: PurchasePeriod; label: string}[] = [
+const PERIODS: SegmentedOption<PurchasePeriod>[] = [
   {value: 'week', label: 'Weekly'},
   {value: 'month', label: 'Monthly'},
 ];
@@ -44,22 +46,6 @@ function isoMonthsAgo(months: number): string {
   const date = new Date();
   date.setMonth(date.getMonth() - months);
   return date.toISOString().slice(0, 10);
-}
-
-function Chip({
-  label,
-  selected,
-  onPress,
-}: {
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-}): React.JSX.Element {
-  return (
-    <Pressable onPress={onPress} style={[styles.chip, selected && styles.chipActive]}>
-      <Text style={[styles.chipLabel, selected && styles.chipLabelActive]}>{label}</Text>
-    </Pressable>
-  );
 }
 
 function ItemRow({row}: {row: PurchaseByItem}): React.JSX.Element {
@@ -143,9 +129,13 @@ export function PurchaseHistoryScreen(): React.JSX.Element {
       </Text>
 
       <View style={styles.chipRow}>
-        <Chip label="All suppliers" selected={!supplier} onPress={() => setSupplier(undefined)} />
+        <FilterChip
+          label="All suppliers"
+          selected={!supplier}
+          onPress={() => setSupplier(undefined)}
+        />
         {(suppliers.data?.results ?? []).map(row => (
-          <Chip
+          <FilterChip
             key={row.id}
             label={row.name}
             selected={supplier === row.id}
@@ -156,9 +146,13 @@ export function PurchaseHistoryScreen(): React.JSX.Element {
 
       {(warehouses.data?.results ?? []).length > 0 ? (
         <View style={styles.chipRow}>
-          <Chip label="Everywhere" selected={!warehouse} onPress={() => setWarehouse(undefined)} />
+          <FilterChip
+            label="Everywhere"
+            selected={!warehouse}
+            onPress={() => setWarehouse(undefined)}
+          />
           {(warehouses.data?.results ?? []).map(row => (
-            <Chip
+            <FilterChip
               key={row.id}
               label={row.name}
               selected={warehouse === row.id}
@@ -200,16 +194,13 @@ export function PurchaseHistoryScreen(): React.JSX.Element {
         </Card>
       ) : null}
 
-      <View style={styles.chipRow}>
-        {PERIODS.map(option => (
-          <Chip
-            key={option.value}
-            label={option.label}
-            selected={period === option.value}
-            onPress={() => setPeriod(option.value)}
-          />
-        ))}
-      </View>
+      <SegmentedToggle
+        options={PERIODS}
+        value={period}
+        onChange={setPeriod}
+        accessibilityLabel="Group spend by week or by month"
+        compact
+      />
 
       {chartData.length > 0 ? (
         <Card>
@@ -243,16 +234,6 @@ const styles = StyleSheet.create({
   hint: {fontSize: 12, color: colors.textMuted},
   warning: {fontSize: 12, color: colors.warning, marginTop: spacing.xs},
   chipRow: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs},
-  chip: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  chipActive: {backgroundColor: colors.primary, borderColor: colors.primary},
-  chipLabel: {fontSize: 13, color: colors.text},
-  chipLabelActive: {color: '#FFFFFF', fontWeight: '600'},
   summaryCard: {gap: spacing.sm},
   summaryRow: {flexDirection: 'row', justifyContent: 'space-between'},
   summaryValue: {fontSize: 22, fontWeight: '700', color: colors.primary},

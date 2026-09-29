@@ -2,6 +2,29 @@
 
 export type AttendanceStatus = 'OPEN' | 'CLOSED';
 
+/**
+ * What the history screens filter by, with 'ALL' standing in for "do not
+ * filter".
+ *
+ * A real value rather than undefined because the filter is a segmented
+ * control, which needs something to compare each option against and somewhere
+ * to slide its indicator to. Callers turn it back into the API's optional
+ * `status` with statusQuery() below.
+ */
+export type AttendanceStatusFilter = AttendanceStatus | 'ALL';
+
+/** Shared by the staff and the admin history screens - the same three choices,
+ * worded the same way, so the two screens cannot drift. */
+export const ATTENDANCE_STATUS_FILTERS: {value: AttendanceStatusFilter; label: string}[] = [
+  {value: 'ALL', label: 'All'},
+  {value: 'OPEN', label: 'On shift'},
+  {value: 'CLOSED', label: 'Closed'},
+];
+
+export function statusQuery(filter: AttendanceStatusFilter): AttendanceStatus | undefined {
+  return filter === 'ALL' ? undefined : filter;
+}
+
 /** What a staff member is covering on a given shift - independent of their
  * account Role (STAFF/ADMIN, an access level). The same person can be
  * scheduled as CHEF one day and TILL_OPERATOR the next. */
