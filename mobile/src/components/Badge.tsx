@@ -26,7 +26,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   label: {fontSize: 12, fontWeight: '700', color: colors.textMuted},
-  labelOnColor: {color: '#FFFFFF'},
+  // Near-black, not white. Every status colour here is a lightened one -
+  // mid-tone greens and reds go muddy against a dark app - and white on a
+  // lightened green or amber is the pairing that fails contrast.
+  labelOnColor: {color: colors.background},
 });
 
 const toneStyles = StyleSheet.create({

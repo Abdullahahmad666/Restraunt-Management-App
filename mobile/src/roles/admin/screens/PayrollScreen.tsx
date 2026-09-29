@@ -368,7 +368,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 1,
   },
-  stepNumberText: {fontSize: 12, fontWeight: '700', color: '#FFFFFF'},
+  stepNumberText: {fontSize: 12, fontWeight: '700', color: colors.onPrimary},
   stepText: {flex: 1, fontSize: 13, color: colors.textMuted, lineHeight: 18},
   stepEmphasis: {color: colors.text, fontWeight: '700'},
   rowHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},

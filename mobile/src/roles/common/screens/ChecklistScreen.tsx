@@ -74,7 +74,7 @@ function ChecklistRow({
     <Card>
       <Pressable style={styles.row} onPress={onToggle} disabled={pending}>
         <View style={[styles.checkbox, completion && styles.checkboxDone]}>
-          {completion ? <Ionicons name="checkmark" size={16} color="#FFFFFF" /> : null}
+          {completion ? <Ionicons name="checkmark" size={16} color={colors.background} /> : null}
         </View>
         <View style={styles.rowText}>
           <Text style={[styles.itemText, completion && styles.itemTextDone]}>{item.text}</Text>

@@ -8,6 +8,7 @@ import {Ionicons} from '@expo/vector-icons';
 
 import {Button} from '../../../components/Button';
 import {Screen} from '../../../components/Screen';
+import {SegmentedToggle, type SegmentedOption} from '../../../components/SegmentedToggle';
 import {TextField} from '../../../components/TextField';
 import {describeApiError} from '../../../api/errors';
 import {compressImage, EQUIPMENT_PHOTO} from '../../../utils/media';
@@ -24,9 +25,9 @@ import {colors, radii, spacing} from '../../../theme';
 type Nav = NativeStackNavigationProp<AdminStackParamList>;
 type Route = RouteProp<AdminStackParamList, 'EditFridge'>;
 
-const KINDS: {value: FridgeUnitKind; label: string; defaultMax: string}[] = [
-  {value: 'FRIDGE', label: 'Fridge', defaultMax: '5.0'},
-  {value: 'FREEZER', label: 'Freezer', defaultMax: '-18.0'},
+const KINDS: (SegmentedOption<FridgeUnitKind> & {defaultMax: string})[] = [
+  {value: 'FRIDGE', label: 'Fridge', icon: 'thermometer-outline', defaultMax: '5.0'},
+  {value: 'FREEZER', label: 'Freezer', icon: 'snow-outline', defaultMax: '-18.0'},
 ];
 
 /** Register a new fridge/freezer, or edit an existing one - name, kind,
@@ -137,26 +138,20 @@ export function EditFridgeScreen(): React.JSX.Element {
       <TextField label="Name" placeholder="e.g. Fridge 1" value={name} onChangeText={setName} />
 
       <Text style={styles.label}>Type</Text>
-      <View style={styles.chipRow}>
-        {KINDS.map(option => {
-          const selected = kind === option.value;
-          return (
-            <Pressable
-              key={option.value}
-              onPress={() => {
-                setKind(option.value);
-                if (!existing) {
-                  setMaxCelsius(option.defaultMax);
-                }
-              }}
-              style={[styles.chip, selected && styles.chipSelected]}>
-              <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
-                {option.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <SegmentedToggle
+        options={KINDS}
+        value={kind}
+        onChange={next => {
+          setKind(next);
+          // Only for a new one: a manager editing an existing fridge may have
+          // tuned its ceiling by hand, and resetting that to the default
+          // because they touched the kind would quietly undo their work.
+          if (!existing) {
+            setMaxCelsius(KINDS.find(option => option.value === next)?.defaultMax ?? '');
+          }
+        }}
+        accessibilityLabel="Fridge or freezer"
+      />
 
       <TextField
         label="Recommended max (°C)"
@@ -194,16 +189,5 @@ const styles = StyleSheet.create({
   },
   photoLink: {fontSize: 12, color: colors.primary, fontWeight: '600'},
   label: {fontSize: 13, fontWeight: '600', color: colors.textMuted},
-  chipRow: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm},
-  chip: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.pill,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-  },
-  chipSelected: {backgroundColor: colors.primary, borderColor: colors.primary},
-  chipText: {fontSize: 13, color: colors.text},
-  chipTextSelected: {color: '#FFFFFF', fontWeight: '700'},
   error: {color: colors.danger, fontSize: 13},
 });
