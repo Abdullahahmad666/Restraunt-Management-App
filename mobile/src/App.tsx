@@ -38,7 +38,7 @@ export default function App(): React.JSX.Element {
   return (
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
-        {/* Light glyphs: every screen sits on the brand navy. */}
+        {/* Light glyphs: every screen sits on the brand black. */}
         <StatusBar barStyle="light-content" backgroundColor={colors.background} />
         <RootNavigator />
       </SafeAreaProvider>

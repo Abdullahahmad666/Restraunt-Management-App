@@ -37,8 +37,8 @@ export function RootNavigator(): React.JSX.Element | null {
   // Hand off to BrandSplash as soon as JS is running, rather than holding the
   // native splash until the session check finishes.
   //
-  // In a real build the two are pixel-matched - same mark, same navy - so this
-  // is invisible. In Expo Go it is the difference between navy and white:
+  // In a real build the two are pixel-matched - same mark, same black - so
+  // this is invisible. In Expo Go it is the difference between black and white:
   // Expo Go substitutes its own light splash for the configured one, and
   // holding it up just means staring at white for longer.
   useEffect(() => {

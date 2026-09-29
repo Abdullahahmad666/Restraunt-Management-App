@@ -13,8 +13,9 @@ const logo = require('../../assets/images/splash-icon.png');
  * Rendering nothing during that window therefore shows white in Expo Go, which
  * is jarring in a dark app and looks like a crash.
  *
- * Matches the native splash exactly (same mark, same navy) so the hand-off is
- * invisible in a build and merely correct in Expo Go.
+ * Matches the native splash exactly - same mark, and the same black, which
+ * app.json holds as a literal because a native splash cannot read a TS token.
+ * So the hand-off is invisible in a build and merely correct in Expo Go.
  */
 export function BrandSplash(): React.JSX.Element {
   return (
