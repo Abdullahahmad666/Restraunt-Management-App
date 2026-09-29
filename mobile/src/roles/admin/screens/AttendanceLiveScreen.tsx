@@ -1,5 +1,5 @@
 import React from 'react';
-import {Pressable, StyleSheet, Text} from 'react-native';
+import {StyleSheet, Text} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
@@ -9,6 +9,7 @@ import {EmptyState} from '../../../components/EmptyState';
 import {ErrorState} from '../../../components/ErrorState';
 import {FadeIn} from '../../../components/FadeIn';
 import {LoadingView} from '../../../components/LoadingView';
+import {PressableScale} from '../../../components/PressableScale';
 import {Screen} from '../../../components/Screen';
 import {describeApiError} from '../../../api/errors';
 import {useLiveLogs, useShifts} from '../../../features/attendance/hooks';
@@ -59,7 +60,7 @@ export function AttendanceLiveScreen(): React.JSX.Element {
           const shift = log.shift ? shiftById.get(log.shift) : undefined;
           return (
             <FadeIn key={log.id} delay={index * 50}>
-              <Pressable
+              <PressableScale
                 onPress={() => navigation.navigate('AttendanceHistory', {staffId: log.staff})}>
                 <Card>
                   <Text style={styles.name}>{nameById.get(log.staff) ?? 'Staff member'}</Text>
@@ -70,7 +71,7 @@ export function AttendanceLiveScreen(): React.JSX.Element {
                   </Text>
                   <Badge label={`On shift ${formatElapsed(log.clock_in_at)}`} tone="success" />
                 </Card>
-              </Pressable>
+              </PressableScale>
             </FadeIn>
           );
         })

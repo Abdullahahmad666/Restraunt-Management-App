@@ -8,6 +8,7 @@ import {Card} from '../../../components/Card';
 import {ErrorState} from '../../../components/ErrorState';
 import {FilterChip} from '../../../components/FilterChip';
 import {LoadingView} from '../../../components/LoadingView';
+import {PressableScale} from '../../../components/PressableScale';
 import {Screen} from '../../../components/Screen';
 import {TextField} from '../../../components/TextField';
 import {TimePickerField} from '../../../components/TimePickerField';
@@ -209,7 +210,7 @@ function AddShift({staffId, onDone}: {staffId: string; onDone: () => void}): Rea
         {days.map(day => {
           const selected = selectedDays.has(day.iso);
           return (
-            <Pressable
+            <PressableScale
               key={day.iso}
               onPress={() => toggleDay(day.iso)}
               style={[styles.dayChip, selected && styles.chipSelected]}>
@@ -219,7 +220,7 @@ function AddShift({staffId, onDone}: {staffId: string; onDone: () => void}): Rea
               <Text style={[styles.dayChipNum, selected && styles.chipTextSelected]}>
                 {day.dayNum}
               </Text>
-            </Pressable>
+            </PressableScale>
           );
         })}
       </ScrollView>

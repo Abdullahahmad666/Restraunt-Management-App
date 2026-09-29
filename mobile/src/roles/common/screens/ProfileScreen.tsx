@@ -8,6 +8,7 @@ import {AVATAR, compressImage} from '../../../utils/media';
 import {ConfirmDialog} from '../../../components/ConfirmDialog';
 import {Field} from '../../../components/Field';
 import {FormError} from '../../../components/FormError';
+import {PressableScale} from '../../../components/PressableScale';
 import {PrimaryButton} from '../../../components/PrimaryButton';
 import {updateProfile, uploadAvatar} from '../../../features/auth/api';
 import {useAuthStore} from '../../../store/authStore';
@@ -164,7 +165,7 @@ export function ProfileScreen(): React.JSX.Element {
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}>
       <View style={styles.identity}>
-        <Pressable
+        <PressableScale
           onPress={() => setPhotoSheet(true)}
           disabled={uploading}
           accessibilityRole="button"
@@ -187,7 +188,7 @@ export function ProfileScreen(): React.JSX.Element {
               color={colors.onPrimary}
             />
           </View>
-        </Pressable>
+        </PressableScale>
 
         <Text style={styles.name}>{fullName || user.email}</Text>
 

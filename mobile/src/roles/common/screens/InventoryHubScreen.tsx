@@ -11,6 +11,7 @@ import {EmptyState} from '../../../components/EmptyState';
 import {ErrorState} from '../../../components/ErrorState';
 import {FadeIn} from '../../../components/FadeIn';
 import {LoadingView} from '../../../components/LoadingView';
+import {PressableScale} from '../../../components/PressableScale';
 import {Screen} from '../../../components/Screen';
 import {SegmentedToggle, type SegmentedOption} from '../../../components/SegmentedToggle';
 import {TextField} from '../../../components/TextField';
@@ -66,7 +67,7 @@ function ItemRow({item}: {item: InventoryItem}): React.JSX.Element {
 
   return (
     <Card>
-      <Pressable style={styles.row} onPress={() => setEditing(current => !current)}>
+      <PressableScale style={styles.row} onPress={() => setEditing(current => !current)}>
         <View style={styles.rowText}>
           <Text style={styles.name}>{item.name}</Text>
           <Text style={styles.hint}>
@@ -80,7 +81,7 @@ function ItemRow({item}: {item: InventoryItem}): React.JSX.Element {
           size={18}
           color={colors.textMuted}
         />
-      </Pressable>
+      </PressableScale>
 
       {editing ? (
         <View style={styles.editor}>

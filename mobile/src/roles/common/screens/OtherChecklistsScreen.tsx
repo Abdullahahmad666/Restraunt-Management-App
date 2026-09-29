@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {Pressable, StyleSheet, Text, View} from 'react-native';
+import {StyleSheet, Text, View} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {Ionicons} from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import {EmptyState} from '../../../components/EmptyState';
 import {ErrorState} from '../../../components/ErrorState';
 import {FadeIn} from '../../../components/FadeIn';
 import {LoadingView} from '../../../components/LoadingView';
+import {PressableScale} from '../../../components/PressableScale';
 import {Screen} from '../../../components/Screen';
 import {SegmentedToggle, type SegmentedOption} from '../../../components/SegmentedToggle';
 import {describeApiError} from '../../../api/errors';
@@ -43,7 +44,7 @@ function TemplateRow({
   const subtitle = total === 0 ? 'No tasks yet' : `${done} of ${total} done`;
 
   return (
-    <Pressable onPress={onPress}>
+    <PressableScale onPress={onPress}>
       <Card style={styles.row}>
         <View style={styles.rowText}>
           <Text style={styles.rowTitle}>{template.name}</Text>
@@ -51,7 +52,7 @@ function TemplateRow({
         </View>
         <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
       </Card>
-    </Pressable>
+    </PressableScale>
   );
 }
 

@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {ScrollView, StyleSheet, Text, View} from 'react-native';
 import {useNavigation, useRoute, type RouteProp} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
@@ -9,6 +9,7 @@ import {EmptyState} from '../../../components/EmptyState';
 import {ErrorState} from '../../../components/ErrorState';
 import {FilterChip} from '../../../components/FilterChip';
 import {LoadingView} from '../../../components/LoadingView';
+import {PressableScale} from '../../../components/PressableScale';
 import {Screen} from '../../../components/Screen';
 import {SegmentedToggle} from '../../../components/SegmentedToggle';
 import {describeApiError} from '../../../api/errors';
@@ -75,7 +76,7 @@ export function AttendanceHistoryScreen(): React.JSX.Element {
         <EmptyState title="No records" body="Nothing matches these filters yet." />
       ) : (
         logs.data?.results.map(log => (
-          <Pressable
+          <PressableScale
             key={log.id}
             onPress={() => navigation.navigate('AttendanceEdit', {logId: log.id})}>
             <Card>
@@ -94,7 +95,7 @@ export function AttendanceHistoryScreen(): React.JSX.Element {
                 <Text style={styles.rowNote}>Manually corrected</Text>
               ) : null}
             </Card>
-          </Pressable>
+          </PressableScale>
         ))
       )}
     </Screen>

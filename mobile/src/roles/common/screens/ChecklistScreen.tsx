@@ -10,6 +10,7 @@ import {EmptyState} from '../../../components/EmptyState';
 import {ErrorState} from '../../../components/ErrorState';
 import {FadeIn} from '../../../components/FadeIn';
 import {LoadingView} from '../../../components/LoadingView';
+import {PressableScale} from '../../../components/PressableScale';
 import {Screen} from '../../../components/Screen';
 import {TextField} from '../../../components/TextField';
 import {describeApiError} from '../../../api/errors';
@@ -72,7 +73,7 @@ function ChecklistRow({
 
   return (
     <Card>
-      <Pressable style={styles.row} onPress={onToggle} disabled={pending}>
+      <PressableScale style={styles.row} onPress={onToggle} disabled={pending}>
         <View style={[styles.checkbox, completion && styles.checkboxDone]}>
           {completion ? <Ionicons name="checkmark" size={16} color={colors.background} /> : null}
         </View>
@@ -87,7 +88,7 @@ function ChecklistRow({
             <Text style={styles.noteText}>Note: {completion.note}</Text>
           ) : null}
         </View>
-      </Pressable>
+      </PressableScale>
 
       {editingNote ? (
         <View style={styles.noteEditor}>

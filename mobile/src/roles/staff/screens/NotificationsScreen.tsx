@@ -1,10 +1,11 @@
 import React from 'react';
-import {Pressable, StyleSheet, Text, View} from 'react-native';
+import {StyleSheet, Text, View} from 'react-native';
 
 import {Card} from '../../../components/Card';
 import {EmptyState} from '../../../components/EmptyState';
 import {ErrorState} from '../../../components/ErrorState';
 import {LoadingView} from '../../../components/LoadingView';
+import {PressableScale} from '../../../components/PressableScale';
 import {Screen} from '../../../components/Screen';
 import {describeApiError} from '../../../api/errors';
 import {useMarkNotificationRead, useMyNotifications} from '../../../features/notifications/hooks';
@@ -66,7 +67,7 @@ function NotificationRow({
   const unread = !item.read_at;
 
   return (
-    <Pressable onPress={onPress}>
+    <PressableScale onPress={onPress}>
       <Card style={unread ? styles.unreadCard : undefined}>
         <View style={styles.rowHeader}>
           {unread ? <View style={styles.dot} /> : null}
@@ -75,7 +76,7 @@ function NotificationRow({
         <Text style={styles.body}>{item.body}</Text>
         <Text style={styles.timestamp}>{formatDateTime(item.created_at)}</Text>
       </Card>
-    </Pressable>
+    </PressableScale>
   );
 }
 

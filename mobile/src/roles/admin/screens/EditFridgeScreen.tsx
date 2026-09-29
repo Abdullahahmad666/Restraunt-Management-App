@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {Image, Pressable, StyleSheet, Text, View} from 'react-native';
+import {Image, StyleSheet, Text, View} from 'react-native';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
@@ -7,6 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import {Ionicons} from '@expo/vector-icons';
 
 import {Button} from '../../../components/Button';
+import {PressableScale} from '../../../components/PressableScale';
 import {Screen} from '../../../components/Screen';
 import {SegmentedToggle, type SegmentedOption} from '../../../components/SegmentedToggle';
 import {TextField} from '../../../components/TextField';
@@ -122,7 +123,10 @@ export function EditFridgeScreen(): React.JSX.Element {
 
   return (
     <Screen>
-      <Pressable style={styles.photoPicker} onPress={pickPhoto} disabled={uploadPhoto.isPending}>
+      <PressableScale
+        style={styles.photoPicker}
+        onPress={pickPhoto}
+        disabled={uploadPhoto.isPending}>
         {existing?.photo ? (
           <Image source={{uri: existing.photo}} style={styles.photo} />
         ) : (
@@ -133,7 +137,7 @@ export function EditFridgeScreen(): React.JSX.Element {
         <Text style={styles.photoLink}>
           {existing ? 'Change photo' : 'Save first to add a photo'}
         </Text>
-      </Pressable>
+      </PressableScale>
 
       <TextField label="Name" placeholder="e.g. Fridge 1" value={name} onChangeText={setName} />
 

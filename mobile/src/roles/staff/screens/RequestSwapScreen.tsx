@@ -10,6 +10,7 @@ import {EmptyState} from '../../../components/EmptyState';
 import {FilterChip} from '../../../components/FilterChip';
 import {ErrorState} from '../../../components/ErrorState';
 import {LoadingView} from '../../../components/LoadingView';
+import {PressableScale} from '../../../components/PressableScale';
 import {Screen} from '../../../components/Screen';
 import {TextField} from '../../../components/TextField';
 import {describeApiError} from '../../../api/errors';
@@ -81,7 +82,7 @@ function ShiftPicker({onPick}: {onPick: (shift: Shift) => void}): React.JSX.Elem
         />
       ) : (
         upcoming.map(shift => (
-          <Pressable key={shift.id} onPress={() => onPick(shift)}>
+          <PressableScale key={shift.id} onPress={() => onPick(shift)}>
             <Card style={styles.pickCard}>
               <View>
                 <Text style={styles.shiftDate}>
@@ -97,7 +98,7 @@ function ShiftPicker({onPick}: {onPick: (shift: Shift) => void}): React.JSX.Elem
               </View>
               <Text style={styles.pickLink}>Offer &gt;</Text>
             </Card>
-          </Pressable>
+          </PressableScale>
         ))
       )}
     </Screen>

@@ -10,6 +10,7 @@ import {EmptyState} from '../../../components/EmptyState';
 import {ErrorState} from '../../../components/ErrorState';
 import {FadeIn} from '../../../components/FadeIn';
 import {LoadingView} from '../../../components/LoadingView';
+import {PressableScale} from '../../../components/PressableScale';
 import {Screen} from '../../../components/Screen';
 import {TemperatureGauge} from '../../../components/TemperatureGauge';
 import {TextField} from '../../../components/TextField';
@@ -121,20 +122,20 @@ function RecordRow({
       {editing ? (
         <View style={styles.editor}>
           <View style={styles.stepper}>
-            <Pressable
+            <PressableScale
               style={styles.stepButton}
               onPress={() => setValue(v => Math.round((v - STEP) * 10) / 10)}>
               <Text style={styles.stepButtonText}>−</Text>
-            </Pressable>
+            </PressableScale>
             <Text
               style={[styles.stepValue, {color: wouldBeWithinRange ? colors.text : colors.danger}]}>
               {value.toFixed(1)}°C
             </Text>
-            <Pressable
+            <PressableScale
               style={styles.stepButton}
               onPress={() => setValue(v => Math.round((v + STEP) * 10) / 10)}>
               <Text style={styles.stepButtonText}>+</Text>
-            </Pressable>
+            </PressableScale>
           </View>
           <TemperatureGauge
             min={gaugeRange.min}
