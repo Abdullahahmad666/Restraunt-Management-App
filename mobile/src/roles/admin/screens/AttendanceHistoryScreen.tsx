@@ -103,7 +103,6 @@ export function AttendanceHistoryScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  chipRow: {flexDirection: 'row', gap: spacing.xs},
   staffRow: {flexDirection: 'row', gap: spacing.xs},
   rowHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
   rowTitle: {fontSize: 15, fontWeight: '600', color: colors.text},
