@@ -7,6 +7,7 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {FadeIn} from '../../../components/FadeIn';
 import {PrimaryButton} from '../../../components/PrimaryButton';
 import {SegmentedToggle, type SegmentedOption} from '../../../components/SegmentedToggle';
+import {TypeOn} from '../../../components/TypeOn';
 import {colors, spacing, typography} from '../../../theme';
 import type {AuthStackParamList} from '../../../navigation/types';
 
@@ -22,6 +23,19 @@ const WHO: SegmentedOption<Who>[] = [
   {value: 'manager', label: 'Manager', icon: 'briefcase-outline'},
   {value: 'staff', label: 'Staff', icon: 'people-outline'},
 ];
+
+const PROMISE = 'Everything your kitchen runs on.';
+const PILLARS = 'Staff. Cost. Compliance.';
+
+/** Milliseconds per character. Fast enough that nobody waits on it, slow
+ * enough to read as typing rather than as a flicker. */
+const SPEED = 26;
+
+/** The second line waits out the first, with a beat between them. Computed
+ * rather than mounted late, so both lines hold their space from the start and
+ * nothing below them moves when the second one begins. */
+const FIRST_LINE_AT = 260;
+const SECOND_LINE_AT = FIRST_LINE_AT + PROMISE.length * SPEED + 180;
 
 /**
  * The very first screen anyone sees.
@@ -59,10 +73,25 @@ export function WelcomeScreen(): React.JSX.Element {
           resizeMode="contain"
           accessibilityIgnoresInvertColors
         />
-        <Text style={styles.headline}>
-          Everything your kitchen runs on.{'\n'}
-          <Text style={styles.headlineAccent}>Staff. Cost. Compliance.</Text>
-        </Text>
+        {/* One sentence per line, each shrinking to fit rather than wrapping:
+            "Staff. Cost. Compliance." broken across two lines loses the rhythm
+            that makes it worth saying. */}
+        <TypeOn
+          text={PROMISE}
+          style={styles.promise}
+          speed={SPEED}
+          delay={FIRST_LINE_AT}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+        />
+        <TypeOn
+          text={PILLARS}
+          style={styles.pillars}
+          speed={SPEED}
+          delay={SECOND_LINE_AT}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+        />
       </FadeIn>
 
       {/* A beat behind the mark, so the eye lands on the brand and then on the
@@ -122,19 +151,33 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.xl,
   },
-  hero: {alignItems: 'center', gap: spacing.lg},
+  hero: {alignItems: 'center', gap: spacing.sm},
   // Sized to the mark, not to the space going spare. 96 is a shade larger than
   // the 88 every other pre-login screen uses, which is the most this one can
   // claim while still being recognisably the same header.
   logo: {width: 96, height: 96},
-  headline: {
+  // Two sizes, because they are two different jobs: the promise sets up the
+  // three words that follow, and those three are what anyone repeats.
+  promise: {
+    // Stretched, not sized to its text: adjustsFontSizeToFit has to know how
+    // much width it is fitting into, and a centred child of a centred column
+    // would otherwise be measured against its own content.
+    alignSelf: 'stretch',
+    ...typography.body,
+    fontSize: 18,
+    lineHeight: 24,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: spacing.md,
+  },
+  pillars: {
+    alignSelf: 'stretch',
     ...typography.title,
     fontSize: 26,
-    lineHeight: 33,
-    color: colors.text,
+    lineHeight: 34,
+    color: colors.primary,
     textAlign: 'center',
   },
-  headlineAccent: {color: colors.primary},
   choose: {gap: spacing.md},
   actions: {gap: spacing.sm},
   note: {

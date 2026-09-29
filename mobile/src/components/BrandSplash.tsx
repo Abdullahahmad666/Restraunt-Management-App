@@ -1,6 +1,7 @@
 import React from 'react';
 import {ActivityIndicator, Image, StyleSheet, Text, View} from 'react-native';
 
+import {TypeOn} from './TypeOn';
 import {colors, spacing, TAGLINE, typography} from '../theme';
 
 const logo = require('../../assets/images/splash-icon.png');
@@ -22,7 +23,10 @@ export function BrandSplash(): React.JSX.Element {
     <View style={styles.container}>
       <Image source={logo} style={styles.mark} resizeMode="contain" />
       <Text style={styles.wordmark}>Invisiko</Text>
-      <Text style={styles.tagline}>{TAGLINE}</Text>
+      {/* Typed rather than just shown: this screen exists because the session
+          check takes a moment, and a line arriving says "working" where a
+          static one says "stuck". */}
+      <TypeOn text={TAGLINE} style={styles.tagline} speed={22} delay={200} />
       <ActivityIndicator color={colors.primary} style={styles.spinner} />
     </View>
   );
