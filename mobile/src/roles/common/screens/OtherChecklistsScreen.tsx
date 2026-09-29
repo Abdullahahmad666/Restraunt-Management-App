@@ -82,8 +82,6 @@ export function OtherChecklistsScreen(): React.JSX.Element {
 
   return (
     <Screen onRefresh={() => templates.refetch()} refreshing={templates.isRefetching}>
-      <Text style={styles.heading}>Other checklists</Text>
-
       <SegmentedToggle
         options={FREQUENCIES}
         value={frequency}
@@ -117,7 +115,6 @@ export function OtherChecklistsScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  heading: {fontSize: 20, fontWeight: '700', color: colors.text},
   row: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'},
   rowText: {flex: 1},
   rowTitle: {fontSize: 15, fontWeight: '600', color: colors.text},

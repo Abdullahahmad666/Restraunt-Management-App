@@ -44,7 +44,11 @@ function StaffTabs(): React.JSX.Element {
       <Tab.Screen
         name="Checks"
         component={DailyChecksScreen}
-        options={{tabBarIcon: tabIcon('checkbox-outline', 'checkbox'), title: 'Today'}}
+        options={{
+          tabBarIcon: tabIcon('checkbox-outline', 'checkbox'),
+          title: "Today's checks",
+          tabBarLabel: 'Today',
+        }}
       />
       <Tab.Screen
         name="Attendance"

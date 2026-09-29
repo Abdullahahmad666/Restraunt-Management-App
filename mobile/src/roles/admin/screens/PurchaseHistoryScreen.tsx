@@ -123,7 +123,6 @@ export function PurchaseHistoryScreen(): React.JSX.Element {
     <Screen
       onRefresh={onRefresh}
       refreshing={summary.isRefetching || timeline.isRefetching || byItem.isRefetching}>
-      <Text style={styles.heading}>Purchase history</Text>
       <Text style={styles.hint}>
         Confirmed invoices from the last {DEFAULT_MONTHS_BACK} months.
       </Text>
@@ -230,7 +229,6 @@ export function PurchaseHistoryScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  heading: {fontSize: 18, fontWeight: '700', color: colors.text},
   hint: {fontSize: 12, color: colors.textMuted},
   warning: {fontSize: 12, color: colors.warning, marginTop: spacing.xs},
   chipRow: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs},

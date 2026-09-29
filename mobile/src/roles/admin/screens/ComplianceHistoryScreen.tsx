@@ -114,8 +114,6 @@ export function ComplianceHistoryScreen(): React.JSX.Element {
 
   return (
     <Screen onRefresh={refresh} refreshing={fridges.isRefetching || history.isRefetching}>
-      <Text style={styles.heading}>Temperature history</Text>
-
       <SegmentedToggle
         options={RANGE_OPTIONS}
         value={rangeDays}
@@ -151,7 +149,6 @@ export function ComplianceHistoryScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  heading: {fontSize: 20, fontWeight: '700', color: colors.text},
   row: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'},
   rowText: {flex: 1},
   name: {fontSize: 15, fontWeight: '600', color: colors.text},

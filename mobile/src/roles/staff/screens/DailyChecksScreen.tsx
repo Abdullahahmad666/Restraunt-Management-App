@@ -1,5 +1,5 @@
 import React from 'react';
-import {StyleSheet, Text, View} from 'react-native';
+import {StyleSheet, View} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
@@ -22,7 +22,7 @@ import type {
   TemperatureReading,
 } from '../../../features/compliance/types';
 import type {StaffStackParamList} from '../../../navigation/types';
-import {colors, spacing} from '../../../theme';
+import {spacing} from '../../../theme';
 
 type Nav = NativeStackNavigationProp<StaffStackParamList>;
 
@@ -123,8 +123,6 @@ export function DailyChecksScreen(): React.JSX.Element {
 
   return (
     <Screen>
-      <Text style={styles.heading}>Today's checks</Text>
-
       <View style={styles.grid}>
         <FadeIn delay={60} style={styles.tileWrap}>
           <GridTile
@@ -164,7 +162,6 @@ export function DailyChecksScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  heading: {fontSize: 22, fontWeight: '700', color: colors.text},
   grid: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, justifyContent: 'space-between'},
   tileWrap: {width: '48%'},
 });

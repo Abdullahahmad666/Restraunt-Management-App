@@ -46,8 +46,6 @@ export function MyAttendanceScreen(): React.JSX.Element {
 
   return (
     <Screen onRefresh={() => shifts.refetch()} refreshing={shifts.isRefetching}>
-      <Text style={styles.heading}>My hours</Text>
-
       <FadeIn>
         {nextShift ? (
           <Card style={styles.nextShiftCard}>
@@ -111,7 +109,6 @@ export function MyAttendanceScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  heading: {fontSize: 22, fontWeight: '700', color: colors.text},
   nextShiftCard: {borderColor: colors.primary, borderWidth: 1},
   nextShiftLabel: {
     fontSize: 12,

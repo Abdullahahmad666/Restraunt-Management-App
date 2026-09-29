@@ -44,8 +44,6 @@ export function ManageFridgesScreen(): React.JSX.Element {
 
   return (
     <Screen onRefresh={() => fridges.refetch()} refreshing={fridges.isRefetching}>
-      <Text style={styles.heading}>Fridges & freezers</Text>
-
       {fridgeList.length === 0 ? (
         <EmptyState title="None yet" body="Add your first fridge or freezer below." />
       ) : (
@@ -86,7 +84,6 @@ export function ManageFridgesScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  heading: {fontSize: 20, fontWeight: '700', color: colors.text},
   row: {flexDirection: 'row', alignItems: 'center', gap: spacing.sm},
   photo: {width: 44, height: 44, borderRadius: radii.md},
   photoPlaceholder: {
