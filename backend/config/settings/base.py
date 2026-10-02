@@ -10,6 +10,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import environ
+from django.core.exceptions import ImproperlyConfigured
 
 # backend/config/settings/base.py -> backend/
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -155,6 +156,15 @@ AWS_S3_REGION_NAME = env("AWS_S3_REGION_NAME", default="")
 AWS_S3_ACCESS_KEY_ID = env("AWS_S3_ACCESS_KEY_ID", default="")
 AWS_S3_SECRET_ACCESS_KEY = env("AWS_S3_SECRET_ACCESS_KEY", default="")
 
+if AWS_STORAGE_BUCKET_NAME and not AWS_S3_REGION_NAME:
+    # The region is part of the endpoint below, so an empty one would build
+    # https://s3..amazonaws.com and fail on every request with something that
+    # does not mention the setting that caused it.
+    raise ImproperlyConfigured(
+        "AWS_S3_REGION_NAME is required when AWS_STORAGE_BUCKET_NAME is set - "
+        "it must be the region the bucket is actually in (e.g. us-west-2)."
+    )
+
 if AWS_STORAGE_BUCKET_NAME:
     STORAGES["default"] = {
         "BACKEND": "storages.backends.s3.S3Storage",
@@ -164,6 +174,17 @@ if AWS_STORAGE_BUCKET_NAME:
             "access_key": AWS_S3_ACCESS_KEY_ID,
             "secret_key": AWS_S3_SECRET_ACCESS_KEY,
             "signature_version": "s3v4",
+            # Put the region in the hostname. Without these two, boto3 signs
+            # for `region_name` but addresses the bucket at the global
+            # endpoint (bucket.s3.amazonaws.com), and S3 answers a bucket that
+            # lives elsewhere with a redirect to the regional host. The
+            # redirect changes the Host header, Host is part of what SigV4
+            # signed, and the request arrives as SignatureDoesNotMatch - a 403
+            # that reads like a credentials problem and is not one. Every
+            # signed URL the API hands out was failing this way: avatars,
+            # fridge photos and invoice images all rendered as nothing.
+            "addressing_style": "virtual",
+            "endpoint_url": f"https://s3.{AWS_S3_REGION_NAME}.amazonaws.com",
             # Signed, expiring URLs rather than public objects. An invoice
             # photo shows a supplier's pricing and a profile picture is
             # personal - neither should be readable by anyone who guesses a
