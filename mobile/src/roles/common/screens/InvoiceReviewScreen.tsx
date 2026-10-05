@@ -8,7 +8,7 @@ import {Ionicons} from '@expo/vector-icons';
 import {Badge} from '../../../components/Badge';
 import {Button} from '../../../components/Button';
 import {Card} from '../../../components/Card';
-import {FilterChip} from '../../../components/FilterChip';
+import {PickerRow} from '../../../components/PickerRow';
 import {PickerSheet} from '../../../components/PickerSheet';
 import {PressableScale} from '../../../components/PressableScale';
 import {ErrorState} from '../../../components/ErrorState';
@@ -188,44 +188,25 @@ function LineItemCard({
         same list ten times.
       */}
       <Text style={styles.label}>Stock item</Text>
-      <PressableScale
+      <PickerRow
+        icon={matchedItem ? 'checkmark-circle' : 'alert-circle-outline'}
+        tone={matchedItem ? 'done' : 'pending'}
+        title={matchedItem ? matchedItem.name : 'Not matched'}
+        // Short enough to sit beside the action at any width. The full reason -
+        // that nothing reaches stock until every line is matched - is said once
+        // above the Confirm button, not retold per line and cut off halfway.
+        hint={
+          matchedItem
+            ? `${matchedItem.quantity_on_hand} ${matchedItem.unit} in stock`
+            : 'Will not reach stock'
+        }
+        actionLabel={matchedItem ? 'Change' : 'Match'}
         onPress={() => setPickerOpen(true)}
         disabled={locked}
-        accessibilityRole="button"
         accessibilityLabel={
           matchedItem ? `Matched to ${matchedItem.name}. Change` : 'Match to a stock item'
         }
-        style={[
-          styles.matchRow,
-          matchedItem ? styles.matchRowDone : styles.matchRowPending,
-          locked && styles.matchRowLocked,
-        ]}>
-        <Ionicons
-          name={matchedItem ? 'checkmark-circle' : 'alert-circle-outline'}
-          size={20}
-          color={matchedItem ? colors.success : colors.warning}
-        />
-        <View style={styles.matchText}>
-          <Text style={styles.matchName} numberOfLines={2}>
-            {matchedItem ? matchedItem.name : 'Not matched'}
-          </Text>
-          {/* Short enough to fit beside the action at any width. The full
-              reason - that nothing reaches stock until every line is matched -
-              is said once above the Confirm button, not retold on every line
-              and then cut off halfway. */}
-          <Text style={styles.matchHint} numberOfLines={1}>
-            {matchedItem
-              ? `${matchedItem.quantity_on_hand} ${matchedItem.unit} in stock`
-              : 'Will not reach stock'}
-          </Text>
-        </View>
-        {!locked ? (
-          <View style={styles.matchAction}>
-            <Text style={styles.matchActionLabel}>{matchedItem ? 'Change' : 'Match'}</Text>
-            <Ionicons name="chevron-forward" size={14} color={colors.primary} />
-          </View>
-        ) : null}
-      </PressableScale>
+      />
 
       <PickerSheet
         visible={pickerOpen}
@@ -263,9 +244,12 @@ function SourceCard({invoice, locked}: {invoice: InvoiceScan; locked: boolean}):
   const assign = useAssignInvoice(invoice.id);
   const createSupplier = useCreateSupplier();
   const [error, setError] = useState<string | null>(null);
+  const [picking, setPicking] = useState<'supplier' | 'warehouse' | null>(null);
 
   const supplierList = suppliers.data?.results ?? [];
   const warehouseList = warehouses.data?.results ?? [];
+  const supplier = supplierList.find(candidate => candidate.id === invoice.supplier);
+  const warehouse = warehouseList.find(candidate => candidate.id === invoice.warehouse);
 
   async function onAssign(input: {supplier?: string | null; warehouse?: string | null}) {
     setError(null);
@@ -276,69 +260,91 @@ function SourceCard({invoice, locked}: {invoice: InvoiceScan; locked: boolean}):
     }
   }
 
-  async function onAddSupplier() {
+  /**
+   * Add a supplier nobody has bought from before, and put this invoice on it.
+   *
+   * `typed` is whatever was in the picker's search box, falling back to the
+   * name the scan read. Both matter: an invoice whose letterhead was missed
+   * entirely used to leave a reviewer stuck, because adding a supplier was
+   * only offered when the scan had read a name to offer - a staff member with
+   * an unreadable letterhead could pick from the list or give up, and the list
+   * is admin-managed.
+   */
+  async function onAddSupplier(typed: string) {
+    const name = typed.trim() || invoice.supplier_name.trim();
+    if (!name) {
+      setError('Type the supplier name to add them.');
+      return;
+    }
     setError(null);
     try {
-      const created = await createSupplier.mutateAsync(invoice.supplier_name);
+      const created = await createSupplier.mutateAsync(name);
       await assign.mutateAsync({supplier: created.id});
     } catch (err) {
       setError(describeApiError(err, 'Could not add that supplier.'));
     }
   }
 
-  // Offered only when the scan read a name that matches nothing we have -
-  // adding a supplier called "" helps nobody.
-  const canAddScannedSupplier =
-    !locked && !invoice.supplier && invoice.supplier_name.trim().length > 0;
-
   return (
     <Card style={styles.lineCard}>
       <Text style={styles.label}>Supplier</Text>
-      {invoice.supplier_name ? (
-        <Text style={styles.hint}>Read from the invoice: {invoice.supplier_name}</Text>
-      ) : null}
-      <View style={styles.chipRow}>
-        {supplierList.map(supplier => {
-          const selected = invoice.supplier === supplier.id;
-          return (
-            <FilterChip
-              key={supplier.id}
-              label={supplier.name}
-              selected={selected}
-              disabled={locked}
-              onPress={() => onAssign({supplier: selected ? null : supplier.id})}
-            />
-          );
-        })}
-      </View>
-      {canAddScannedSupplier ? (
-        <Button
-          title={`+ New supplier: ${invoice.supplier_name}`}
-          variant="secondary"
-          onPress={onAddSupplier}
-          loading={createSupplier.isPending}
-        />
-      ) : null}
+      <PickerRow
+        icon={supplier ? 'checkmark-circle' : 'alert-circle-outline'}
+        tone={supplier ? 'done' : 'pending'}
+        title={supplier ? supplier.name : 'Not set'}
+        hint={
+          invoice.supplier_name
+            ? `Invoice says: ${invoice.supplier_name}`
+            : 'Nothing readable on the invoice'
+        }
+        actionLabel={supplier ? 'Change' : 'Choose'}
+        onPress={() => setPicking('supplier')}
+        disabled={locked}
+      />
 
       <Text style={styles.label}>Delivered to</Text>
-      {warehouseList.length === 0 ? (
-        <Text style={styles.hint}>No storage areas set up yet - a manager can add them.</Text>
-      ) : (
-        <View style={styles.chipRow}>
-          {warehouseList.map(warehouse => {
-            const selected = invoice.warehouse === warehouse.id;
-            return (
-              <FilterChip
-                key={warehouse.id}
-                label={warehouse.name}
-                selected={selected}
-                disabled={locked}
-                onPress={() => onAssign({warehouse: selected ? null : warehouse.id})}
-              />
-            );
-          })}
-        </View>
-      )}
+      <PickerRow
+        icon={warehouse ? 'checkmark-circle' : 'ellipse-outline'}
+        tone={warehouse ? 'done' : 'pending'}
+        title={warehouse ? warehouse.name : 'Not set'}
+        hint={
+          invoice.delivery_location
+            ? `Invoice says: ${invoice.delivery_location}`
+            : 'Optional - where this delivery went'
+        }
+        actionLabel={warehouse ? 'Change' : 'Choose'}
+        onPress={() => setPicking('warehouse')}
+        disabled={locked}
+      />
+
+      <PickerSheet
+        visible={picking === 'supplier'}
+        title="Who supplied this?"
+        searchPlaceholder="Search suppliers"
+        choices={supplierList.map(candidate => ({value: candidate.id, label: candidate.name}))}
+        selected={invoice.supplier}
+        emptyLabel="No supplier by that name yet - add them below."
+        createLabel={query =>
+          `Add "${query || invoice.supplier_name || 'new supplier'}" as a supplier`
+        }
+        onCreate={onAddSupplier}
+        creating={createSupplier.isPending}
+        onSelect={value => onAssign({supplier: value})}
+        onClose={() => setPicking(null)}
+      />
+
+      <PickerSheet
+        visible={picking === 'warehouse'}
+        title="Where did it go?"
+        searchPlaceholder="Search storage areas"
+        choices={warehouseList.map(candidate => ({value: candidate.id, label: candidate.name}))}
+        selected={invoice.warehouse}
+        // Storage areas are places someone set up once, not something to
+        // invent mid-review - the staff API will not create one either.
+        emptyLabel="No storage areas set up yet. A manager can add them."
+        onSelect={value => onAssign({warehouse: value})}
+        onClose={() => setPicking(null)}
+      />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </Card>
@@ -668,30 +674,12 @@ const styles = StyleSheet.create({
   removeLabel: {fontSize: 12, color: colors.textMuted},
   lineMaths: {fontSize: 12, color: colors.textMuted},
   lineMathsTotal: {color: colors.text, fontWeight: '700'},
-  matchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    backgroundColor: colors.surfaceRaised,
-  },
   // Unmatched is the state that needs doing something about, so it is the one
   // that carries a colour.
-  matchRowPending: {borderColor: colors.warning},
-  matchRowDone: {borderColor: colors.border},
-  matchRowLocked: {opacity: 0.6},
-  matchText: {flex: 1, gap: 1},
-  matchName: {fontSize: 15, fontWeight: '600', color: colors.text},
-  matchHint: {fontSize: 12, color: colors.textMuted},
-  matchAction: {flexDirection: 'row', alignItems: 'center', gap: 2},
-  matchActionLabel: {fontSize: 13, fontWeight: '700', color: colors.primary},
   lineCard: {gap: spacing.sm},
   pairRow: {flexDirection: 'row', gap: spacing.sm},
   pairField: {flex: 1},
   label: {fontSize: 13, fontWeight: '600', color: colors.textMuted},
-  chipRow: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs},
   error: {color: colors.danger, fontSize: 12},
   warning: {color: colors.warning, fontSize: 12},
   actions: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm},
