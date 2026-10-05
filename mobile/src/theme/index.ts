@@ -103,21 +103,11 @@ export const navigationTheme: Theme = {
 /**
  * Shared bottom-tab options.
  *
- * navigationTheme handles the card and header, but the tab bar keeps its own
- * defaults - the inactive label lands on a grey that is close to unreadable
- * against this black, and the top hairline shows as a light line.
+ * Only the header is configured here. The bar itself is drawn by
+ * navigation/FloatingTabBar, which reads its colours from this file directly -
+ * tabBarStyle and the tint colours would be settings nothing looks at.
  */
 export const tabScreenOptions = {
-  tabBarActiveTintColor: colors.primary,
-  tabBarInactiveTintColor: colors.textMuted,
-  tabBarStyle: {
-    backgroundColor: colors.surface,
-    borderTopColor: colors.border,
-    height: 62,
-    paddingBottom: 8,
-    paddingTop: 6,
-  },
-  tabBarLabelStyle: {fontSize: 11, fontWeight: '600' as const},
   headerStyle: {backgroundColor: colors.background},
   headerTintColor: colors.text,
   headerShadowVisible: false,

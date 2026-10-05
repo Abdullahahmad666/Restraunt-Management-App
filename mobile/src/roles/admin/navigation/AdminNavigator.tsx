@@ -36,6 +36,7 @@ import {InvoiceReviewScreen} from '../../../roles/common/screens/InvoiceReviewSc
 import {OtherChecklistsScreen} from '../../../roles/common/screens/OtherChecklistsScreen';
 import {ProfileScreen} from '../../../roles/common/screens/ProfileScreen';
 import {RoutineScreen} from '../../../roles/common/screens/RoutineScreen';
+import {FloatingTabBar} from '../../../navigation/FloatingTabBar';
 import {tabIcon} from '../../../navigation/tabIcon';
 import {tabScreenOptions} from '../../../theme';
 import type {AdminStackParamList, AdminTabParamList} from '../../../navigation/types';
@@ -47,7 +48,10 @@ const Stack = createNativeStackNavigator<AdminStackParamList>();
  * default tab), then the areas a manager works in, then their own account. */
 function AdminTabs(): React.JSX.Element {
   return (
-    <Tab.Navigator screenOptions={tabScreenOptions} initialRouteName="Analytics">
+    <Tab.Navigator
+      screenOptions={tabScreenOptions}
+      initialRouteName="Analytics"
+      tabBar={FloatingTabBar}>
       <Tab.Screen
         name="Analytics"
         component={TeamAnalyticsScreen}
