@@ -1,5 +1,5 @@
 import React from 'react';
-import {StatusBar} from 'react-native';
+import {StatusBar, StyleSheet} from 'react-native';
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import * as SplashScreen from 'expo-splash-screen';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
@@ -37,7 +37,10 @@ const queryClient = new QueryClient({
 export default function App(): React.JSX.Element {
   return (
     <QueryClientProvider client={queryClient}>
-      <SafeAreaProvider>
+      {/* The background belongs here as well as on each screen: this view is
+          mounted before any of them paint, and without it the window's own
+          colour - white on Android - shows through for that frame. */}
+      <SafeAreaProvider style={styles.root}>
         {/* Light glyphs: every screen sits on the brand black. */}
         <StatusBar barStyle="light-content" backgroundColor={colors.background} />
         <RootNavigator />
@@ -45,3 +48,7 @@ export default function App(): React.JSX.Element {
     </QueryClientProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {flex: 1, backgroundColor: colors.background},
+});
