@@ -21,7 +21,7 @@ import {InvoiceReviewScreen} from '../../../roles/common/screens/InvoiceReviewSc
 import {OtherChecklistsScreen} from '../../../roles/common/screens/OtherChecklistsScreen';
 import {ProfileScreen} from '../../../roles/common/screens/ProfileScreen';
 import {RoutineScreen} from '../../../roles/common/screens/RoutineScreen';
-import {FloatingTabBar} from '../../../navigation/FloatingTabBar';
+import {renderFloatingTabBar} from '../../../navigation/FloatingTabBar';
 import {tabIcon} from '../../../navigation/tabIcon';
 import {tabScreenOptions} from '../../../theme';
 import type {StaffStackParamList, StaffTabParamList} from '../../../navigation/types';
@@ -34,7 +34,7 @@ function StaffTabs(): React.JSX.Element {
     <Tab.Navigator
       screenOptions={tabScreenOptions}
       initialRouteName="Analytics"
-      tabBar={FloatingTabBar}>
+      tabBar={renderFloatingTabBar}>
       <Tab.Screen
         name="Analytics"
         component={AnalyticsScreen}

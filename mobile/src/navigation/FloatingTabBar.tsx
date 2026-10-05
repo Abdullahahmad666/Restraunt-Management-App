@@ -1,6 +1,5 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {Animated, StyleSheet, View} from 'react-native';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import type {BottomTabBarProps} from '@react-navigation/bottom-tabs';
 
 import {PressableScale} from '../components/PressableScale';
@@ -32,12 +31,12 @@ const OVERHANG = BITE / 2 + LIFT;
  * that moves between tabs is one transform, on the native driver - the bar
  * underneath is never redrawn.
  */
-export function FloatingTabBar({
+function FloatingTabBar({
   state,
   descriptors,
   navigation,
+  insets,
 }: BottomTabBarProps): React.JSX.Element {
-  const insets = useSafeAreaInsets();
   const [barWidth, setBarWidth] = useState(0);
   const slide = useRef(new Animated.Value(state.index)).current;
 
@@ -123,12 +122,15 @@ export function FloatingTabBar({
                 accessibilityLabel={label}
                 style={styles.tab}>
                 {/* The active one is up in the knob, so drawing it here too
-                    would show it twice. */}
-                {focused
+                    would show it twice - but only once the knob exists. Until
+                    the bar has been measured there is no knob, and skipping it
+                    here as well would leave the active tab with no icon at
+                    all for that frame. */}
+                {focused && tabWidth > 0
                   ? null
                   : options.tabBarIcon?.({
-                      focused: false,
-                      color: colors.textMuted,
+                      focused,
+                      color: focused ? colors.primary : colors.textMuted,
                       size: TAB_ICON_SIZE,
                     })}
               </PressableScale>
@@ -138,6 +140,22 @@ export function FloatingTabBar({
       </View>
     </View>
   );
+}
+
+/**
+ * What a navigator passes as its `tabBar`.
+ *
+ * It has to be this wrapper and not FloatingTabBar itself. React Navigation
+ * *calls* the tabBar prop - `insets => tabBar({...})` in BottomTabView - rather
+ * than rendering it as an element, so a component handed over directly runs
+ * its hooks outside any component and React refuses them outright: "Invalid
+ * hook call", and a blank screen where the app was.
+ *
+ * Defined out here, at module scope, so it is the same function on every
+ * render of the navigator.
+ */
+export function renderFloatingTabBar(props: BottomTabBarProps): React.JSX.Element {
+  return <FloatingTabBar {...props} />;
 }
 
 const styles = StyleSheet.create({
