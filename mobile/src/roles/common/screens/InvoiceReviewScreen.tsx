@@ -95,13 +95,13 @@ function LineItemCard({
     }
   }
 
-  /** `typed` is whatever was in the picker's search box - someone who typed
-   * "Ketchup 1L" looking for it, and found nothing, means that as the name. */
-  async function onCreateAndMatch(typed?: string) {
+  /** The name is resolved by the picker: someone who typed "Ketchup 1L"
+   * looking for it, and found nothing, means that as the name. */
+  async function onCreateAndMatch(name: string) {
     setError(null);
     try {
       const created = await createItem.mutateAsync({
-        name: typed?.trim() || rawName.trim() || line.raw_name,
+        name,
         unit: line.unit || 'each',
       });
       await updateLine.mutateAsync({id: line.id, input: {matched_item: created.id}});
@@ -219,9 +219,12 @@ function LineItemCard({
         }))}
         selected={line.matched_item}
         emptyLabel="No stock item by that name yet - add it below."
-        createLabel={query => `Add "${query || rawName || line.raw_name}" to stock`}
-        onCreate={query => onCreateAndMatch(query)}
-        creating={createItem.isPending}
+        create={{
+          nameFor: query => query.trim() || rawName.trim() || line.raw_name.trim() || null,
+          label: name => `Add "${name}" to stock`,
+          onCreate: onCreateAndMatch,
+          busy: createItem.isPending,
+        }}
         onSelect={onMatch}
         onClose={() => setPickerOpen(false)}
       />
@@ -263,19 +266,13 @@ function SourceCard({invoice, locked}: {invoice: InvoiceScan; locked: boolean}):
   /**
    * Add a supplier nobody has bought from before, and put this invoice on it.
    *
-   * `typed` is whatever was in the picker's search box, falling back to the
-   * name the scan read. Both matter: an invoice whose letterhead was missed
-   * entirely used to leave a reviewer stuck, because adding a supplier was
-   * only offered when the scan had read a name to offer - a staff member with
-   * an unreadable letterhead could pick from the list or give up, and the list
-   * is admin-managed.
+   * The name is resolved by the picker: what was typed, or the name the scan
+   * read when nothing was. Both matter - an invoice whose letterhead was
+   * missed used to leave a reviewer stuck, because adding a supplier was only
+   * offered when the scan had read a name to offer, and the list is
+   * admin-managed.
    */
-  async function onAddSupplier(typed: string) {
-    const name = typed.trim() || invoice.supplier_name.trim();
-    if (!name) {
-      setError('Type the supplier name to add them.');
-      return;
-    }
+  async function onAddSupplier(name: string) {
     setError(null);
     try {
       const created = await createSupplier.mutateAsync(name);
@@ -324,11 +321,12 @@ function SourceCard({invoice, locked}: {invoice: InvoiceScan; locked: boolean}):
         choices={supplierList.map(candidate => ({value: candidate.id, label: candidate.name}))}
         selected={invoice.supplier}
         emptyLabel="No supplier by that name yet - add them below."
-        createLabel={query =>
-          `Add "${query || invoice.supplier_name || 'new supplier'}" as a supplier`
-        }
-        onCreate={onAddSupplier}
-        creating={createSupplier.isPending}
+        create={{
+          nameFor: query => query.trim() || invoice.supplier_name.trim() || null,
+          label: name => `Add "${name}" as a supplier`,
+          onCreate: onAddSupplier,
+          busy: createSupplier.isPending,
+        }}
         onSelect={value => onAssign({supplier: value})}
         onClose={() => setPicking(null)}
       />

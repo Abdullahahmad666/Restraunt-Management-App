@@ -22,11 +22,21 @@ type Props = {
   selected?: string | null;
   searchPlaceholder?: string;
   emptyLabel?: string;
-  /** Offered under the results - creating what nobody has typed yet. The
-   * sheet passes back whatever is in the search box. */
-  createLabel?: (query: string) => string;
-  onCreate?: (query: string) => void;
-  creating?: boolean;
+  /**
+   * Adding something that is not in the list yet.
+   *
+   * `nameFor` turns what has been typed into the name that would be created,
+   * or returns null when there is nothing to create - an empty box with no
+   * fallback behind it. The sheet only offers the option when it comes back
+   * with a name, so there is no way to tap "add" and be told to fill in a
+   * field that is not on screen.
+   */
+  create?: {
+    nameFor: (query: string) => string | null;
+    label: (name: string) => string;
+    onCreate: (name: string) => void;
+    busy?: boolean;
+  };
   onSelect: (value: string) => void;
   onClose: () => void;
 };
@@ -50,9 +60,7 @@ export function PickerSheet({
   selected,
   searchPlaceholder = 'Search',
   emptyLabel = 'Nothing matches that.',
-  createLabel,
-  onCreate,
-  creating = false,
+  create,
   onSelect,
   onClose,
 }: Props): React.JSX.Element {
@@ -71,6 +79,8 @@ export function PickerSheet({
     const current = matched.filter(choice => choice.value === selected);
     return [...current, ...matched.filter(choice => choice.value !== selected)];
   }, [choices, query, selected]);
+
+  const newName = create?.nameFor(query) ?? null;
 
   function close() {
     setQuery('');
@@ -95,7 +105,7 @@ export function PickerSheet({
               style={styles.search}
               value={query}
               onChangeText={setQuery}
-              placeholder={searchPlaceholder}
+              placeholder={create ? `${searchPlaceholder}, or type a new name` : searchPlaceholder}
               placeholderTextColor={colors.textMuted}
               autoCapitalize="none"
               autoCorrect={false}
@@ -142,20 +152,23 @@ export function PickerSheet({
             )}
           </ScrollView>
 
-          {onCreate && createLabel ? (
+          {newName ? (
             <PressableScale
               onPress={() => {
-                onCreate(query.trim());
+                create?.onCreate(newName);
                 close();
               }}
-              disabled={creating}
+              disabled={create?.busy}
               accessibilityRole="button"
-              style={[styles.create, creating && styles.creating]}>
+              style={[styles.create, create?.busy && styles.creating]}>
               <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
               <Text style={styles.createLabel} numberOfLines={1}>
-                {createLabel(query.trim())}
+                {create?.label(newName)}
               </Text>
             </PressableScale>
+          ) : create ? (
+            // Said where the button would be, rather than after tapping one.
+            <Text style={styles.createHint}>Type a name above to add a new one.</Text>
           ) : null}
 
           <PressableScale onPress={close} accessibilityRole="button" style={styles.cancel}>
@@ -231,6 +244,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceRaised,
   },
   creating: {opacity: 0.5},
+  createHint: {...typography.caption, color: colors.textMuted, textAlign: 'center'},
   createLabel: {...typography.body, fontWeight: '600', color: colors.primary, flexShrink: 1},
   cancel: {alignItems: 'center', paddingVertical: spacing.xs},
   cancelLabel: {...typography.body, fontWeight: '600', color: colors.textMuted},
