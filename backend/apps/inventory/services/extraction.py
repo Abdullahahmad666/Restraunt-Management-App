@@ -21,7 +21,7 @@ import logging
 import openai
 from django.conf import settings
 
-from .rasterise import TooManyPages, pdf_to_images
+from .rasterise import TooManyPages, pdf_pages
 
 logger = logging.getLogger(__name__)
 
@@ -260,13 +260,31 @@ def _image_part(image_bytes: bytes, content_type: str) -> dict:
     }
 
 
+def _text_part(page) -> dict:
+    """A page sent as the characters it already holds.
+
+    Headed with its page number because the pages arrive as separate parts and
+    an invoice's totals are on its last one; and said to be extracted text,
+    because column alignment does not survive extraction and the model should
+    read it as a sequence rather than as a table it can see.
+    """
+    return {
+        "type": "input_text",
+        "text": f"--- Page {page.number}, text extracted from the PDF ---\n{page.text}",
+    }
+
+
 def _pages_for(*, file_bytes: bytes, content_type: str) -> list[dict]:
-    """The image parts to send, one per page."""
+    """The parts to send, one per page.
+
+    A photograph is one image. A PDF is whichever of text or image each of its
+    pages is worth sending as - see services.rasterise, where that is decided.
+    """
     if content_type != PDF_TYPE:
         return [_image_part(file_bytes, content_type)]
 
     try:
-        rendered = pdf_to_images(file_bytes)
+        pages = pdf_pages(file_bytes, allow_text=settings.INVOICE_SCAN_PDF_TEXT)
     except TooManyPages as exc:
         raise PermanentScanError(
             f"That PDF has {exc.args[0]} pages, which is more than an invoice is expected "
@@ -275,9 +293,18 @@ def _pages_for(*, file_bytes: bytes, content_type: str) -> list[dict]:
     except Exception as exc:  # noqa: BLE001 - a corrupt PDF raises many things
         raise PermanentScanError("That PDF could not be opened - try uploading it again.") from exc
 
-    if not rendered:
-        raise PermanentScanError("That PDF has no pages.")
-    return [_image_part(page, "image/jpeg") for page in rendered]
+    if not pages:
+        # Not "no pages": it has them, and every one carried text with no
+        # figure anywhere on it. Nothing like that can be an invoice, and
+        # saying so costs nothing where sending them to be read costs a
+        # thousand tokens a page to be told the same thing.
+        raise PermanentScanError(
+            "That does not look like an invoice or a credit note - no page in it has any "
+            "figures on it. Upload the invoice itself."
+        )
+    return [
+        _text_part(page) if page.is_text else _image_part(page.jpeg, "image/jpeg") for page in pages
+    ]
 
 
 def _log_usage(response, *, pages: int) -> None:

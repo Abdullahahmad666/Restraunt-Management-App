@@ -6,10 +6,10 @@ a picture of one.
 """
 
 import io
-from types import SimpleNamespace
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
 from django.urls import reverse
 from PIL import Image
 
@@ -218,41 +218,138 @@ def test_an_old_row_without_a_stored_type_falls_back_to_its_extension():
 
 
 # ---------------------------------------------------------------------------
-# Pages worth paying for
+# What a PDF costs to read
 # ---------------------------------------------------------------------------
 
 
-class FakePage:
-    """A PDF page with whatever text layer a test wants, or none."""
+def text_pdf(*pages):
+    """A PDF with a real text layer, one page per argument, built by hand.
 
-    def __init__(self, text=None, raises=False):
-        self._text = text
-        self._raises = raises
+    Pillow can only write pictures into a PDF, which is the scanned case. The
+    expensive-versus-cheap decision turns entirely on whether a page carries
+    its own characters, so a test of it needs pages that do.
+    """
+    font_obj = 3
+    objects = {
+        1: b"<< /Type /Catalog /Pages 2 0 R >>",
+        font_obj: b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    }
 
-    def get_textpage(self):
-        if self._raises:
-            raise RuntimeError("no text layer")
-        return SimpleNamespace(get_text_range=lambda: self._text)
+    newline = "\n"
+    kids = []
+    for index, lines in enumerate(pages):
+        page_obj = 4 + index * 2
+        content_obj = page_obj + 1
+        kids.append(f"{page_obj} 0 R")
+
+        body = f"BT /F1 11 Tf 40 760 Td 14 TL{newline}"
+        for line in lines:
+            body += f"({line}) Tj T*{newline}"
+        body += f"ET{newline}"
+        stream = body.encode("latin-1")
+
+        objects[page_obj] = (
+            b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] "
+            b"/Resources << /Font << /F1 " + str(font_obj).encode() + b" 0 R >> >> "
+            b"/Contents " + str(content_obj).encode() + b" 0 R >>"
+        )
+        objects[content_obj] = (
+            b"<< /Length " + str(len(stream)).encode() + b" >>\nstream\n" + stream + b"\nendstream"
+        )
+
+    objects[2] = (
+        b"<< /Type /Pages /Kids [" + " ".join(kids).encode() + b"] "
+        b"/Count " + str(len(pages)).encode() + b" >>"
+    )
+
+    out = bytearray(b"%PDF-1.4\n")
+    offsets = {}
+    for number in sorted(objects):
+        offsets[number] = len(out)
+        out += str(number).encode() + b" 0 obj\n" + objects[number] + b"\nendobj\n"
+
+    xref_at = len(out)
+    count = max(objects) + 1
+    out += b"xref\n0 " + str(count).encode() + b"\n0000000000 65535 f \n"
+    for number in range(1, count):
+        out += f"{offsets.get(number, 0):010d} 00000 n \n".encode()
+    out += (
+        b"trailer\n<< /Size " + str(count).encode() + b" /Root 1 0 R >>\n"
+        b"startxref\n" + str(xref_at).encode() + b"\n%%EOF\n"
+    )
+    return bytes(out)
 
 
-def test_a_page_with_no_digits_on_it_is_not_sent():
-    """Terms and conditions, delivery instructions, a blank back page. Each
-    costs about a thousand tokens to send and cannot hold a line item: every
+TERMS = ["TERMS AND CONDITIONS"] + [
+    "Goods remain the property of the seller until paid for in full" for _ in range(6)
+]
+
+
+def invoice_lines(count=14):
+    """Enough of a page to be a page - see rasterise.MIN_TEXT_CHARS."""
+    return ["INVOICE 12345", "GIRO FOOD LTD"] + [
+        f"Item {index} 1KG x 6 @ 3.99 = 23.94" for index in range(count)
+    ]
+
+
+def test_a_pdf_that_carries_its_own_text_is_sent_as_text():
+    """The whole point. A page sent as a picture costs around a thousand input
+    tokens for a model to read back characters we were handed for free."""
+    parts = extraction._pages_for(
+        file_bytes=text_pdf(invoice_lines()), content_type="application/pdf"
+    )
+
+    assert [part["type"] for part in parts] == ["input_text"]
+    assert "Ketchup" not in parts[0]["text"]
+    assert "INVOICE 12345" in parts[0]["text"]
+    # Numbered, because totals live on the last page and the parts arrive
+    # separately.
+    assert parts[0]["text"].startswith("--- Page 1")
+
+
+def test_a_scanned_pdf_is_still_sent_as_a_picture():
+    """No text layer means nothing to send but the picture - and an empty read
+    is not evidence of an empty page."""
+    parts = extraction._pages_for(file_bytes=real_pdf(pages=2), content_type="application/pdf")
+
+    assert [part["type"] for part in parts] == ["input_image", "input_image"]
+
+
+def test_a_page_with_a_few_words_on_it_is_a_picture():
+    """A watermark, a header stamped onto a scan, a line some OCR pass left
+    behind: the characters are there and most of the page is not in them."""
+    parts = extraction._pages_for(
+        file_bytes=text_pdf(["Page 1 of 2"]), content_type="application/pdf"
+    )
+
+    assert [part["type"] for part in parts] == ["input_image"]
+
+
+def test_a_page_of_terms_and_conditions_is_not_sent_at_all():
+    """Costs the same as a page of line items and cannot hold one: every
     quantity, price, date, invoice number and total is digits."""
-    page = FakePage("TERMS AND CONDITIONS\nGoods remain the property of the seller")
-
-    assert rasterise._carries_nothing(page) is True
-
-
-def test_a_page_with_figures_on_it_is_always_sent():
-    page = FakePage("Ketchup 1L x 6 @ 3.99")
-
-    assert rasterise._carries_nothing(page) is False
+    with pytest.raises(extraction.PermanentScanError, match="does not look like an invoice"):
+        extraction._pages_for(file_bytes=text_pdf(TERMS), content_type="application/pdf")
 
 
-def test_a_scanned_page_is_sent_rather_than_guessed_at():
-    """A photographed page has no text layer, so an empty read says nothing
-    about whether the page is empty. The expensive answer is the safe one."""
-    assert rasterise._carries_nothing(FakePage("")) is False
-    assert rasterise._carries_nothing(FakePage(None)) is False
-    assert rasterise._carries_nothing(FakePage(raises=True)) is False
+@override_settings(INVOICE_SCAN_PDF_TEXT=False)
+def test_the_text_path_can_be_switched_off_without_a_deploy():
+    """Extracted text has lost its column alignment. If a supplier's layout
+    reads badly that way, this is the switch - and it is a setting rather than
+    a code change for a reason."""
+    parts = extraction._pages_for(
+        file_bytes=text_pdf(invoice_lines()), content_type="application/pdf"
+    )
+
+    assert [part["type"] for part in parts] == ["input_image"]
+
+
+def test_terms_do_not_stop_the_invoice_they_are_attached_to():
+    """The common case: page one is the delivery note, page two is the small
+    print. Only one of them is worth paying to read, and dropping it must not
+    drop the other."""
+    pages = rasterise.pdf_pages(text_pdf(invoice_lines(), TERMS))
+
+    assert len(pages) == 1
+    assert pages[0].number == 1
+    assert pages[0].is_text

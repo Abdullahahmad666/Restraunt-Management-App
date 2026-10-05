@@ -357,4 +357,14 @@ OPENAI_TIMEOUT_SECONDS = env.int("OPENAI_TIMEOUT_SECONDS", default=60)
 # Invoices one restaurant may have read per calendar month. 0 means no
 # ceiling, which is the default: a limit nobody chose would refuse real work
 # on the day it was hit. Set one and a bad afternoon costs a known amount.
+# Whether a PDF page that already carries its own text is sent as that text
+# rather than as a picture of itself.
+#
+# On, because it is several times cheaper: a page sent as an image costs about
+# a thousand input tokens, and the same page's text costs a few hundred. Off is
+# worth having without a deploy, because it is also a change in what the model
+# sees - extracted text has lost its column alignment, and if a supplier's
+# layout turns out to read badly that way, this is the switch.
+INVOICE_SCAN_PDF_TEXT = env.bool("INVOICE_SCAN_PDF_TEXT", default=True)
+
 INVOICE_SCAN_MONTHLY_CAP = env.int("INVOICE_SCAN_MONTHLY_CAP", default=0)
