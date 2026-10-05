@@ -14,12 +14,15 @@ export type AdminInventoryItem = InventoryItem & {
   is_active: boolean;
 };
 
-export type StockMovementReason = 'DELIVERY' | 'WASTE' | 'CORRECTION';
+export type StockMovementReason = 'DELIVERY' | 'WASTE' | 'CORRECTION' | 'RETURN';
 
 export const STOCK_MOVEMENT_REASON_LABELS: Record<StockMovementReason, string> = {
   DELIVERY: 'Delivery received',
   WASTE: 'Waste / spoilage',
   CORRECTION: 'Manual correction',
+  // Written by confirming a credit note. Distinct from waste on purpose: the
+  // stock left, but it was not thrown away and the money came back.
+  RETURN: 'Returned / credited',
 };
 
 export type StockMovement = {

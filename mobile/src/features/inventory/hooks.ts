@@ -51,10 +51,14 @@ export function useCreateInventoryItem() {
   });
 }
 
-export function useStockMovements(item?: string) {
+export function useStockMovements(item?: string, enabled = true) {
   return useQuery({
     queryKey: keys.movements(item),
     queryFn: () => api.listStockMovements(item ? {item} : undefined),
+    // One stock list can hold hundreds of items, and each row would otherwise
+    // ask for its own history on mount. Callers switch this on when a row is
+    // actually opened.
+    enabled,
   });
 }
 

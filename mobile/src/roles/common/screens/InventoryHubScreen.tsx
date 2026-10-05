@@ -26,13 +26,16 @@ import {
   useAdjustStock,
   useInventoryItems,
   useInvoiceScans,
+  useStockMovements,
   useUploadInvoice,
 } from '../../../features/inventory/hooks';
+import {STOCK_MOVEMENT_REASON_LABELS} from '../../../features/inventory/types';
 import type {InventoryItem, StockMovementReason} from '../../../features/inventory/types';
 import type {InventoryStackParamList} from '../../../navigation/types';
 import {useAuthStore} from '../../../store/authStore';
 import {colors, radii, spacing} from '../../../theme';
 import {isAdmin} from '../../../types/roles';
+import {formatCurrency, formatDate} from '../../../utils/format';
 
 type Nav = NativeStackNavigationProp<InventoryStackParamList>;
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -98,6 +101,77 @@ function ScanOption({
   );
 }
 
+/** One figure with its name above it. Four of these say more about a stock
+ * item than the one line the row used to carry. */
+function Fact({label, value}: {label: string; value: string}): React.JSX.Element {
+  return (
+    <View style={styles.fact}>
+      <Text style={styles.factLabel}>{label}</Text>
+      <Text style={styles.factValue} numberOfLines={1}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+/**
+ * Where this item's stock has been going.
+ *
+ * The number on the row is a running total and says nothing about how it got
+ * there. "12kg" could be a delivery this morning or a count nobody has touched
+ * in a month, and only one of those is worth acting on. Each line says what
+ * moved it, when, and who did it.
+ *
+ * Fetched when the row opens rather than with the list: one restaurant can
+ * hold hundreds of items, and a history request per row on mount would be
+ * hundreds of requests to show nothing anybody asked for.
+ */
+function MovementHistory({itemId, unit}: {itemId: string; unit: string}): React.JSX.Element {
+  const movements = useStockMovements(itemId);
+
+  if (movements.isLoading) {
+    return <ActivityIndicator color={colors.primary} style={styles.historyLoading} />;
+  }
+
+  const recent = (movements.data?.results ?? []).slice(0, 5);
+  if (recent.length === 0) {
+    return (
+      <Text style={styles.historyEmpty}>
+        Nothing has moved yet. Confirming a scanned invoice adds to this, as does an adjustment
+        below.
+      </Text>
+    );
+  }
+
+  return (
+    <View style={styles.history}>
+      <Text style={styles.historyTitle}>Recent movements</Text>
+      {recent.map(movement => {
+        const delta = Number(movement.quantity_delta);
+        const incoming = delta >= 0;
+        return (
+          <View key={movement.id} style={styles.movement}>
+            <Text style={[styles.movementDelta, incoming ? styles.deltaIn : styles.deltaOut]}>
+              {incoming ? '+' : '-'}
+              {Math.abs(delta)} {unit}
+            </Text>
+            <View style={styles.movementText}>
+              <Text style={styles.movementReason} numberOfLines={1}>
+                {STOCK_MOVEMENT_REASON_LABELS[movement.reason] ?? movement.reason}
+              </Text>
+              <Text style={styles.movementMeta} numberOfLines={1}>
+                {formatDate(movement.created_at)}
+                {movement.recorded_by_name ? ` · ${movement.recorded_by_name}` : ''}
+                {movement.note ? ` · ${movement.note}` : ''}
+              </Text>
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 function ItemRow({item}: {item: InventoryItem}): React.JSX.Element {
   const adjust = useAdjustStock();
   const [editing, setEditing] = useState(false);
@@ -142,24 +216,49 @@ function ItemRow({item}: {item: InventoryItem}): React.JSX.Element {
 
       {editing ? (
         <View style={styles.editor}>
-          {/* Two directions, one of which subtracts - worth showing both at
-              once and sliding between them, because picking the wrong one
-              moves stock the wrong way. */}
-          <SegmentedToggle
-            options={QUICK_REASONS}
-            value={reason}
-            onChange={setReason}
-            accessibilityLabel="Add stock or remove it"
-            compact
-          />
-          <TextField
-            label={`Quantity (${item.unit})`}
-            keyboardType="decimal-pad"
-            value={amount}
-            onChangeText={setAmount}
-          />
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <Button title="Save" onPress={onSave} loading={adjust.isPending} />
+          <View style={styles.factRow}>
+            <Fact label="In stock" value={`${item.quantity_on_hand} ${item.unit}`} />
+            <Fact
+              label="Par level"
+              value={item.par_level ? `${item.par_level} ${item.unit}` : '-'}
+            />
+            <Fact
+              label="Unit cost"
+              value={item.cost_per_unit ? formatCurrency(item.cost_per_unit) : '-'}
+            />
+            <Fact
+              label="Stock value"
+              value={
+                item.cost_per_unit
+                  ? formatCurrency(Number(item.cost_per_unit) * Number(item.quantity_on_hand))
+                  : '-'
+              }
+            />
+          </View>
+
+          <MovementHistory itemId={item.id} unit={item.unit} />
+
+          <View style={styles.adjustBlock}>
+            <Text style={styles.adjustTitle}>Adjust stock</Text>
+            {/* Two directions, one of which subtracts - worth showing both at
+                once and sliding between them, because picking the wrong one
+                moves stock the wrong way. */}
+            <SegmentedToggle
+              options={QUICK_REASONS}
+              value={reason}
+              onChange={setReason}
+              accessibilityLabel="Add stock or remove it"
+              compact
+            />
+            <TextField
+              label={`Quantity (${item.unit})`}
+              keyboardType="decimal-pad"
+              value={amount}
+              onChangeText={setAmount}
+            />
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+            <Button title="Save" onPress={onSave} loading={adjust.isPending} />
+          </View>
         </View>
       ) : null}
     </Card>
@@ -338,6 +437,46 @@ const styles = StyleSheet.create({
   rowText: {flex: 1},
   name: {fontSize: 15, fontWeight: '600', color: colors.text},
   hint: {fontSize: 12, color: colors.textMuted, marginTop: 2},
+  fact: {flexBasis: '47%', flexGrow: 1, gap: 2},
+  factRow: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm},
+  factLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    color: colors.textMuted,
+  },
+  factValue: {fontSize: 15, fontWeight: '600', color: colors.text},
+  history: {gap: spacing.xs},
+  historyTitle: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    color: colors.textMuted,
+  },
+  historyLoading: {alignSelf: 'flex-start'},
+  historyEmpty: {fontSize: 12, color: colors.textMuted},
+  movement: {flexDirection: 'row', alignItems: 'center', gap: spacing.sm},
+  movementDelta: {fontSize: 13, fontWeight: '700', minWidth: 74},
+  deltaIn: {color: colors.success},
+  deltaOut: {color: colors.warning},
+  movementText: {flex: 1},
+  movementReason: {fontSize: 13, color: colors.text},
+  movementMeta: {fontSize: 11, color: colors.textMuted},
+  adjustBlock: {
+    gap: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.sm,
+  },
+  adjustTitle: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    color: colors.textMuted,
+  },
   editor: {marginTop: spacing.sm, gap: spacing.sm},
   error: {color: colors.danger, fontSize: 12},
 });
