@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {ActivityIndicator, Image, Pressable, StyleSheet, Text, View} from 'react-native';
+import {ActivityIndicator, Image, StyleSheet, Text, View} from 'react-native';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
@@ -52,11 +52,13 @@ const STATUS_TONE: Record<string, 'neutral' | 'success' | 'warning'> = {
 
 function LineItemCard({
   line,
+  index,
   items,
   invoiceId,
   locked,
 }: {
   line: InvoiceLineItem;
+  index: number;
   items: InventoryItem[];
   invoiceId: string;
   locked: boolean;
@@ -117,8 +119,29 @@ function LineItemCard({
     }
   }
 
+  const lineTotal = Number(quantity) * Number(unitPrice);
+  const hasTotal = Number.isFinite(lineTotal) && quantity !== '' && unitPrice !== '';
+
   return (
     <Card style={styles.lineCard}>
+      {/* Which line this is, and the way to drop it. "Remove this line" used
+          to sit at the bottom in danger red, directly under the match row and
+          louder than anything else on the card - the one action here nobody is
+          looking for, drawn like the one they are. */}
+      <View style={styles.lineHeader}>
+        <Text style={styles.lineNumber}>Line {index + 1}</Text>
+        {!locked ? (
+          <PressableScale
+            onPress={onDelete}
+            accessibilityRole="button"
+            accessibilityLabel={`Remove line ${index + 1}`}
+            style={styles.removeButton}>
+            <Ionicons name="trash-outline" size={13} color={colors.textMuted} />
+            <Text style={styles.removeLabel}>Remove</Text>
+          </PressableScale>
+        ) : null}
+      </View>
+
       <TextField
         label="Item name"
         value={rawName}
@@ -149,6 +172,15 @@ function LineItemCard({
         </View>
       </View>
 
+      {/* The two fields above multiplied out. A quantity read as 60 instead
+          of 6 is hard to notice in a field and obvious as a total. */}
+      {hasTotal ? (
+        <Text style={styles.lineMaths}>
+          {quantity} x {formatCurrency(unitPrice)} ={' '}
+          <Text style={styles.lineMathsTotal}>{formatCurrency(lineTotal)}</Text>
+        </Text>
+      ) : null}
+
       {/*
         One control, not a chip per stock item. The chip wall was readable at
         five items and a wall to scroll past at fifty - and every line on the
@@ -163,24 +195,35 @@ function LineItemCard({
         accessibilityLabel={
           matchedItem ? `Matched to ${matchedItem.name}. Change` : 'Match to a stock item'
         }
-        style={[styles.matchRow, locked && styles.matchRowLocked]}>
+        style={[
+          styles.matchRow,
+          matchedItem ? styles.matchRowDone : styles.matchRowPending,
+          locked && styles.matchRowLocked,
+        ]}>
         <Ionicons
-          name={matchedItem ? 'checkmark-circle' : 'help-circle-outline'}
-          size={18}
+          name={matchedItem ? 'checkmark-circle' : 'alert-circle-outline'}
+          size={20}
           color={matchedItem ? colors.success : colors.warning}
         />
         <View style={styles.matchText}>
-          <Text style={styles.matchName} numberOfLines={1}>
-            {matchedItem ? matchedItem.name : 'Not matched yet'}
+          <Text style={styles.matchName} numberOfLines={2}>
+            {matchedItem ? matchedItem.name : 'Not matched'}
           </Text>
+          {/* Short enough to fit beside the action at any width. The full
+              reason - that nothing reaches stock until every line is matched -
+              is said once above the Confirm button, not retold on every line
+              and then cut off halfway. */}
           <Text style={styles.matchHint} numberOfLines={1}>
             {matchedItem
               ? `${matchedItem.quantity_on_hand} ${matchedItem.unit} in stock`
-              : 'This line will not move stock until it is matched'}
+              : 'Will not reach stock'}
           </Text>
         </View>
         {!locked ? (
-          <Text style={styles.matchAction}>{matchedItem ? 'Change' : 'Match'}</Text>
+          <View style={styles.matchAction}>
+            <Text style={styles.matchActionLabel}>{matchedItem ? 'Change' : 'Match'}</Text>
+            <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+          </View>
         ) : null}
       </PressableScale>
 
@@ -203,12 +246,6 @@ function LineItemCard({
       />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      {!locked ? (
-        <Pressable onPress={onDelete} hitSlop={8}>
-          <Text style={styles.removeLink}>Remove this line</Text>
-        </Pressable>
-      ) : null}
     </Card>
   );
 }
@@ -539,7 +576,13 @@ export function InvoiceReviewScreen(): React.JSX.Element {
 
       {data.line_items.map((line, index) => (
         <FadeIn key={line.id} delay={index * 40}>
-          <LineItemCard line={line} items={itemList} invoiceId={invoiceId} locked={locked} />
+          <LineItemCard
+            line={line}
+            index={index}
+            items={itemList}
+            invoiceId={invoiceId}
+            locked={locked}
+          />
         </FadeIn>
       ))}
 
@@ -613,6 +656,18 @@ const styles = StyleSheet.create({
   },
   heading: {fontSize: 18, fontWeight: '700', color: colors.text, flex: 1, marginRight: spacing.sm},
   hint: {fontSize: 12, color: colors.textMuted},
+  lineHeader: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'},
+  lineNumber: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    color: colors.textMuted,
+  },
+  removeButton: {flexDirection: 'row', alignItems: 'center', gap: spacing.xs},
+  removeLabel: {fontSize: 12, color: colors.textMuted},
+  lineMaths: {fontSize: 12, color: colors.textMuted},
+  lineMathsTotal: {color: colors.text, fontWeight: '700'},
   matchRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -620,20 +675,23 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.border,
     backgroundColor: colors.surfaceRaised,
   },
+  // Unmatched is the state that needs doing something about, so it is the one
+  // that carries a colour.
+  matchRowPending: {borderColor: colors.warning},
+  matchRowDone: {borderColor: colors.border},
   matchRowLocked: {opacity: 0.6},
   matchText: {flex: 1, gap: 1},
   matchName: {fontSize: 15, fontWeight: '600', color: colors.text},
   matchHint: {fontSize: 12, color: colors.textMuted},
-  matchAction: {fontSize: 13, fontWeight: '700', color: colors.primary},
+  matchAction: {flexDirection: 'row', alignItems: 'center', gap: 2},
+  matchActionLabel: {fontSize: 13, fontWeight: '700', color: colors.primary},
   lineCard: {gap: spacing.sm},
   pairRow: {flexDirection: 'row', gap: spacing.sm},
   pairField: {flex: 1},
   label: {fontSize: 13, fontWeight: '600', color: colors.textMuted},
   chipRow: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs},
-  removeLink: {fontSize: 12, color: colors.danger, fontWeight: '600'},
   error: {color: colors.danger, fontSize: 12},
   warning: {color: colors.warning, fontSize: 12},
   actions: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm},
