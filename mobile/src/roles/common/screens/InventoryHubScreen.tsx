@@ -54,6 +54,34 @@ const SCAN_OPTIONS: {source: CaptureSource; label: string; icon: IconName}[] = [
   {source: 'document', label: 'Upload a PDF', icon: 'document-text-outline'},
 ];
 
+/** Where a manager goes from here. Admin-only: the screens behind these are
+ * all IsAdmin on the API, and staff are shown the stock list alone. */
+const MANAGE_LINKS: {
+  route: 'PurchaseHistory' | 'ManageSources' | 'ManageInventoryItems';
+  label: string;
+  hint: string;
+  icon: IconName;
+}[] = [
+  {
+    route: 'PurchaseHistory',
+    label: 'Purchases',
+    hint: 'Purchase history',
+    icon: 'trending-up-outline',
+  },
+  {
+    route: 'ManageSources',
+    label: 'Suppliers',
+    hint: 'Suppliers and storage areas',
+    icon: 'business-outline',
+  },
+  {
+    route: 'ManageInventoryItems',
+    label: 'Items',
+    hint: 'Manage inventory items',
+    icon: 'cube-outline',
+  },
+];
+
 const QUICK_REASONS: (SegmentedOption<StockMovementReason> & {sign: 1 | -1})[] = [
   {value: 'DELIVERY', label: 'Add stock', icon: 'arrow-down-circle-outline', sign: 1},
   {value: 'WASTE', label: 'Remove (waste)', icon: 'trash-outline', sign: -1},
@@ -352,17 +380,26 @@ export function InventoryHubScreen(): React.JSX.Element {
         pending.refetch();
       }}
       refreshing={items.isRefetching || pending.isRefetching}>
+      {/* Three places to go, drawn as such. They were three amber words in a
+          row, which in this app is how a link inside a sentence looks - so
+          they read as a filter on the list below, or as nothing at all, rather
+          than as the way into three other screens. */}
       {canManageItems ? (
-        <View style={styles.headerLinks}>
-          <Pressable onPress={() => navigation.navigate('PurchaseHistory')} hitSlop={8}>
-            <Text style={styles.manageLink}>Purchases</Text>
-          </Pressable>
-          <Pressable onPress={() => navigation.navigate('ManageSources')} hitSlop={8}>
-            <Text style={styles.manageLink}>Suppliers</Text>
-          </Pressable>
-          <Pressable onPress={() => navigation.navigate('ManageInventoryItems')} hitSlop={8}>
-            <Text style={styles.manageLink}>Items</Text>
-          </Pressable>
+        <View style={styles.manageRow}>
+          {MANAGE_LINKS.map(link => (
+            <PressableScale
+              key={link.route}
+              onPress={() => navigation.navigate(link.route)}
+              accessibilityRole="button"
+              accessibilityLabel={link.hint}
+              style={styles.manageTile}>
+              <Ionicons name={link.icon} size={18} color={colors.primary} />
+              <Text style={styles.manageLabel} numberOfLines={1}>
+                {link.label}
+              </Text>
+              <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+            </PressableScale>
+          ))}
         </View>
       ) : null}
 
@@ -433,8 +470,20 @@ export function InventoryHubScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  headerLinks: {flexDirection: 'row', gap: spacing.md},
-  manageLink: {fontSize: 13, color: colors.primary, fontWeight: '600'},
+  manageRow: {flexDirection: 'row', gap: spacing.sm},
+  manageTile: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  manageLabel: {flex: 1, fontSize: 13, fontWeight: '600', color: colors.text},
   sectionTitle: {fontSize: 16, fontWeight: '700', color: colors.text, marginTop: spacing.sm},
   buttonRow: {flexDirection: 'row', gap: spacing.sm},
   scanOption: {
