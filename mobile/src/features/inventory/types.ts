@@ -155,10 +155,15 @@ export type PurchaseTimelineRow = {
 };
 
 export type PurchaseSummary = {
+  /** Net: what the goods cost, before any tax the invoice charged. */
   total_spend: string;
   line_count: number;
   invoice_count: number;
   item_count: number;
   lines_without_price: number;
   unmatched_lines: number;
+  /** VAT as printed on the invoices behind those lines. */
+  tax_total: string;
+  /** How many of them printed any. Plenty of suppliers print none. */
+  invoices_stating_tax: number;
 };

@@ -194,7 +194,7 @@ export function PurchaseHistoryScreen(): React.JSX.Element {
           <View style={styles.summaryRow}>
             <View>
               <Text style={styles.summaryValue}>{formatCurrency(totals.total_spend)}</Text>
-              <Text style={styles.hint}>Total spend</Text>
+              <Text style={styles.hint}>Goods</Text>
             </View>
             <View>
               <Text style={styles.summaryValue}>{totals.invoice_count}</Text>
@@ -205,6 +205,28 @@ export function PurchaseHistoryScreen(): React.JSX.Element {
               <Text style={styles.hint}>Products</Text>
             </View>
           </View>
+
+          {/* The product figures on this screen are what the goods cost -
+              every one of them comes from the lines, and VAT is not on a line.
+              Showing it beside them, with what the two come to, is the
+              difference between what was bought and what was paid. */}
+          {Number(totals.tax_total) > 0 ? (
+            <View style={styles.taxRow}>
+              <Text style={styles.taxLabel}>
+                VAT on {totals.invoices_stating_tax} of {totals.invoice_count} invoice
+                {totals.invoice_count === 1 ? '' : 's'}
+              </Text>
+              <Text style={styles.taxValue}>{formatCurrency(totals.tax_total)}</Text>
+            </View>
+          ) : null}
+          {Number(totals.tax_total) > 0 ? (
+            <View style={styles.taxRow}>
+              <Text style={styles.paidLabel}>Paid out</Text>
+              <Text style={styles.paidValue}>
+                {formatCurrency(Number(totals.total_spend) + Number(totals.tax_total))}
+              </Text>
+            </View>
+          ) : null}
 
           {/* Said out loud rather than left to make the total quietly wrong. */}
           {totals.lines_without_price > 0 ? (
@@ -262,6 +284,16 @@ const styles = StyleSheet.create({
   filters: {gap: spacing.sm},
   summaryCard: {gap: spacing.sm},
   summaryRow: {flexDirection: 'row', justifyContent: 'space-between'},
+  taxRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  taxLabel: {fontSize: 12, color: colors.textMuted, flexShrink: 1},
+  taxValue: {fontSize: 14, color: colors.text},
+  paidLabel: {fontSize: 13, fontWeight: '700', color: colors.text},
+  paidValue: {fontSize: 16, fontWeight: '700', color: colors.primary},
   summaryValue: {fontSize: 22, fontWeight: '700', color: colors.primary},
   itemCard: {gap: spacing.xs},
   itemHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},

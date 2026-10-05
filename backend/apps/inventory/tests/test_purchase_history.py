@@ -319,3 +319,68 @@ def test_listing_invoices_does_not_query_per_invoice(
 
     assert len(response.data["results"]) == 5
     assert all(Decimal(row["lines_total"]) == Decimal("10") for row in response.data["results"])
+
+
+# ---------------------------------------------------------------------------
+# VAT
+# ---------------------------------------------------------------------------
+
+
+def test_vat_is_counted_once_per_invoice_not_once_per_line(
+    api_client, admin_user, restaurant, ketchup, rice
+):
+    """The trap this exists for.
+
+    Tax is printed once on an invoice; the lines are what the goods cost. Sum
+    it through the line join and a four-line delivery reports four times its
+    VAT - a figure wrong by a factor nobody can see, because it still looks
+    like money.
+    """
+    invoice = make_invoice(restaurant, [(ketchup, 10, 40), (rice, 2, 60)])
+    invoice.stated_tax = Decimal("20.00")
+    invoice.save(update_fields=["stated_tax"])
+    api_client.force_authenticate(user=admin_user)
+
+    summary = api_client.get(reverse(SUMMARY)).data
+
+    assert Decimal(summary["total_spend"]) == Decimal("100")
+    assert Decimal(summary["tax_total"]) == Decimal("20")
+    assert summary["invoices_stating_tax"] == 1
+
+
+def test_an_invoice_printing_no_vat_is_counted_as_printing_none(
+    api_client, admin_user, restaurant, ketchup
+):
+    """Half a restaurant's suppliers showing no VAT means a tax figure that
+    covers half its spending, so the count of invoices that stated any is
+    reported beside it rather than left to be assumed."""
+    priced = make_invoice(restaurant, [(ketchup, 1, 50)])
+    priced.stated_tax = Decimal("10.00")
+    priced.save(update_fields=["stated_tax"])
+    make_invoice(restaurant, [(ketchup, 1, 50)])
+    api_client.force_authenticate(user=admin_user)
+
+    summary = api_client.get(reverse(SUMMARY)).data
+
+    assert Decimal(summary["tax_total"]) == Decimal("10")
+    assert summary["invoice_count"] == 2
+    assert summary["invoices_stating_tax"] == 1
+
+
+def test_a_credit_notes_vat_comes_back_off_the_total(api_client, admin_user, restaurant, ketchup):
+    """A credit note reduces what was spent, and reduces the tax on it too -
+    otherwise a month of returns reports tax on goods that went back."""
+    bought = make_invoice(restaurant, [(ketchup, 10, 100)])
+    bought.stated_tax = Decimal("20.00")
+    bought.save(update_fields=["stated_tax"])
+
+    returned = make_invoice(restaurant, [(ketchup, 2, 20)])
+    returned.document_type = InvoiceScan.DocumentType.CREDIT_NOTE
+    returned.stated_tax = Decimal("4.00")
+    returned.save(update_fields=["document_type", "stated_tax"])
+    api_client.force_authenticate(user=admin_user)
+
+    summary = api_client.get(reverse(SUMMARY)).data
+
+    assert Decimal(summary["total_spend"]) == Decimal("80")
+    assert Decimal(summary["tax_total"]) == Decimal("16")

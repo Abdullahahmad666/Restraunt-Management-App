@@ -94,6 +94,13 @@ class PurchaseSummarySerializer(serializers.Serializer):
     #: Surfaced rather than buried: a total missing three lines should say so.
     lines_without_price = serializers.IntegerField()
     unmatched_lines = serializers.IntegerField()
+    #: VAT as printed on the invoices behind these lines. `total_spend` is net
+    #: of it - the lines are what the goods cost - so the two are added for
+    #: what was actually paid out.
+    tax_total = serializers.DecimalField(max_digits=14, decimal_places=2)
+    #: How many of those invoices printed any tax at all, so a tax figure
+    #: covering half the spending is not read as covering all of it.
+    invoices_stating_tax = serializers.IntegerField()
 
 
 class BasePurchaseView(views.APIView):

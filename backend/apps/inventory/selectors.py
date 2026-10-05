@@ -165,4 +165,34 @@ def purchase_summary(**filters) -> dict:
         lines_without_price=Count("id", filter=Q(line_total__isnull=True, unit_price__isnull=True)),
         unmatched_lines=Count("id", filter=Q(matched_item__isnull=True)),
     )
-    return totals
+    return {**totals, **_tax_summary(lines)}
+
+
+def _tax_summary(lines) -> dict:
+    """The VAT on the invoices those lines came from.
+
+    Aggregated over invoices rather than lines, because tax is printed once per
+    invoice: summing it through a line join multiplies it by the number of
+    lines, which on a twenty-line delivery is a figure twenty times too large
+    and still plausible enough to be believed.
+
+    Only what the invoices actually printed is counted, and how many did is
+    reported alongside it - a restaurant buying half its stock from a supplier
+    who shows no VAT has a tax figure covering half its spending, and that is
+    worth knowing before anyone hands it to an accountant.
+    """
+    invoices = InvoiceScan.objects.filter(id__in=lines.values("invoice_id"))
+    return invoices.aggregate(
+        tax_total=Coalesce(
+            Sum(
+                Case(
+                    When(document_type="CREDIT_NOTE", then=-F("stated_tax")),
+                    default=F("stated_tax"),
+                    output_field=_MONEY,
+                )
+            ),
+            Value(Decimal("0")),
+            output_field=_MONEY,
+        ),
+        invoices_stating_tax=Count("id", filter=Q(stated_tax__isnull=False)),
+    )
