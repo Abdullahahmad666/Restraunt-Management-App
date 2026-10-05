@@ -66,8 +66,13 @@ Rules:
 PDFs, and images.
 * Extract fields based on their meaning, not their position or exact label.
 * Common equivalent labels include Invoice No/Invoice Number, Date/Invoice \
-Date, VAT Reg No/VAT Number/Tax ID, Goods Total/Subtotal, Total/Amount \
+Date, VAT Reg No/VAT Number/Tax ID, Goods Total/Subtotal/Net, Total/Amount \
 Due/Balance Due/Invoice Total, and similar variations.
+* "tax_total" is the amount of tax charged - VAT, VAT Amount, V.A.T., \
+"VAT @ 20%", Tax, Sales Tax, GST. It is a sum of money, and it is not the \
+supplier's VAT registration number, which is "tax_id". Many invoices show no \
+tax at all; return null for "tax_total" then rather than zero, so that "not \
+charged" and "charged nothing" stay distinguishable.
 * Extract all invoice line items across all pages. A single photograph may \
 show more than one page of the same invoice; combine them into one result.
 * Dates are UK format: day first. "22/09/26" is 22 September 2026, not \

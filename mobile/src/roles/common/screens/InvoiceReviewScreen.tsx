@@ -270,6 +270,94 @@ function SourceCard({invoice, locked}: {invoice: InvoiceScan; locked: boolean}):
   );
 }
 
+function TotalRow({
+  label,
+  value,
+  strong = false,
+  hint,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+  hint?: string;
+}): React.JSX.Element {
+  return (
+    <View style={styles.totalsRow}>
+      <View style={styles.totalsLabel}>
+        <Text style={[styles.totalsLabelText, strong && styles.totalsStrong]}>{label}</Text>
+        {hint ? <Text style={styles.totalsHint}>{hint}</Text> : null}
+      </View>
+      <Text style={[styles.totalsValue, strong && styles.totalsStrong]}>{value}</Text>
+    </View>
+  );
+}
+
+/**
+ * What the lines come to, and what the invoice itself prints.
+ *
+ * Both, because they are different numbers and the difference matters. The
+ * lines are what goes into stock and into what the restaurant has spent on
+ * each product; the printed total is what the supplier will be paid, VAT
+ * included. Showing only the first - which is what this screen used to do,
+ * under the label "Invoice total" - made a VAT invoice look like it had been
+ * read wrong, because the figure on screen was never the figure on the paper.
+ *
+ * Every printed row is optional. Plenty of invoices show no VAT at all, and a
+ * row that says nothing is worse than no row, so each appears only when the
+ * invoice actually carried that figure.
+ */
+function TotalsCard({invoice}: {invoice: InvoiceScan}): React.JSX.Element | null {
+  const hasLines = invoice.lines_total !== null && invoice.line_items.length > 0;
+  const printed = [
+    invoice.stated_subtotal !== null && {label: 'Goods', value: invoice.stated_subtotal},
+    invoice.stated_tax !== null && {label: 'VAT', value: invoice.stated_tax},
+  ].filter(Boolean) as {label: string; value: string}[];
+
+  if (!hasLines && printed.length === 0 && invoice.stated_total === null) {
+    return null;
+  }
+
+  return (
+    <Card style={styles.totalsCard}>
+      <Text style={styles.totalsTitle}>Totals</Text>
+
+      {hasLines ? (
+        <TotalRow
+          label="These lines"
+          value={formatCurrency(invoice.lines_total as string)}
+          hint="What goes into stock and spend"
+        />
+      ) : null}
+
+      {printed.length > 0 || invoice.stated_total !== null ? (
+        <>
+          <View style={styles.totalsDivider} />
+          {printed.map(row => (
+            <TotalRow key={row.label} label={row.label} value={formatCurrency(row.value)} />
+          ))}
+          {invoice.stated_total !== null ? (
+            <TotalRow
+              label="Invoice total"
+              value={formatCurrency(invoice.stated_total)}
+              hint="As printed, VAT included"
+              strong
+            />
+          ) : null}
+        </>
+      ) : (
+        <Text style={styles.totalsNote}>
+          No printed totals could be read off this invoice, so there is nothing to check these lines
+          against.
+        </Text>
+      )}
+
+      {invoice.stated_tax === null && invoice.stated_total !== null ? (
+        <Text style={styles.totalsNote}>No VAT is shown on this invoice.</Text>
+      ) : null}
+    </Card>
+  );
+}
+
 /** One scanned invoice's line items - matching each to a stock item,
  * correcting whatever the AI misread, and confirming (which applies every
  * matched line's quantity to stock, see the backend's confirm_invoice) or
@@ -417,12 +505,7 @@ export function InvoiceReviewScreen(): React.JSX.Element {
         </FadeIn>
       ))}
 
-      {data.lines_total !== null && data.line_items.length > 0 ? (
-        <Card style={styles.totalRow}>
-          <Text style={styles.label}>Invoice total</Text>
-          <Text style={styles.total}>{formatCurrency(data.lines_total)}</Text>
-        </Card>
-      ) : null}
+      <TotalsCard invoice={data} />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -461,8 +544,29 @@ const styles = StyleSheet.create({
   photo: {width: '100%', height: 180, borderRadius: radii.lg, backgroundColor: colors.surface},
   pdfPlaceholder: {alignItems: 'center', justifyContent: 'center', gap: spacing.xs},
   scanningCard: {flexDirection: 'row', alignItems: 'center', gap: spacing.sm},
-  totalRow: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'},
-  total: {fontSize: 20, fontWeight: '700', color: colors.primary},
+  totalsCard: {gap: spacing.xs},
+  totalsTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: colors.textMuted,
+    marginBottom: spacing.xs,
+  },
+  totalsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    paddingVertical: 3,
+  },
+  totalsLabel: {flex: 1, gap: 1},
+  totalsLabelText: {fontSize: 14, color: colors.textMuted},
+  totalsValue: {fontSize: 15, color: colors.text, fontVariant: ['tabular-nums']},
+  totalsStrong: {fontSize: 18, fontWeight: '700', color: colors.primary},
+  totalsHint: {fontSize: 11, color: colors.textMuted},
+  totalsDivider: {height: 1, backgroundColor: colors.border, marginVertical: spacing.xs},
+  totalsNote: {fontSize: 12, color: colors.textMuted, marginTop: spacing.xs},
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
