@@ -3,6 +3,7 @@ import {act, fireEvent, render, screen} from '@testing-library/react-native';
 import type {BottomTabBarProps} from '@react-navigation/bottom-tabs';
 
 import {renderFloatingTabBar} from '../src/navigation/FloatingTabBar';
+import {colors} from '../src/theme';
 
 /**
  * React Navigation does not render the `tabBar` prop as an element - it calls
@@ -60,27 +61,35 @@ describe('the tab bar as the navigator uses it', () => {
     });
   });
 
-  it('draws every icon exactly once before the bar has been measured', async () => {
-    // Nothing has laid out yet, so there is no lifted circle to put the active
-    // icon in. It belongs in the row until there is - leaving it out of both
-    // places is an empty slot where the current tab should be.
+  it('draws every icon exactly once, before and after it is measured', async () => {
+    // One icon per tab either way. The marker is a circle behind the active
+    // icon rather than a second copy of it lifted out of the bar, which is
+    // what this used to be and what put it over the content above.
     await render(renderFloatingTabBar(fakeProps(0)));
+
+    expect(screen.getAllByText('Home icon')).toHaveLength(1);
+    expect(screen.getAllByText('Checks icon')).toHaveLength(1);
+
+    await act(async () => {
+      fireEvent(screen.getByLabelText('Home').parent as never, 'layout', {
+        nativeEvent: {layout: {width: 320, height: 64}},
+      });
+    });
 
     expect(screen.getAllByText('Home icon')).toHaveLength(1);
     expect(screen.getAllByText('Checks icon')).toHaveLength(1);
   });
 
-  it('draws every icon exactly once after it has been measured', async () => {
-    // Now the circle exists, so the active icon moves into it - and the row
-    // must stop drawing it, or it shows twice, one above the other.
-    await render(renderFloatingTabBar(fakeProps(0)));
-    const bar = screen.getByLabelText('Home').parent;
+  it('inks the active icon for the amber behind it', async () => {
+    // White on this amber fails contrast, which is why onPrimary is near
+    // black - the same ink every other picked thing in the app uses.
+    await render(renderFloatingTabBar(fakeProps(1)));
 
-    await act(async () => {
-      fireEvent(bar as never, 'layout', {nativeEvent: {layout: {width: 320, height: 106}}});
+    expect(screen.getByText('Checks icon').props.style).toMatchObject({
+      color: colors.onPrimary,
     });
-
-    expect(screen.getAllByText('Home icon')).toHaveLength(1);
-    expect(screen.getAllByText('Checks icon')).toHaveLength(1);
+    expect(screen.getByText('Home icon').props.style).toMatchObject({
+      color: colors.textMuted,
+    });
   });
 });
