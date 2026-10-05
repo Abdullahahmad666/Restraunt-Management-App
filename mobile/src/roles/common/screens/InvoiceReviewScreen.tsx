@@ -9,6 +9,8 @@ import {Badge} from '../../../components/Badge';
 import {Button} from '../../../components/Button';
 import {Card} from '../../../components/Card';
 import {FilterChip} from '../../../components/FilterChip';
+import {PickerSheet} from '../../../components/PickerSheet';
+import {PressableScale} from '../../../components/PressableScale';
 import {ErrorState} from '../../../components/ErrorState';
 import {FadeIn} from '../../../components/FadeIn';
 import {LoadingView} from '../../../components/LoadingView';
@@ -66,6 +68,9 @@ function LineItemCard({
   const [quantity, setQuantity] = useState(line.quantity);
   const [unitPrice, setUnitPrice] = useState(line.unit_price ?? '');
   const [error, setError] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const matchedItem = items.find(item => item.id === line.matched_item);
 
   async function onSaveDetails() {
     setError(null);
@@ -88,11 +93,13 @@ function LineItemCard({
     }
   }
 
-  async function onCreateAndMatch() {
+  /** `typed` is whatever was in the picker's search box - someone who typed
+   * "Ketchup 1L" looking for it, and found nothing, means that as the name. */
+  async function onCreateAndMatch(typed?: string) {
     setError(null);
     try {
       const created = await createItem.mutateAsync({
-        name: rawName.trim() || line.raw_name,
+        name: typed?.trim() || rawName.trim() || line.raw_name,
         unit: line.unit || 'each',
       });
       await updateLine.mutateAsync({id: line.id, input: {matched_item: created.id}});
@@ -142,27 +149,58 @@ function LineItemCard({
         </View>
       </View>
 
-      <Text style={styles.label}>Match to inventory item</Text>
-      <View style={styles.chipRow}>
-        {items.map(item => (
-          <FilterChip
-            key={item.id}
-            label={item.name}
-            selected={line.matched_item === item.id}
-            disabled={locked}
-            onPress={() => onMatch(item.id)}
-          />
-        ))}
-      </View>
-
-      {!line.matched_item && !locked ? (
-        <Button
-          title={`+ New item: ${rawName || line.raw_name}`}
-          variant="secondary"
-          onPress={onCreateAndMatch}
-          loading={createItem.isPending}
+      {/*
+        One control, not a chip per stock item. The chip wall was readable at
+        five items and a wall to scroll past at fifty - and every line on the
+        invoice repeated it, so reviewing a ten-line delivery meant passing the
+        same list ten times.
+      */}
+      <Text style={styles.label}>Stock item</Text>
+      <PressableScale
+        onPress={() => setPickerOpen(true)}
+        disabled={locked}
+        accessibilityRole="button"
+        accessibilityLabel={
+          matchedItem ? `Matched to ${matchedItem.name}. Change` : 'Match to a stock item'
+        }
+        style={[styles.matchRow, locked && styles.matchRowLocked]}>
+        <Ionicons
+          name={matchedItem ? 'checkmark-circle' : 'help-circle-outline'}
+          size={18}
+          color={matchedItem ? colors.success : colors.warning}
         />
-      ) : null}
+        <View style={styles.matchText}>
+          <Text style={styles.matchName} numberOfLines={1}>
+            {matchedItem ? matchedItem.name : 'Not matched yet'}
+          </Text>
+          <Text style={styles.matchHint} numberOfLines={1}>
+            {matchedItem
+              ? `${matchedItem.quantity_on_hand} ${matchedItem.unit} in stock`
+              : 'This line will not move stock until it is matched'}
+          </Text>
+        </View>
+        {!locked ? (
+          <Text style={styles.matchAction}>{matchedItem ? 'Change' : 'Match'}</Text>
+        ) : null}
+      </PressableScale>
+
+      <PickerSheet
+        visible={pickerOpen}
+        title="Match to stock item"
+        searchPlaceholder="Search your stock items"
+        choices={items.map(item => ({
+          value: item.id,
+          label: item.name,
+          hint: `${item.quantity_on_hand} ${item.unit} in stock`,
+        }))}
+        selected={line.matched_item}
+        emptyLabel="No stock item by that name yet - add it below."
+        createLabel={query => `Add "${query || rawName || line.raw_name}" to stock`}
+        onCreate={query => onCreateAndMatch(query)}
+        creating={createItem.isPending}
+        onSelect={onMatch}
+        onClose={() => setPickerOpen(false)}
+      />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -575,6 +613,21 @@ const styles = StyleSheet.create({
   },
   heading: {fontSize: 18, fontWeight: '700', color: colors.text, flex: 1, marginRight: spacing.sm},
   hint: {fontSize: 12, color: colors.textMuted},
+  matchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceRaised,
+  },
+  matchRowLocked: {opacity: 0.6},
+  matchText: {flex: 1, gap: 1},
+  matchName: {fontSize: 15, fontWeight: '600', color: colors.text},
+  matchHint: {fontSize: 12, color: colors.textMuted},
+  matchAction: {fontSize: 13, fontWeight: '700', color: colors.primary},
   lineCard: {gap: spacing.sm},
   pairRow: {flexDirection: 'row', gap: spacing.sm},
   pairField: {flex: 1},
