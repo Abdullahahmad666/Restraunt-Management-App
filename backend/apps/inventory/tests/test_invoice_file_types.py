@@ -6,6 +6,7 @@ a picture of one.
 """
 
 import io
+from types import SimpleNamespace
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -214,3 +215,44 @@ def test_an_old_row_without_a_stored_type_falls_back_to_its_extension():
     assert scanning._type_from_name("invoice_scans/abc.pdf") == "application/pdf"
     assert scanning._type_from_name("invoice_scans/abc.PNG") == "image/png"
     assert scanning._type_from_name("invoice_scans/abc") == "image/jpeg"
+
+
+# ---------------------------------------------------------------------------
+# Pages worth paying for
+# ---------------------------------------------------------------------------
+
+
+class FakePage:
+    """A PDF page with whatever text layer a test wants, or none."""
+
+    def __init__(self, text=None, raises=False):
+        self._text = text
+        self._raises = raises
+
+    def get_textpage(self):
+        if self._raises:
+            raise RuntimeError("no text layer")
+        return SimpleNamespace(get_text_range=lambda: self._text)
+
+
+def test_a_page_with_no_digits_on_it_is_not_sent():
+    """Terms and conditions, delivery instructions, a blank back page. Each
+    costs about a thousand tokens to send and cannot hold a line item: every
+    quantity, price, date, invoice number and total is digits."""
+    page = FakePage("TERMS AND CONDITIONS\nGoods remain the property of the seller")
+
+    assert rasterise._carries_nothing(page) is True
+
+
+def test_a_page_with_figures_on_it_is_always_sent():
+    page = FakePage("Ketchup 1L x 6 @ 3.99")
+
+    assert rasterise._carries_nothing(page) is False
+
+
+def test_a_scanned_page_is_sent_rather_than_guessed_at():
+    """A photographed page has no text layer, so an empty read says nothing
+    about whether the page is empty. The expensive answer is the safe one."""
+    assert rasterise._carries_nothing(FakePage("")) is False
+    assert rasterise._carries_nothing(FakePage(None)) is False
+    assert rasterise._carries_nothing(FakePage(raises=True)) is False

@@ -42,6 +42,33 @@ class TooManyPages(Exception):
     """More pages than we will pay to read."""
 
 
+def _carries_nothing(page) -> bool:
+    """Whether a page can be skipped without losing anything.
+
+    Every page sent costs around a thousand tokens whether it holds line items
+    or a page of terms and conditions, and suppliers attach plenty of the
+    latter. The text layer is free to read here, so it is read first and the
+    page sent only if it could possibly matter.
+
+    The test is deliberately almost impossible to fail by accident: a page with
+    a text layer and not one digit anywhere on it. Line items, quantities,
+    prices, dates, invoice numbers and totals are all digits, so a page without
+    any cannot be carrying them.
+
+    A scanned page has no text layer at all. That comes back empty, which is
+    not evidence of an empty page, so it is rendered - the expensive answer is
+    the safe one when we cannot tell.
+    """
+    try:
+        text = page.get_textpage().get_text_range()
+    except Exception:  # noqa: BLE001 - a page with no text layer raises its own kinds
+        return False
+
+    if not text or not text.strip():
+        return False
+    return not any(character.isdigit() for character in text)
+
+
 def pdf_to_images(pdf_bytes: bytes, *, max_pages: int = MAX_PAGES) -> list[bytes]:
     """Render each page of a PDF to a JPEG.
 
@@ -57,8 +84,14 @@ def pdf_to_images(pdf_bytes: bytes, *, max_pages: int = MAX_PAGES) -> list[bytes
             raise TooManyPages(page_count)
 
         pages: list[bytes] = []
+        skipped = 0
         for index in range(page_count):
             page = document[index]
+
+            if _carries_nothing(page):
+                skipped += 1
+                continue
+
             bitmap = page.render(scale=RENDER_SCALE)
             image: Image.Image = bitmap.to_pil().convert("RGB")
 
@@ -66,7 +99,9 @@ def pdf_to_images(pdf_bytes: bytes, *, max_pages: int = MAX_PAGES) -> list[bytes
             image.save(buffer, format="JPEG", quality=JPEG_QUALITY, optimize=True)
             pages.append(buffer.getvalue())
 
-        logger.info("Rendered %s page(s) from a PDF", len(pages))
+        logger.info(
+            "Rendered %s page(s) from a PDF, skipped %s with nothing to read", len(pages), skipped
+        )
         return pages
     finally:
         document.close()

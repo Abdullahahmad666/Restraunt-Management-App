@@ -77,7 +77,7 @@ charged" and "charged nothing" stay distinguishable.
 show more than one page of the same invoice; combine them into one result.
 * Dates are UK format: day first. "22/09/26" is 22 September 2026, not \
 26 September 2022. Return dates as YYYY-MM-DD.
-* Preserve the value and currency as shown. Do not convert currencies.
+* Preserve values exactly as shown. Do not convert currencies or units.
 * Do not guess, infer, or invent information. Use null when a field is \
 missing or unreadable.
 * Do not calculate missing values unless the value is explicitly derivable \
@@ -105,41 +105,40 @@ def _nullable(*types: str) -> dict:
     return {"type": [*types, "null"]}
 
 
+# Only what something reads. `strict` makes every property mandatory, so the
+# model fills in each one on every call and is paid for doing it - and the item
+# schema is paid for once per line, which on a long delivery note is where the
+# cost of this feature actually sits. Four unused fields per item on a
+# thirty-line invoice is a hundred and twenty values extracted, emitted and
+# thrown away.
+#
+# `address` stays on both parties although nothing stores it: it is how the
+# model tells a supplier from a customer, which is the one mistake here that
+# silently files every invoice under the wrong name.
 _PARTY_SCHEMA = {
     "type": "object",
     "properties": {
         "name": _nullable("string"),
         "address": _nullable("string"),
-        "email": _nullable("string"),
-        "phone": _nullable("string"),
-        "tax_id": _nullable("string"),
     },
-    "required": ["name", "address", "email", "phone", "tax_id"],
+    "required": ["name", "address"],
     "additionalProperties": False,
 }
 
 _ITEM_SCHEMA = {
     "type": "object",
     "properties": {
-        "product_code": _nullable("string"),
         "description": _nullable("string"),
         "size": _nullable("string"),
         "quantity": _nullable("number"),
         "unit_price": _nullable("number"),
-        "tax_rate": _nullable("number"),
-        "tax_amount": _nullable("number"),
-        "discount": _nullable("number"),
         "line_total": _nullable("number"),
     },
     "required": [
-        "product_code",
         "description",
         "size",
         "quantity",
         "unit_price",
-        "tax_rate",
-        "tax_amount",
-        "discount",
         "line_total",
     ],
     "additionalProperties": False,
@@ -155,36 +154,26 @@ RESPONSE_SCHEMA = {
         "document_type": {"type": "string", "enum": ["invoice", "credit_note"]},
         "invoice_number": _nullable("string"),
         "invoice_date": _nullable("string"),
-        "due_date": _nullable("string"),
-        "currency": _nullable("string"),
         "supplier": _PARTY_SCHEMA,
         "customer": _PARTY_SCHEMA,
         "shipping_address": _nullable("string"),
         "items": {"type": "array", "items": _ITEM_SCHEMA},
         "subtotal": _nullable("number"),
         "tax_total": _nullable("number"),
-        "discount_total": _nullable("number"),
-        "delivery_charge": _nullable("number"),
         "total": _nullable("number"),
-        "amount_due": _nullable("number"),
     },
     "required": [
         "is_invoice",
         "document_type",
         "invoice_number",
         "invoice_date",
-        "due_date",
-        "currency",
         "supplier",
         "customer",
         "shipping_address",
         "items",
         "subtotal",
         "tax_total",
-        "discount_total",
-        "delivery_charge",
         "total",
-        "amount_due",
     ],
     "additionalProperties": False,
 }
@@ -291,6 +280,30 @@ def _pages_for(*, file_bytes: bytes, content_type: str) -> list[dict]:
     return [_image_part(page, "image/jpeg") for page in rendered]
 
 
+def _log_usage(response, *, pages: int) -> None:
+    """What that read cost, in the log, per scan.
+
+    Without this the only number anybody sees is a monthly bill, and "why was
+    that 23,000 tokens" has no answer short of guessing. Images dominate and
+    their cost is per page and nearly fixed - a page is about a thousand
+    tokens whatever resolution it is sent at, because the provider scales it to
+    its own tiles before charging - so pages is the number to watch, and it is
+    logged beside the tokens rather than inferred later.
+    """
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        return
+
+    cached = getattr(getattr(usage, "input_tokens_details", None), "cached_tokens", 0)
+    logger.info(
+        "Invoice read: %s pages, %s input tokens (%s cached), %s output tokens",
+        pages,
+        getattr(usage, "input_tokens", "?"),
+        cached,
+        getattr(usage, "output_tokens", "?"),
+    )
+
+
 def extract_invoice_data(*, image_bytes: bytes, content_type: str) -> dict:
     """Read one invoice and return the object described by RESPONSE_SCHEMA."""
     content_type = content_type or "image/jpeg"
@@ -376,6 +389,9 @@ def extract_invoice_data(*, image_bytes: bytes, content_type: str) -> dict:
         )
         raise PermanentScanError(UNAVAILABLE) from exc
 
+    # Outside the try: what a read cost is worth knowing, and not worth
+    # turning into a failed scan if the shape of `usage` ever changes.
+    _log_usage(response, pages=len(pages))
     return _parse(response)
 
 
