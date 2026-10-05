@@ -49,6 +49,7 @@ function SourceRow({
 }): React.JSX.Element {
   const [name, setName] = useState(row.name);
   const [error, setError] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState(false);
 
   async function run(action: () => Promise<void>, fallback: string) {
     setError(null);
@@ -61,36 +62,70 @@ function SourceRow({
 
   const renamed = name.trim() !== row.name && name.trim().length > 0;
 
+  async function onSave() {
+    await run(() => onRename(name.trim()), 'Could not rename that.');
+    setRenaming(false);
+  }
+
   return (
     <Card style={styles.card}>
-      <View style={styles.row}>
-        <View style={styles.nameField}>
-          <TextField label="Name" value={name} onChangeText={setName} />
-        </View>
-        {!row.is_active ? <Badge label="Retired" tone="neutral" /> : null}
-      </View>
+      {/*
+        A name is text until somebody asks to change it.
+
+        Every row used to be a text field holding its own name, which read as a
+        screen full of forms - and worse, a long name in a field is scrolled to
+        its end, so "Bidfood Wholesale Northern Ltd" showed as "...rthern Ltd"
+        and the supplier was identified by the part that is the same on all of
+        them. As text it ellipsizes the other way, which is the way names are
+        told apart.
+      */}
+      {renaming ? (
+        <>
+          <TextField label="Name" value={name} onChangeText={setName} autoFocus />
+          <View style={styles.actions}>
+            <View style={styles.action}>
+              <Button title="Save" onPress={onSave} loading={busy} disabled={!renamed} />
+            </View>
+            <View style={styles.action}>
+              <Button
+                title="Cancel"
+                variant="ghost"
+                onPress={() => {
+                  setName(row.name);
+                  setRenaming(false);
+                  setError(null);
+                }}
+                disabled={busy}
+              />
+            </View>
+          </View>
+        </>
+      ) : (
+        <>
+          <View style={styles.row}>
+            <Text style={styles.name} numberOfLines={2}>
+              {row.name}
+            </Text>
+            {!row.is_active ? <Badge label="Retired" tone="neutral" /> : null}
+          </View>
+
+          <View style={styles.actions}>
+            <View style={styles.action}>
+              <Button title="Rename" variant="secondary" onPress={() => setRenaming(true)} />
+            </View>
+            <View style={styles.action}>
+              <Button
+                title={row.is_active ? 'Retire' : 'Bring back'}
+                variant="secondary"
+                onPress={() => run(onToggle, 'Could not update that.')}
+                loading={busy}
+              />
+            </View>
+          </View>
+        </>
+      )}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      <View style={styles.actions}>
-        {renamed ? (
-          <View style={styles.action}>
-            <Button
-              title="Save name"
-              onPress={() => run(() => onRename(name.trim()), 'Could not rename that.')}
-              loading={busy}
-            />
-          </View>
-        ) : null}
-        <View style={styles.action}>
-          <Button
-            title={row.is_active ? 'Retire' : 'Bring back'}
-            variant="secondary"
-            onPress={() => run(onToggle, 'Could not update that.')}
-            loading={busy}
-          />
-        </View>
-      </View>
     </Card>
   );
 }
@@ -247,7 +282,7 @@ const styles = StyleSheet.create({
   hint: {fontSize: 12, color: colors.textMuted},
   card: {gap: spacing.sm},
   row: {flexDirection: 'row', alignItems: 'center', gap: spacing.sm},
-  nameField: {flex: 1},
+  name: {flex: 1, fontSize: 15, fontWeight: '600', color: colors.text},
   actions: {flexDirection: 'row', gap: spacing.sm},
   action: {flexGrow: 1, flexBasis: 120},
   error: {color: colors.danger, fontSize: 12},

@@ -393,11 +393,10 @@ export function InventoryHubScreen(): React.JSX.Element {
               accessibilityRole="button"
               accessibilityLabel={link.hint}
               style={styles.manageTile}>
-              <Ionicons name={link.icon} size={18} color={colors.primary} />
+              <Ionicons name={link.icon} size={20} color={colors.primary} />
               <Text style={styles.manageLabel} numberOfLines={1}>
                 {link.label}
               </Text>
-              <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
             </PressableScale>
           ))}
         </View>
@@ -471,19 +470,22 @@ export function InventoryHubScreen(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   manageRow: {flexDirection: 'row', gap: spacing.sm},
+  // Icon above label, not beside it. Side by side, an icon and a chevron and
+  // their gaps left about 48px for a word that wants 62, so the longest of the
+  // three - "Purchases" - came out as "Purcha...". Stacked, the label has the
+  // tile's full width and all three fit at any phone size.
   manageTile: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xs,
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
-  manageLabel: {flex: 1, fontSize: 13, fontWeight: '600', color: colors.text},
+  manageLabel: {fontSize: 13, fontWeight: '600', color: colors.text},
   sectionTitle: {fontSize: 16, fontWeight: '700', color: colors.text, marginTop: spacing.sm},
   buttonRow: {flexDirection: 'row', gap: spacing.sm},
   scanOption: {

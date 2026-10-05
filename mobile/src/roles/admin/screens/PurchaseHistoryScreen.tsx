@@ -13,7 +13,8 @@ import {Card} from '../../../components/Card';
 import {EmptyState} from '../../../components/EmptyState';
 import {ErrorState} from '../../../components/ErrorState';
 import {FadeIn} from '../../../components/FadeIn';
-import {FilterChip} from '../../../components/FilterChip';
+import {PickerRow} from '../../../components/PickerRow';
+import {PickerSheet} from '../../../components/PickerSheet';
 import {LoadingView} from '../../../components/LoadingView';
 import {Screen} from '../../../components/Screen';
 import {SegmentedToggle, type SegmentedOption} from '../../../components/SegmentedToggle';
@@ -41,6 +42,10 @@ const PERIODS: SegmentedOption<PurchasePeriod>[] = [
 /** How far back the screen looks by default. Long enough to see a trend,
  * short enough that the first load is not a year of rows. */
 const DEFAULT_MONTHS_BACK = 6;
+
+/** The "no filter" choice. A picker needs a value behind every row, and an id
+ * no restaurant can own is cheaper than making the whole sheet nullable. */
+const ALL = '__all__';
 
 function isoMonthsAgo(months: number): string {
   const date = new Date();
@@ -74,6 +79,7 @@ export function PurchaseHistoryScreen(): React.JSX.Element {
   const [period, setPeriod] = useState<PurchasePeriod>('month');
   const [supplier, setSupplier] = useState<string | undefined>();
   const [warehouse, setWarehouse] = useState<string | undefined>();
+  const [picking, setPicking] = useState<'supplier' | 'warehouse' | null>(null);
 
   const filters: PurchaseFilters = useMemo(
     () => ({supplier, warehouse, date_from: isoMonthsAgo(DEFAULT_MONTHS_BACK)}),
@@ -82,6 +88,10 @@ export function PurchaseHistoryScreen(): React.JSX.Element {
 
   const suppliers = useSuppliers();
   const warehouses = useWarehouses();
+  const supplierList = suppliers.data?.results ?? [];
+  const warehouseList = warehouses.data?.results ?? [];
+  const supplierName = supplierList.find(row => row.id === supplier)?.name;
+  const warehouseName = warehouseList.find(row => row.id === warehouse)?.name;
   const summary = usePurchaseSummary(filters);
   const timeline = usePurchaseTimeline(period, filters);
   const byItem = usePurchasesByItem(filters);
@@ -127,39 +137,57 @@ export function PurchaseHistoryScreen(): React.JSX.Element {
         Confirmed invoices from the last {DEFAULT_MONTHS_BACK} months.
       </Text>
 
-      <View style={styles.chipRow}>
-        <FilterChip
-          label="All suppliers"
-          selected={!supplier}
-          onPress={() => setSupplier(undefined)}
+      {/*
+        Two filters, each named and each saying what it is set to - rather than
+        two rows of chips that grew a row longer with every supplier the
+        restaurant had ever bought from, and never said which row was which.
+      */}
+      <View style={styles.filters}>
+        <PickerRow
+          icon={supplier ? 'business' : 'business-outline'}
+          tone="done"
+          title={supplierName ?? 'All suppliers'}
+          hint="Supplier"
+          actionLabel={supplier ? 'Change' : 'Filter'}
+          onPress={() => setPicking('supplier')}
         />
-        {(suppliers.data?.results ?? []).map(row => (
-          <FilterChip
-            key={row.id}
-            label={row.name}
-            selected={supplier === row.id}
-            onPress={() => setSupplier(supplier === row.id ? undefined : row.id)}
+        {warehouseList.length > 0 ? (
+          <PickerRow
+            icon={warehouse ? 'location' : 'location-outline'}
+            tone="done"
+            title={warehouseName ?? 'Everywhere'}
+            hint="Delivered to"
+            actionLabel={warehouse ? 'Change' : 'Filter'}
+            onPress={() => setPicking('warehouse')}
           />
-        ))}
+        ) : null}
       </View>
 
-      {(warehouses.data?.results ?? []).length > 0 ? (
-        <View style={styles.chipRow}>
-          <FilterChip
-            label="Everywhere"
-            selected={!warehouse}
-            onPress={() => setWarehouse(undefined)}
-          />
-          {(warehouses.data?.results ?? []).map(row => (
-            <FilterChip
-              key={row.id}
-              label={row.name}
-              selected={warehouse === row.id}
-              onPress={() => setWarehouse(warehouse === row.id ? undefined : row.id)}
-            />
-          ))}
-        </View>
-      ) : null}
+      <PickerSheet
+        visible={picking === 'supplier'}
+        title="Filter by supplier"
+        searchPlaceholder="Search suppliers"
+        choices={[
+          {value: ALL, label: 'All suppliers'},
+          ...supplierList.map(row => ({value: row.id, label: row.name})),
+        ]}
+        selected={supplier ?? ALL}
+        onSelect={value => setSupplier(value === ALL ? undefined : value)}
+        onClose={() => setPicking(null)}
+      />
+
+      <PickerSheet
+        visible={picking === 'warehouse'}
+        title="Filter by storage area"
+        searchPlaceholder="Search storage areas"
+        choices={[
+          {value: ALL, label: 'Everywhere'},
+          ...warehouseList.map(row => ({value: row.id, label: row.name})),
+        ]}
+        selected={warehouse ?? ALL}
+        onSelect={value => setWarehouse(value === ALL ? undefined : value)}
+        onClose={() => setPicking(null)}
+      />
 
       {totals ? (
         <Card style={styles.summaryCard}>
@@ -231,7 +259,7 @@ export function PurchaseHistoryScreen(): React.JSX.Element {
 const styles = StyleSheet.create({
   hint: {fontSize: 12, color: colors.textMuted},
   warning: {fontSize: 12, color: colors.warning, marginTop: spacing.xs},
-  chipRow: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs},
+  filters: {gap: spacing.sm},
   summaryCard: {gap: spacing.sm},
   summaryRow: {flexDirection: 'row', justifyContent: 'space-between'},
   summaryValue: {fontSize: 22, fontWeight: '700', color: colors.primary},
