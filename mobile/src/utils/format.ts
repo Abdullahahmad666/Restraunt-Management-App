@@ -23,10 +23,19 @@ export function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString(LOCALE, {timeStyle: 'short'});
 }
 
-export function formatDate(isoDate: string): string {
-  // isoDate is a plain "YYYY-MM-DD" - parsing as UTC avoids the date shifting
-  // by a day for anyone west of UTC.
-  return new Date(`${isoDate}T00:00:00Z`).toLocaleDateString(LOCALE, {
+export function formatDate(iso: string): string {
+  // A plain "YYYY-MM-DD" carries no time and no zone, so it is read as UTC and
+  // printed as UTC - otherwise the day slips backwards for anyone west of it.
+  //
+  // A full timestamp is a different thing: an instant, which already knows its
+  // zone, so it is simply printed in the reader's. Handling both because the
+  // naive version appended "T00:00:00Z" to whatever it was given, and a
+  // timestamp came out as "Invalid Date" on the screen - no error, no clue
+  // which field was at fault.
+  if (iso.includes('T')) {
+    return new Date(iso).toLocaleDateString(LOCALE, {dateStyle: 'medium'});
+  }
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString(LOCALE, {
     dateStyle: 'medium',
     timeZone: 'UTC',
   });

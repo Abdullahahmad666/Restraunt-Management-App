@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {ActivityIndicator, Pressable, StyleSheet, Text, View} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
@@ -35,7 +35,7 @@ import type {InventoryStackParamList} from '../../../navigation/types';
 import {useAuthStore} from '../../../store/authStore';
 import {colors, radii, spacing} from '../../../theme';
 import {isAdmin} from '../../../types/roles';
-import {formatCurrency, formatDate} from '../../../utils/format';
+import {formatCurrency, formatDateTime} from '../../../utils/format';
 
 type Nav = NativeStackNavigationProp<InventoryStackParamList>;
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -160,7 +160,7 @@ function MovementHistory({itemId, unit}: {itemId: string; unit: string}): React.
                 {STOCK_MOVEMENT_REASON_LABELS[movement.reason] ?? movement.reason}
               </Text>
               <Text style={styles.movementMeta} numberOfLines={1}>
-                {formatDate(movement.created_at)}
+                {formatDateTime(movement.created_at)}
                 {movement.recorded_by_name ? ` · ${movement.recorded_by_name}` : ''}
                 {movement.note ? ` · ${movement.note}` : ''}
               </Text>
@@ -172,12 +172,38 @@ function MovementHistory({itemId, unit}: {itemId: string; unit: string}): React.
   );
 }
 
-function ItemRow({item}: {item: InventoryItem}): React.JSX.Element {
+/**
+ * One stock item: a line you can open for its figures, its recent movements
+ * and a way to correct the count.
+ *
+ * Which one is open is the list's business rather than each row's. Rows that
+ * each remembered their own state left every one you had ever tapped standing
+ * open behind you, so the thing you just opened could be several screens down
+ * from where you were looking.
+ */
+function ItemRow({
+  item,
+  open,
+  onToggle,
+}: {
+  item: InventoryItem;
+  open: boolean;
+  onToggle: () => void;
+}): React.JSX.Element {
   const adjust = useAdjustStock();
-  const [editing, setEditing] = useState(false);
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState<StockMovementReason>('DELIVERY');
   const [error, setError] = useState<string | null>(null);
+
+  // A half-typed quantity belongs to the moment it was typed in. Left behind,
+  // it reappears the next time this row is opened, against a count that has
+  // moved on since.
+  useEffect(() => {
+    if (!open) {
+      setAmount('');
+      setError(null);
+    }
+  }, [open]);
 
   async function onSave() {
     const parsed = Number(amount);
@@ -190,7 +216,7 @@ function ItemRow({item}: {item: InventoryItem}): React.JSX.Element {
     try {
       await adjust.mutateAsync({item: item.id, quantity_delta: parsed * sign, reason});
       setAmount('');
-      setEditing(false);
+      onToggle();
     } catch (err) {
       setError(describeApiError(err, 'Could not update stock.'));
     }
@@ -198,7 +224,7 @@ function ItemRow({item}: {item: InventoryItem}): React.JSX.Element {
 
   return (
     <Card>
-      <PressableScale style={styles.row} onPress={() => setEditing(current => !current)}>
+      <PressableScale style={styles.row} onPress={onToggle}>
         <View style={styles.rowText}>
           <Text style={styles.name}>{item.name}</Text>
           <Text style={styles.hint}>
@@ -207,14 +233,10 @@ function ItemRow({item}: {item: InventoryItem}): React.JSX.Element {
           </Text>
         </View>
         {item.is_below_par ? <Badge label="Low stock" tone="warning" /> : null}
-        <Ionicons
-          name={editing ? 'chevron-up' : 'chevron-down'}
-          size={18}
-          color={colors.textMuted}
-        />
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textMuted} />
       </PressableScale>
 
-      {editing ? (
+      {open ? (
         <View style={styles.editor}>
           <View style={styles.factRow}>
             <Fact label="In stock" value={`${item.quantity_on_hand} ${item.unit}`} />
@@ -277,6 +299,7 @@ export function InventoryHubScreen(): React.JSX.Element {
   const [error, setError] = useState<string | null>(null);
   // Which of the three is working, rather than merely that something is.
   const [busySource, setBusySource] = useState<CaptureSource | null>(null);
+  const [openItem, setOpenItem] = useState<string | null>(null);
   const canManageItems = useAuthStore(state => Boolean(state.user && isAdmin(state.user.role)));
 
   async function onScan(source: CaptureSource) {
@@ -397,7 +420,11 @@ export function InventoryHubScreen(): React.JSX.Element {
       ) : (
         itemList.map((item, index) => (
           <FadeIn key={item.id} delay={index * 30}>
-            <ItemRow item={item} />
+            <ItemRow
+              item={item}
+              open={openItem === item.id}
+              onToggle={() => setOpenItem(current => (current === item.id ? null : item.id))}
+            />
           </FadeIn>
         ))
       )}
