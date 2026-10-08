@@ -21,6 +21,7 @@ import {InvoiceReviewScreen} from '../../../roles/common/screens/InvoiceReviewSc
 import {OtherChecklistsScreen} from '../../../roles/common/screens/OtherChecklistsScreen';
 import {ProfileScreen} from '../../../roles/common/screens/ProfileScreen';
 import {RoutineScreen} from '../../../roles/common/screens/RoutineScreen';
+import {renderFloatingTabBar} from '../../../navigation/FloatingTabBar';
 import {tabIcon} from '../../../navigation/tabIcon';
 import {tabScreenOptions} from '../../../theme';
 import type {StaffStackParamList, StaffTabParamList} from '../../../navigation/types';
@@ -30,7 +31,10 @@ const Stack = createNativeStackNavigator<StaffStackParamList>();
 
 function StaffTabs(): React.JSX.Element {
   return (
-    <Tab.Navigator screenOptions={tabScreenOptions} initialRouteName="Analytics">
+    <Tab.Navigator
+      screenOptions={tabScreenOptions}
+      initialRouteName="Analytics"
+      tabBar={renderFloatingTabBar}>
       <Tab.Screen
         name="Analytics"
         component={AnalyticsScreen}
@@ -44,7 +48,11 @@ function StaffTabs(): React.JSX.Element {
       <Tab.Screen
         name="Checks"
         component={DailyChecksScreen}
-        options={{tabBarIcon: tabIcon('checkbox-outline', 'checkbox'), title: 'Today'}}
+        options={{
+          tabBarIcon: tabIcon('checkbox-outline', 'checkbox'),
+          title: "Today's checks",
+          tabBarLabel: 'Today',
+        }}
       />
       <Tab.Screen
         name="Attendance"

@@ -2,6 +2,7 @@ import React, {useState} from 'react';
 import {Platform, Pressable, StyleSheet, Text, View} from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
+import {PressableScale} from './PressableScale';
 import {colors, radii, spacing} from '../theme';
 import {LOCALE} from '../utils/format';
 
@@ -26,9 +27,12 @@ export function TimePickerField({
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
-      <Pressable style={styles.button} onPress={() => setOpen(true)} accessibilityRole="button">
+      <PressableScale
+        style={styles.button}
+        onPress={() => setOpen(true)}
+        accessibilityRole="button">
         <Text style={styles.buttonText}>{formatTimeOfDay(value)}</Text>
-      </Pressable>
+      </PressableScale>
 
       {open ? (
         <DateTimePicker

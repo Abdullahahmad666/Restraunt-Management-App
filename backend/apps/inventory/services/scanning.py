@@ -1,126 +1,316 @@
-"""Turning a photographed invoice into structured line items via a
-vision-capable AI model.
+"""Orchestrating one reading of one invoice.
 
-This only ever produces a *proposal* - apps.inventory.api.staff creates the
-InvoiceScan and its InvoiceLineItem rows from what this returns, all still
-in PENDING status, and nothing touches actual stock until a human reviews,
-corrects and confirms it (see services.stock.confirm_invoice). A misread
-quantity or price is an annoyance to fix in review; the same misread
-silently applied to stock and cost figures is a real problem, so this
-function is not trusted further than "a first draft".
+The call itself lives in services.extraction; this is what surrounds it -
+recognising a file we have already read, staying inside the month's ceiling,
+mapping what comes back onto our own rows, and recording a failure in a way a
+person can act on.
+
+Runs on the background worker, not in the request - see apps.inventory.jobs.
 """
 
-import base64
-import json
+import logging
+from datetime import datetime
+from decimal import Decimal, InvalidOperation
+from pathlib import PurePosixPath
 
-import requests
-from django.conf import settings
-from django.core.exceptions import ValidationError
+from django.db import transaction
 
-ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
-ANTHROPIC_VERSION = "2023-06-01"
-# An alias rather than a dated snapshot, so this keeps working as Anthropic
-# rolls the alias forward - pin to a dated model string instead if the
-# extraction prompt/schema below ever needs to stay locked to one model's
-# exact behaviour.
-MODEL = "claude-sonnet-4-5"
-REQUEST_TIMEOUT_SECONDS = 45
+from .extraction import (
+    MAX_FILE_BYTES,
+    PDF_TYPE,
+    SUPPORTED_IMAGE_TYPES,
+    SUPPORTED_TYPES,
+    PermanentScanError,
+    ScanError,
+    TransientScanError,
+    extract_invoice_data,
+)
 
-PROMPT = """You are reading a supplier invoice photographed by restaurant \
-staff for stock-taking. Extract every line item you can read.
+logger = logging.getLogger(__name__)
 
-Return ONLY a JSON object, no markdown code fences, no commentary before or \
-after it, matching exactly this shape:
+__all__ = [
+    "MAX_FILE_BYTES",
+    "PDF_TYPE",
+    "SUPPORTED_IMAGE_TYPES",
+    "SUPPORTED_TYPES",
+    "PermanentScanError",
+    "ScanError",
+    "TransientScanError",
+    "extract_invoice_data",
+    "populate_invoice_from_scan",
+    "sniff_content_type",
+]
 
-{
-  "supplier_name": string or null,
-  "invoice_date": "YYYY-MM-DD" or null,
-  "line_items": [
-    {
-      "name": string,
-      "quantity": number,
-      "unit": string or null,
-      "unit_price": number or null,
-      "line_total": number or null
-    }
-  ]
+
+#: Leading bytes that identify a file regardless of what the client called it.
+#: Phones routinely upload a perfectly good PDF as application/octet-stream,
+#: and a whitelist of declared types alone would turn those away.
+_MAGIC = (
+    (b"%PDF", PDF_TYPE),
+    (b"\x89PNG\r\n\x1a\n", "image/png"),
+    (b"\xff\xd8\xff", "image/jpeg"),
+    (b"GIF87a", "image/gif"),
+    (b"GIF89a", "image/gif"),
+)
+
+
+def sniff_content_type(head: bytes, declared: str = "") -> str:
+    """Identify a file from its first bytes, falling back to what the client
+    declared. Returns "" when neither is a type we can read."""
+    for prefix, content_type in _MAGIC:
+        if head.startswith(prefix):
+            return content_type
+    # WebP is a RIFF container - the marker sits after a 4-byte length.
+    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        return "image/webp"
+    return declared if declared in SUPPORTED_TYPES else ""
+
+
+#: Fallback for rows uploaded before content_type was recorded. Extension is
+#: weaker evidence than the type the client sent, which is why it is only the
+#: fallback, but it is enough to tell a PDF from a photo.
+_TYPE_BY_EXTENSION = {
+    ".pdf": PDF_TYPE,
+    ".png": "image/png",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
 }
 
-Rules:
-- One entry per line item on the invoice, in the order they appear.
-- "quantity" is required for every line item - if it is genuinely illegible, use 1.
-- Use null for any other field you cannot read, rather than guessing.
-- Do not include tax, subtotal, delivery charge or total rows as line items.
-- "unit" is a short unit of measure if the invoice states one (e.g. "kg", "litre", "box", "each") - null if it doesn't.
-"""
+
+def _type_from_name(name: str) -> str:
+    return _TYPE_BY_EXTENSION.get(PurePosixPath(name or "").suffix.lower(), "image/jpeg")
 
 
-def _extract_text(payload: dict) -> str:
-    return "".join(
-        block.get("text", "") for block in payload.get("content", []) if block.get("type") == "text"
-    )
+def _safe_decimal(value, default=None):
+    if value is None:
+        return default if default is None else Decimal(str(default))
+    try:
+        return Decimal(str(value))
+    except (InvalidOperation, ValueError, TypeError):
+        return default if default is None else Decimal(str(default))
 
 
-def extract_invoice_data(*, image_bytes: bytes, content_type: str) -> dict:
-    """Calls the Anthropic Messages API with the invoice photo and returns
-    the parsed JSON object described in PROMPT above. Raises
-    django.core.exceptions.ValidationError (with a message safe to show a
-    user) on any failure - a missing API key, a network/API error, or a
-    response that isn't valid JSON in the expected shape."""
-    api_key = settings.ANTHROPIC_API_KEY
-    if not api_key:
-        raise ValidationError("Invoice scanning is not configured on this server.")
+def _safe_date(value):
+    if not value:
+        return None
+    try:
+        return datetime.strptime(str(value), "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        return None
 
-    media_type = content_type or "image/jpeg"
-    encoded = base64.b64encode(image_bytes).decode("ascii")
+
+def _party_name(data: dict, key: str) -> str:
+    """The supplier's or customer's name, from the nested object it arrives in.
+
+    Defensive about the shape because getting this wrong is not a crash but a
+    silent swap: record the customer as the supplier and every invoice files
+    itself under the restaurant's own name.
+    """
+    party = data.get(key)
+    if not isinstance(party, dict):
+        return ""
+    return str(party.get("name") or "")
+
+
+def populate_invoice_from_scan(invoice) -> None:
+    """Read `invoice.photo` and replace its line items with what came back.
+
+    Idempotent: existing line items are cleared first, so a job retried after a
+    half-finished attempt does not leave the invoice with each line twice.
+
+    A PermanentScanError is recorded on the invoice and swallowed - there is
+    nothing to retry, and the upload is deliberately kept so staff can retake
+    the photo or key the lines in by hand. A TransientScanError propagates, and
+    the queue retries the job.
+    """
+    from ..models import InvoiceLineItem, InvoiceScan
+    from . import duplicates, usage
+    from .matching import resolve_items
+    from .suppliers import match_supplier
+    from .warehouses import resolve_warehouse
+
+    invoice.scan_state = InvoiceScan.ScanState.SCANNING
+    invoice.scan_error = ""
+    invoice.save(update_fields=["scan_state", "scan_error", "updated_at"])
+
+    invoice.photo.open("rb")
+    try:
+        file_bytes = invoice.photo.read()
+    finally:
+        invoice.photo.close()
+
+    invoice.file_hash = duplicates.hash_file(file_bytes)
+
+    # Checked before the call, not after: recognising the second copy of a
+    # file should not cost what reading it costs.
+    already = duplicates.find_same_file(invoice=invoice, file_hash=invoice.file_hash)
+    if already is not None:
+        invoice.duplicate_of = already
+        invoice.status = InvoiceScan.Status.DUPLICATE
+        invoice.scan_state = InvoiceScan.ScanState.DONE
+        invoice.scan_error = ""
+        invoice.save(
+            update_fields=[
+                "file_hash",
+                "duplicate_of",
+                "status",
+                "scan_state",
+                "scan_error",
+                "updated_at",
+            ]
+        )
+        return
+
+    # Checked here as well as at upload, because this is the line that spends
+    # the money - the check at upload is a courtesy that avoids queueing work
+    # that will be refused, not the limit itself.
+    if usage.cap_reached(restaurant_id=invoice.restaurant_id):
+        invoice.scan_state = InvoiceScan.ScanState.FAILED
+        invoice.scan_error = (
+            "You have reached this month's limit for reading invoices. The invoice is "
+            "saved - add its items by hand, or ask a manager to raise the limit."
+        )
+        invoice.save(update_fields=["file_hash", "scan_state", "scan_error", "updated_at"])
+        return
+
+    usage.record_scan(restaurant_id=invoice.restaurant_id)
 
     try:
-        response = requests.post(
-            ANTHROPIC_API_URL,
-            headers={
-                "x-api-key": api_key,
-                "anthropic-version": ANTHROPIC_VERSION,
-                "content-type": "application/json",
-            },
-            json={
-                "model": MODEL,
-                "max_tokens": 2000,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "image",
-                                "source": {
-                                    "type": "base64",
-                                    "media_type": media_type,
-                                    "data": encoded,
-                                },
-                            },
-                            {"type": "text", "text": PROMPT},
-                        ],
-                    }
-                ],
-            },
-            timeout=REQUEST_TIMEOUT_SECONDS,
+        data = extract_invoice_data(
+            image_bytes=file_bytes,
+            content_type=invoice.content_type or _type_from_name(invoice.photo.name),
         )
-    except requests.RequestException as exc:
-        raise ValidationError(
-            "Could not reach the invoice scanning service - check your connection and try again."
-        ) from exc
+    except PermanentScanError as exc:
+        invoice.scan_state = InvoiceScan.ScanState.FAILED
+        invoice.scan_error = str(exc)[:500]
+        invoice.save(update_fields=["scan_state", "scan_error", "updated_at"])
+        return
 
-    if response.status_code != 200:
-        raise ValidationError(
-            "Could not read that invoice - the scanning service returned an error."
+    lines = [line for line in (data.get("items") or []) if isinstance(line, dict)]
+    # The description is what a person reads and what an alias is learned
+    # against, so a line with none is still kept rather than dropped - a
+    # nameless row is visible and gets corrected, a missing one is not.
+    raw_names = [str(line.get("description") or "Unnamed item")[:255] for line in lines]
+    # Anything this restaurant has bought before attaches itself, so a reviewer
+    # only handles what is genuinely new. Resolved in one go rather than per
+    # line - see services.matching.
+    known = resolve_items(restaurant_id=invoice.restaurant_id, raw_names=raw_names)
+
+    with transaction.atomic():
+        invoice.line_items.all().delete()
+        InvoiceLineItem.objects.bulk_create(
+            [
+                InvoiceLineItem(
+                    invoice=invoice,
+                    raw_name=raw_name,
+                    matched_item=known.get(raw_name),
+                    quantity=_safe_decimal(line.get("quantity"), default=1),
+                    # The pack size as printed - "330ML", "25KG". Not the same
+                    # thing as the inventory item's own unit, which is what
+                    # the restaurant counts in; matching the two is the
+                    # reviewer's job.
+                    unit=str(line.get("size") or "")[:32],
+                    unit_price=_safe_decimal(line.get("unit_price")),
+                    line_total=_safe_decimal(line.get("line_total")),
+                    sort_order=index,
+                )
+                for index, (raw_name, line) in enumerate(zip(raw_names, lines, strict=True))
+            ]
+        )
+        invoice.document_type = (
+            InvoiceScan.DocumentType.CREDIT_NOTE
+            if str(data.get("document_type") or "").lower() == "credit_note"
+            else InvoiceScan.DocumentType.INVOICE
+        )
+        invoice.supplier_name = _party_name(data, "supplier")[:200]
+        invoice.invoice_date = _safe_date(data.get("invoice_date"))
+        invoice.invoice_number = str(data.get("invoice_number") or "")[:100]
+        # The delivery address, which is where a storage area is resolved from.
+        # Often the same as the billing address, in which case it names the
+        # business and resolves to nothing - which is the right outcome.
+        invoice.delivery_location = str(data.get("shipping_address") or "")[:200]
+        invoice.stated_subtotal = _safe_decimal(data.get("subtotal"))
+        invoice.stated_tax = _safe_decimal(data.get("tax_total"))
+        invoice.stated_total = _safe_decimal(data.get("total"))
+        # Link to a supplier the restaurant already has, and only that - see
+        # services.suppliers for why a scan never creates one. A blank here is
+        # a question for the reviewer, not a failure.
+        if invoice.supplier_id is None:
+            invoice.supplier = match_supplier(
+                restaurant_id=invoice.restaurant_id, raw_name=invoice.supplier_name
+            )
+        # Unlike the supplier, this creates what it cannot find - see
+        # services.warehouses for why that trade is acceptable here and
+        # nowhere else. A reviewer can still change it.
+        if invoice.warehouse_id is None:
+            invoice.warehouse = resolve_warehouse(
+                restaurant_id=invoice.restaurant_id, raw_name=invoice.delivery_location
+            )
+        # Weaker evidence than an identical file, so it is recorded and shown
+        # rather than acted on - a supplier can reuse a reference, and a scan
+        # can misread one. Throwing away a real delivery is the worse mistake.
+        invoice.duplicate_of = duplicates.find_same_reference(invoice=invoice)
+        invoice.scan_state = InvoiceScan.ScanState.DONE
+        invoice.scan_error = ""
+        invoice.save(
+            update_fields=[
+                "document_type",
+                "supplier_name",
+                "supplier",
+                "warehouse",
+                "file_hash",
+                "duplicate_of",
+                "invoice_date",
+                "invoice_number",
+                "delivery_location",
+                "stated_subtotal",
+                "stated_tax",
+                "stated_total",
+                "scan_state",
+                "scan_error",
+                "updated_at",
+            ]
         )
 
+
+#: Fallback for rows uploaded before content_type was recorded. Extension is
+#: weaker evidence than the type the client sent, which is why it is only the
+#: fallback, but it is enough to tell a PDF from a photo.
+_TYPE_BY_EXTENSION = {
+    ".pdf": PDF_TYPE,
+    ".png": "image/png",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+}
+
+
+def _type_from_name(name: str) -> str:
+    from pathlib import PurePosixPath
+
+    return _TYPE_BY_EXTENSION.get(PurePosixPath(name or "").suffix.lower(), "image/jpeg")
+
+
+def _safe_decimal(value, default=None):
+    from decimal import Decimal, InvalidOperation
+
+    if value is None:
+        return default if default is None else Decimal(str(default))
     try:
-        text = _extract_text(response.json())
-        data = json.loads(text)
-    except (json.JSONDecodeError, TypeError, ValueError) as exc:
-        raise ValidationError("Could not read that invoice - try a clearer photo.") from exc
+        return Decimal(str(value))
+    except (InvalidOperation, ValueError, TypeError):
+        return default if default is None else Decimal(str(default))
 
-    if not isinstance(data, dict) or not isinstance(data.get("line_items"), list):
-        raise ValidationError("Could not read that invoice - try a clearer photo.")
 
-    return data
+def _safe_date(value):
+    from datetime import datetime
+
+    if not value:
+        return None
+    try:
+        return datetime.strptime(str(value), "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        return None

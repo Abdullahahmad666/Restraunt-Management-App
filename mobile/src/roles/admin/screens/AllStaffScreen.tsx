@@ -1,5 +1,5 @@
 import React from 'react';
-import {Pressable, StyleSheet, Text, View} from 'react-native';
+import {StyleSheet, Text, View} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
@@ -9,6 +9,7 @@ import {EmptyState} from '../../../components/EmptyState';
 import {ErrorState} from '../../../components/ErrorState';
 import {FadeIn} from '../../../components/FadeIn';
 import {LoadingView} from '../../../components/LoadingView';
+import {PressableScale} from '../../../components/PressableScale';
 import {Screen} from '../../../components/Screen';
 import {describeApiError} from '../../../api/errors';
 import {useShifts} from '../../../features/attendance/hooks';
@@ -90,7 +91,7 @@ function StaffRow({
     .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())[0];
 
   return (
-    <Pressable onPress={onPress}>
+    <PressableScale onPress={onPress}>
       <Card>
         <View style={styles.rowHeader}>
           <View>
@@ -108,7 +109,7 @@ function StaffRow({
           </View>
         </View>
       </Card>
-    </Pressable>
+    </PressableScale>
   );
 }
 

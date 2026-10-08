@@ -23,6 +23,7 @@ COPY . .
 # fails loudly on boot instead of silently running on a placeholder.
 RUN DJANGO_SECRET_KEY=build-only-placeholder-not-used-at-runtime \
     DATABASE_URL=postgres://build:build@localhost:5432/build \
+    AWS_STORAGE_BUCKET_NAME=build-only-placeholder-not-used-at-runtime \
     python manage.py collectstatic --noinput
 
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh

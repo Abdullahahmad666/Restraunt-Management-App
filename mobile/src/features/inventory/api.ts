@@ -3,13 +3,21 @@
 import {apiClient} from '../../api/client';
 import {endpoints} from '../../api/endpoints';
 import type {Paginated} from '../../types/api';
+import type {PreparedFile} from '../../utils/media';
 import type {
   AdminInventoryItem,
   InventoryItem,
   InvoiceLineItem,
   InvoiceScan,
+  PurchaseByItem,
+  PurchaseFilters,
+  PurchasePeriod,
+  PurchaseSummary,
+  PurchaseTimelineRow,
   StockMovement,
   StockMovementReason,
+  Supplier,
+  Warehouse,
 } from './types';
 
 // ---------------------------------------------------------------------------
@@ -66,36 +74,32 @@ export async function getInvoiceScan(id: string): Promise<InvoiceScan> {
   return data;
 }
 
-/** Uploads the photo and waits for the vision model to read it - can take
- * well past the app's normal request timeout, so this call gets its own,
- * longer one rather than the shared default. */
-const SCAN_TIMEOUT_MS = 60_000;
+/** Sending the file itself can be slow on restaurant wifi, so the upload gets
+ * a longer timeout than the shared default. It no longer waits for the read -
+ * that happens on the server's worker, and the response comes back as soon as
+ * the bytes have landed. */
+const UPLOAD_TIMEOUT_MS = 60_000;
 
-export async function uploadInvoice(uri: string): Promise<InvoiceScan> {
-  const extension = uri.split('.').pop()?.toLowerCase() ?? 'jpg';
-  const mime = extension === 'png' ? 'image/png' : 'image/jpeg';
-
+export async function uploadInvoice(file: PreparedFile): Promise<InvoiceScan> {
   const form = new FormData();
   form.append('photo', {
-    uri,
-    name: `invoice.${extension}`,
-    type: mime,
+    uri: file.uri,
+    name: file.name,
+    type: file.mimeType,
   } as unknown as Blob);
 
   const {data} = await apiClient.post<InvoiceScan>(endpoints.staff.inventory.invoiceScans, form, {
     headers: {'Content-Type': 'multipart/form-data'},
     transformRequest: value => value,
-    timeout: SCAN_TIMEOUT_MS,
+    timeout: UPLOAD_TIMEOUT_MS,
   });
   return data;
 }
 
+/** Queues a fresh read of the same file. Returns straight away - poll the
+ * invoice's scan_state for the result. */
 export async function rescanInvoice(id: string): Promise<InvoiceScan> {
-  const {data} = await apiClient.post<InvoiceScan>(
-    endpoints.staff.inventory.rescanInvoice(id),
-    undefined,
-    {timeout: SCAN_TIMEOUT_MS},
-  );
+  const {data} = await apiClient.post<InvoiceScan>(endpoints.staff.inventory.rescanInvoice(id));
   return data;
 }
 
@@ -158,5 +162,108 @@ export async function updateInventoryItem(
     endpoints.admin.inventory.item(id),
     input,
   );
+  return data;
+}
+
+// ---------------------------------------------------------------------------
+// Suppliers and warehouses
+// ---------------------------------------------------------------------------
+
+export async function listSuppliers(): Promise<Paginated<Supplier>> {
+  const {data} = await apiClient.get<Paginated<Supplier>>(endpoints.staff.inventory.suppliers);
+  return data;
+}
+
+/** Adds a supplier the restaurant has not bought from before. Available to
+ * staff because they hit one mid-review; retiring stays admin-only. */
+export async function createSupplier(name: string): Promise<Supplier> {
+  const {data} = await apiClient.post<Supplier>(endpoints.staff.inventory.suppliers, {name});
+  return data;
+}
+
+export async function listWarehouses(): Promise<Paginated<Warehouse>> {
+  const {data} = await apiClient.get<Paginated<Warehouse>>(endpoints.staff.inventory.warehouses);
+  return data;
+}
+
+export type AssignInvoiceInput = {
+  supplier?: string | null;
+  warehouse?: string | null;
+};
+
+export async function assignInvoice(id: string, input: AssignInvoiceInput): Promise<InvoiceScan> {
+  const {data} = await apiClient.patch<InvoiceScan>(
+    endpoints.staff.inventory.invoiceScan(id),
+    input,
+  );
+  return data;
+}
+
+// ---------------------------------------------------------------------------
+// Purchase history (admin)
+// ---------------------------------------------------------------------------
+
+export async function listPurchasesByItem(
+  filters: PurchaseFilters = {},
+): Promise<{results: PurchaseByItem[]}> {
+  const {data} = await apiClient.get<{results: PurchaseByItem[]}>(
+    endpoints.admin.inventory.purchases,
+    {params: filters},
+  );
+  return data;
+}
+
+export async function getPurchaseTimeline(
+  period: PurchasePeriod,
+  filters: PurchaseFilters = {},
+): Promise<{period: PurchasePeriod; results: PurchaseTimelineRow[]}> {
+  const {data} = await apiClient.get<{period: PurchasePeriod; results: PurchaseTimelineRow[]}>(
+    endpoints.admin.inventory.purchasesTimeline,
+    {params: {...filters, period}},
+  );
+  return data;
+}
+
+export async function getPurchaseSummary(filters: PurchaseFilters = {}): Promise<PurchaseSummary> {
+  const {data} = await apiClient.get<PurchaseSummary>(endpoints.admin.inventory.purchasesSummary, {
+    params: filters,
+  });
+  return data;
+}
+
+// ---------------------------------------------------------------------------
+// Managing suppliers and warehouses (admin)
+// ---------------------------------------------------------------------------
+//
+// Separate from the staff calls above because they see different rows: staff
+// pick from what is usable, an admin also has to see what has been retired in
+// order to bring it back.
+
+export async function listAdminSuppliers(): Promise<Paginated<Supplier>> {
+  const {data} = await apiClient.get<Paginated<Supplier>>(endpoints.admin.inventory.suppliers);
+  return data;
+}
+
+export type UpdateSupplierInput = Partial<Pick<Supplier, 'name' | 'is_active'>>;
+
+export async function updateSupplier(id: string, input: UpdateSupplierInput): Promise<Supplier> {
+  const {data} = await apiClient.patch<Supplier>(endpoints.admin.inventory.supplier(id), input);
+  return data;
+}
+
+export async function listAdminWarehouses(): Promise<Paginated<Warehouse>> {
+  const {data} = await apiClient.get<Paginated<Warehouse>>(endpoints.admin.inventory.warehouses);
+  return data;
+}
+
+export async function createWarehouse(name: string): Promise<Warehouse> {
+  const {data} = await apiClient.post<Warehouse>(endpoints.admin.inventory.warehouses, {name});
+  return data;
+}
+
+export type UpdateWarehouseInput = Partial<Pick<Warehouse, 'name' | 'is_active'>>;
+
+export async function updateWarehouse(id: string, input: UpdateWarehouseInput): Promise<Warehouse> {
+  const {data} = await apiClient.patch<Warehouse>(endpoints.admin.inventory.warehouse(id), input);
   return data;
 }

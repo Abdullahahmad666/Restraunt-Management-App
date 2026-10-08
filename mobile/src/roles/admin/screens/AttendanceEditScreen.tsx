@@ -6,7 +6,9 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {Button} from '../../../components/Button';
 import {Card} from '../../../components/Card';
 import {ErrorState} from '../../../components/ErrorState';
+import {FilterChip} from '../../../components/FilterChip';
 import {LoadingView} from '../../../components/LoadingView';
+import {PressableScale} from '../../../components/PressableScale';
 import {Screen} from '../../../components/Screen';
 import {TextField} from '../../../components/TextField';
 import {TimePickerField} from '../../../components/TimePickerField';
@@ -208,7 +210,7 @@ function AddShift({staffId, onDone}: {staffId: string; onDone: () => void}): Rea
         {days.map(day => {
           const selected = selectedDays.has(day.iso);
           return (
-            <Pressable
+            <PressableScale
               key={day.iso}
               onPress={() => toggleDay(day.iso)}
               style={[styles.dayChip, selected && styles.chipSelected]}>
@@ -218,7 +220,7 @@ function AddShift({staffId, onDone}: {staffId: string; onDone: () => void}): Rea
               <Text style={[styles.dayChipNum, selected && styles.chipTextSelected]}>
                 {day.dayNum}
               </Text>
-            </Pressable>
+            </PressableScale>
           );
         })}
       </ScrollView>
@@ -230,19 +232,14 @@ function AddShift({staffId, onDone}: {staffId: string; onDone: () => void}): Rea
 
       <Text style={styles.label}>Job title (optional)</Text>
       <View style={styles.chipRow}>
-        {JOB_TITLES.map(title => {
-          const selected = jobTitle === title;
-          return (
-            <Pressable
-              key={title}
-              onPress={() => setJobTitle(current => (current === title ? null : title))}
-              style={[styles.chip, selected && styles.chipSelected]}>
-              <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
-                {JOB_TITLE_LABELS[title]}
-              </Text>
-            </Pressable>
-          );
-        })}
+        {JOB_TITLES.map(title => (
+          <FilterChip
+            key={title}
+            label={JOB_TITLE_LABELS[title]}
+            selected={jobTitle === title}
+            onPress={() => setJobTitle(current => (current === title ? null : title))}
+          />
+        ))}
       </View>
 
       <TextField
@@ -310,16 +307,8 @@ const styles = StyleSheet.create({
   dayChipNum: {fontSize: 16, fontWeight: '700', color: colors.text},
 
   chipRow: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm},
-  chip: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 999,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-  },
-  chipText: {fontSize: 14, color: colors.text},
   chipSelected: {backgroundColor: colors.primary, borderColor: colors.primary},
-  chipTextSelected: {color: '#FFFFFF', fontWeight: '700'},
+  chipTextSelected: {color: colors.onPrimary, fontWeight: '700'},
 
   timeRow: {flexDirection: 'row', gap: spacing.md},
 

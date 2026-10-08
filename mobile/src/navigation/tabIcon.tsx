@@ -14,7 +14,18 @@ type IconName = React.ComponentProps<typeof Ionicons>['name'];
  * who cannot separate the amber from the muted grey.
  */
 export function tabIcon(outline: IconName, filled: IconName) {
-  return function renderTabIcon({focused, color}: {focused: boolean; color: string}) {
-    return <Ionicons name={focused ? filled : outline} size={TAB_ICON_SIZE} color={color} />;
+  return function renderTabIcon({
+    focused,
+    color,
+    size = TAB_ICON_SIZE,
+  }: {
+    focused: boolean;
+    color: string;
+    size?: number;
+  }) {
+    // The size is honoured rather than fixed: the active icon is lifted into a
+    // circle of its own by FloatingTabBar, and a glyph sized for a row of five
+    // looks lost in there.
+    return <Ionicons name={focused ? filled : outline} size={size} color={color} />;
   };
 }

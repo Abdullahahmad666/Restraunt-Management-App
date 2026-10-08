@@ -6,7 +6,7 @@ Mounted at /api/v1/admin/inventory/.
 from apps.common.api.viewsets import AdminViewSet, RestaurantScopedQuerysetMixin
 
 from .. import models
-from .common import BaseInventoryItemSerializer
+from .common import BaseInventoryItemSerializer, SupplierSerializer, WarehouseSerializer
 
 
 class AdminInventoryItemSerializer(BaseInventoryItemSerializer):
@@ -24,6 +24,34 @@ class AdminInventoryItemViewSet(RestaurantScopedQuerysetMixin, AdminViewSet):
 
     serializer_class = AdminInventoryItemSerializer
     queryset = models.InventoryItem.objects.all()
+    filterset_fields = ("is_active",)
+
+    def perform_create(self, serializer):
+        serializer.save(restaurant=self.request.user.restaurant)
+
+
+class AdminSupplierViewSet(RestaurantScopedQuerysetMixin, AdminViewSet):
+    """The supplier list behind every purchase filter and price history.
+
+    Retiring rather than deleting is the important part: a deleted supplier
+    would take its name off every invoice it ever supplied, and those invoices
+    are the record of what was actually bought.
+    """
+
+    serializer_class = SupplierSerializer
+    queryset = models.Supplier.objects.all()
+    filterset_fields = ("is_active",)
+    search_fields = ("name",)
+
+    def perform_create(self, serializer):
+        serializer.save(restaurant=self.request.user.restaurant)
+
+
+class AdminWarehouseViewSet(RestaurantScopedQuerysetMixin, AdminViewSet):
+    """Where deliveries can be sent - a dry store, a cellar, a second site."""
+
+    serializer_class = WarehouseSerializer
+    queryset = models.Warehouse.objects.all()
     filterset_fields = ("is_active",)
 
     def perform_create(self, serializer):

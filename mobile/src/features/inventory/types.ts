@@ -14,12 +14,15 @@ export type AdminInventoryItem = InventoryItem & {
   is_active: boolean;
 };
 
-export type StockMovementReason = 'DELIVERY' | 'WASTE' | 'CORRECTION';
+export type StockMovementReason = 'DELIVERY' | 'WASTE' | 'CORRECTION' | 'RETURN';
 
 export const STOCK_MOVEMENT_REASON_LABELS: Record<StockMovementReason, string> = {
   DELIVERY: 'Delivery received',
   WASTE: 'Waste / spoilage',
   CORRECTION: 'Manual correction',
+  // Written by confirming a credit note. Distinct from waste on purpose: the
+  // stock left, but it was not thrown away and the money came back.
+  RETURN: 'Returned / credited',
 };
 
 export type StockMovement = {
@@ -33,7 +36,47 @@ export type StockMovement = {
   created_at: string;
 };
 
-export type InvoiceScanStatus = 'PENDING' | 'CONFIRMED' | 'DISCARDED';
+export type Supplier = {
+  id: string;
+  name: string;
+  contact_email: string;
+  contact_phone: string;
+  notes: string;
+  is_active: boolean;
+};
+
+export type Warehouse = {
+  id: string;
+  name: string;
+  description: string;
+  is_active: boolean;
+};
+
+export type InvoiceScanStatus = 'PENDING' | 'CONFIRMED' | 'DISCARDED' | 'DUPLICATE';
+
+/** How far the read has got. Separate from status, which is the human review
+ * lifecycle - an invoice can be waiting to be read and waiting to be reviewed
+ * at the same time. */
+export type InvoiceScanState = 'AWAITING_UPLOAD' | 'QUEUED' | 'SCANNING' | 'DONE' | 'FAILED';
+
+/** True while the worker still owes us line items, which is when the review
+ * screen shows progress rather than an empty invoice. */
+export function isScanInProgress(state: InvoiceScanState): boolean {
+  return state === 'AWAITING_UPLOAD' || state === 'QUEUED' || state === 'SCANNING';
+}
+
+/** Whether an invoice's lines agree with the total it prints. Computed on
+ * read - a reviewer correcting a quantity changes the answer. */
+export type Reconciliation = {
+  status: 'matches' | 'mismatch' | 'unknown';
+  /** Which printed figure was used. A mismatch against a gross total assumed
+   * to be net is weaker evidence than one against a printed subtotal. */
+  basis: 'subtotal' | 'total_less_tax' | 'total' | 'none';
+  expected: string | null;
+  actual: string | null;
+  difference: string | null;
+  tolerance: string | null;
+};
 
 export type InvoiceLineItem = {
   id: string;
@@ -52,6 +95,23 @@ export type InvoiceScan = {
   id: string;
   photo: string;
   status: InvoiceScanStatus;
+  scan_state: InvoiceScanState;
+  content_type: string;
+  supplier: string | null;
+  supplier_display: string | null;
+  invoice_number: string;
+  delivery_location: string;
+  stated_subtotal: string | null;
+  stated_tax: string | null;
+  stated_total: string | null;
+  /** The earlier invoice this one appears to repeat, if any. */
+  duplicate_of: string | null;
+  reconciliation: Reconciliation;
+  warehouse: string | null;
+  warehouse_display: string | null;
+  /** What this invoice's lines add up to. Null outside the list/detail views
+   * that annotate it. */
+  lines_total: string | null;
   supplier_name: string;
   invoice_date: string | null;
   scan_error: string;
@@ -59,4 +119,51 @@ export type InvoiceScan = {
   uploaded_by_name: string | null;
   line_items: InvoiceLineItem[];
   created_at: string;
+};
+
+/** Filters shared by every purchase-history view, so a chart and the table
+ * under it always describe the same thing. */
+export type PurchaseFilters = {
+  supplier?: string;
+  warehouse?: string;
+  item?: string;
+  date_from?: string;
+  date_to?: string;
+};
+
+export type PurchasePeriod = 'week' | 'month';
+
+export type PurchaseByItem = {
+  item_id: string;
+  item_name: string;
+  item_unit: string;
+  total_quantity: string;
+  total_spend: string;
+  line_count: number;
+  invoice_count: number;
+  last_purchased: string | null;
+  /** Lines where neither a total nor a unit price was legible. Shown rather
+   * than hidden - a figure missing something should say so. */
+  lines_without_price: number;
+};
+
+export type PurchaseTimelineRow = {
+  bucket: string | null;
+  total_spend: string;
+  line_count: number;
+  invoice_count: number;
+};
+
+export type PurchaseSummary = {
+  /** Net: what the goods cost, before any tax the invoice charged. */
+  total_spend: string;
+  line_count: number;
+  invoice_count: number;
+  item_count: number;
+  lines_without_price: number;
+  unmatched_lines: number;
+  /** VAT as printed on the invoices behind those lines. */
+  tax_total: string;
+  /** How many of them printed any. Plenty of suppliers print none. */
+  invoices_stating_tax: number;
 };

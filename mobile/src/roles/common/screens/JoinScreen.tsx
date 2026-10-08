@@ -114,7 +114,7 @@ export function JoinScreen(): React.JSX.Element {
       // submitting regardless - this screen stays mounted underneath and
       // would otherwise show a stuck spinner if someone navigates back.
       setSubmitting(false);
-      navigation.navigate('VerifyEmail', {email: trimmedEmail, password});
+      navigation.navigate('VerifyEmail', {email: trimmedEmail, password, who: 'staff'});
     } catch (err) {
       const perField = fieldErrors(err);
       setFields(perField);
@@ -131,8 +131,7 @@ export function JoinScreen(): React.JSX.Element {
       <AuthScreen>
         <BrandHeader compact subtitle="Join your team" />
         <Text style={styles.intro}>
-          Enter the invite code your manager sent you. It is eight characters, and comes with the
-          invite link.
+          Enter the invite code your manager sent you. It is eight characters - letters and numbers.
         </Text>
 
         <View style={styles.form}>
@@ -157,7 +156,7 @@ export function JoinScreen(): React.JSX.Element {
           <PrimaryButton
             label="Back to sign in"
             variant="secondary"
-            onPress={() => navigation.navigate('Login')}
+            onPress={() => navigation.navigate('Login', {who: 'staff'})}
           />
         </View>
       </AuthScreen>
@@ -175,7 +174,7 @@ export function JoinScreen(): React.JSX.Element {
         <Text style={styles.intro}>
           {invite.data && !invite.data.is_usable
             ? `This invite from ${invite.data.invited_by_name} has already been used or has expired.`
-            : "This invite link couldn't be found. It may have expired."}{' '}
+            : "That code couldn't be found. It may have expired."}{' '}
           Ask your manager to send you a new one.
         </Text>
         <View style={styles.form}>
@@ -189,7 +188,7 @@ export function JoinScreen(): React.JSX.Element {
           <PrimaryButton
             label="Back to sign in"
             variant="secondary"
-            onPress={() => navigation.navigate('Login')}
+            onPress={() => navigation.navigate('Login', {who: 'staff'})}
           />
         </View>
       </AuthScreen>
@@ -268,5 +267,13 @@ const styles = StyleSheet.create({
   title: {...typography.title, color: colors.text},
   subtitle: {...typography.caption, color: colors.textMuted, marginTop: spacing.xs},
   form: {gap: spacing.md},
-  intro: {...typography.body, color: colors.textMuted, textAlign: 'center'},
+  // The form that follows is its own view with its own gap, so this needs
+  // its own space beneath it - without it the sentence sat right on top of
+  // the first field's label.
+  intro: {
+    ...typography.body,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+  },
 });

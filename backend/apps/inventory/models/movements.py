@@ -17,6 +17,10 @@ class StockMovement(BaseModel):
         DELIVERY = "DELIVERY", "Delivery received"
         WASTE = "WASTE", "Waste / spoilage"
         CORRECTION = "CORRECTION", "Manual correction"
+        #: Goods credited back to the supplier. Distinct from waste: the stock
+        #: left, but it was not thrown away and the money came back, and a
+        #: manager reading the ledger needs to tell those apart.
+        RETURN = "RETURN", "Returned / credited"
 
     restaurant = models.ForeignKey(
         "restaurants.Restaurant", on_delete=models.CASCADE, related_name="stock_movements"

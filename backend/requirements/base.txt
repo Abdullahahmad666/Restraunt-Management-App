@@ -11,3 +11,6 @@ gunicorn==23.0.0
 Pillow
 google-auth
 requests
+django-storages[s3]==1.14.6
+openai==3.20.0
+pypdfium2==5.13.0

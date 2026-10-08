@@ -1,12 +1,12 @@
 import React from 'react';
-import {StyleSheet, Text, View} from 'react-native';
+import {StyleSheet, View} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
 import {FadeIn} from '../../../components/FadeIn';
 import {GridTile} from '../../../components/GridTile';
 import {Screen} from '../../../components/Screen';
-import {colors, spacing} from '../../../theme';
+import {spacing} from '../../../theme';
 import type {AdminStackParamList} from '../../../navigation/types';
 
 type Nav = NativeStackNavigationProp<AdminStackParamList>;
@@ -18,8 +18,6 @@ export function StaffManagementScreen(): React.JSX.Element {
 
   return (
     <Screen>
-      <Text style={styles.heading}>Staff</Text>
-
       <View style={styles.grid}>
         <FadeIn delay={40} style={styles.tileWrap}>
           <GridTile
@@ -59,7 +57,6 @@ export function StaffManagementScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  heading: {fontSize: 24, fontWeight: '700', color: colors.text},
   grid: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, justifyContent: 'space-between'},
   tileWrap: {width: '48%'},
 });

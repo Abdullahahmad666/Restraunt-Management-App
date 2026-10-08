@@ -10,6 +10,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import environ
+from django.core.exceptions import ImproperlyConfigured
 
 # backend/config/settings/base.py -> backend/
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -61,6 +62,9 @@ LOCAL_APPS = [
     # Cross-cutting
     "apps.notifications",
     "apps.audit",
+    # Background work. Listed last so every app's jobs.py is importable by the
+    # time JobsConfig.ready() autodiscovers handlers.
+    "apps.jobs",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -138,6 +142,65 @@ STORAGES = {
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 
+# Uploaded files - invoice photos, fridge photos, profile pictures - go to S3
+# whenever a bucket is configured, and to local disk when one is not.
+#
+# Local disk is fine for development and wrong everywhere else: MEDIA_ROOT
+# lives inside the container, so a deploy rebuilds it empty and every upload
+# is gone. The database keeps a perfectly healthy row - ImageField stores a
+# path, never the bytes - pointing at a file that no longer exists. Production
+# refuses to boot without a bucket for exactly that reason; see
+# config/settings/production.py.
+AWS_STORAGE_BUCKET_NAME = env("AWS_STORAGE_BUCKET_NAME", default="")
+AWS_S3_REGION_NAME = env("AWS_S3_REGION_NAME", default="")
+AWS_S3_ACCESS_KEY_ID = env("AWS_S3_ACCESS_KEY_ID", default="")
+AWS_S3_SECRET_ACCESS_KEY = env("AWS_S3_SECRET_ACCESS_KEY", default="")
+
+if AWS_STORAGE_BUCKET_NAME and not AWS_S3_REGION_NAME:
+    # The region is part of the endpoint below, so an empty one would build
+    # https://s3..amazonaws.com and fail on every request with something that
+    # does not mention the setting that caused it.
+    raise ImproperlyConfigured(
+        "AWS_S3_REGION_NAME is required when AWS_STORAGE_BUCKET_NAME is set - "
+        "it must be the region the bucket is actually in (e.g. us-west-2)."
+    )
+
+if AWS_STORAGE_BUCKET_NAME:
+    STORAGES["default"] = {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+            "bucket_name": AWS_STORAGE_BUCKET_NAME,
+            "region_name": AWS_S3_REGION_NAME,
+            "access_key": AWS_S3_ACCESS_KEY_ID,
+            "secret_key": AWS_S3_SECRET_ACCESS_KEY,
+            "signature_version": "s3v4",
+            # Put the region in the hostname. Without these two, boto3 signs
+            # for `region_name` but addresses the bucket at the global
+            # endpoint (bucket.s3.amazonaws.com), and S3 answers a bucket that
+            # lives elsewhere with a redirect to the regional host. The
+            # redirect changes the Host header, Host is part of what SigV4
+            # signed, and the request arrives as SignatureDoesNotMatch - a 403
+            # that reads like a credentials problem and is not one. Every
+            # signed URL the API hands out was failing this way: avatars,
+            # fridge photos and invoice images all rendered as nothing.
+            "addressing_style": "virtual",
+            "endpoint_url": f"https://s3.{AWS_S3_REGION_NAME}.amazonaws.com",
+            # Signed, expiring URLs rather than public objects. An invoice
+            # photo shows a supplier's pricing and a profile picture is
+            # personal - neither should be readable by anyone who guesses a
+            # key. The app must therefore use URLs fresh from the API rather
+            # than caching them past the expiry below.
+            "querystring_auth": True,
+            "querystring_expire": 3600,
+            # Two uploads that happen to share a filename are two files, not
+            # one silently overwriting the other - Django suffixes instead.
+            "file_overwrite": False,
+            # Modern buckets have ACLs disabled (Object Ownership: bucket
+            # owner enforced); sending one is rejected outright.
+            "default_acl": None,
+        },
+    }
+
 # ---------------------------------------------------------------------------
 # Django REST Framework
 # ---------------------------------------------------------------------------
@@ -162,6 +225,9 @@ REST_FRAMEWORK = {
         # Deliberately tight: this endpoint sends mail to an address the
         # caller supplies, so a loose limit makes it a spam relay.
         "password_reset": "5/hour",
+        # Invoice scanning is the only endpoint here that costs money per
+        # call, and every staff account can reach it.
+        "invoice_scan": "40/hour",
         # Looser than the others: the join screen calls this on every load,
         # including re-opens, so it needs headroom register/login don't.
         "invite_lookup": "30/min",
@@ -198,6 +264,8 @@ SPECTACULAR_SETTINGS = {
         "ChecklistFrequencyEnum": "apps.compliance.models.CHECKLIST_FREQUENCY_CHOICES",
         "StockMovementReasonEnum": "apps.inventory.models.STOCK_MOVEMENT_REASON_CHOICES",
         "InvoiceScanStatusEnum": "apps.inventory.models.INVOICE_SCAN_STATUS_CHOICES",
+        "InvoiceScanStateEnum": "apps.inventory.models.INVOICE_SCAN_STATE_CHOICES",
+        "InvoiceDocumentTypeEnum": "apps.inventory.models.INVOICE_DOCUMENT_TYPE_CHOICES",
     },
 }
 
@@ -233,6 +301,18 @@ LOGGING = {
         "console": {"class": "logging.StreamHandler", "formatter": "verbose"},
     },
     "root": {"handlers": ["console"], "level": env("LOG_LEVEL", default="INFO")},
+    "loggers": {
+        # These three are extraordinarily chatty at DEBUG - a single S3 upload
+        # writes a hundred lines about event hooks and signature calculation,
+        # which buries the traceback you turned DEBUG on to read. Pinned at
+        # INFO so LOG_LEVEL=DEBUG stays usable for our own code.
+        "botocore": {"level": "INFO"},
+        "boto3": {"level": "INFO"},
+        "s3transfer": {"level": "INFO"},
+        "urllib3": {"level": "INFO"},
+        # Same story: it logs every locale lookup for every provider on import.
+        "faker": {"level": "INFO"},
+    },
 }
 
 # ---------------------------------------------------------------------------
@@ -262,7 +342,29 @@ MAILERS = {
 }
 GOOGLE_CLIENT_ID = env("GOOGLE_CLIENT_ID", default="")
 
-# Used by apps.inventory.services.scanning to read a photographed invoice.
-# Blank in an environment that hasn't set one up yet - that service raises
-# a friendly ValidationError rather than a raw auth failure in that case.
-ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
+# Invoice extraction. Blank in an environment that has not set one up -
+# uploads still save and scanning fails with a friendly error rather than a
+# raw auth failure.
+OPENAI_API_KEY = env("OPENAI_API_KEY", default="")
+# Configurable so a model can be changed, or rolled back, without a deploy of
+# new code - the one setting here most likely to need moving in a hurry.
+OPENAI_MODEL = env("OPENAI_MODEL", default="gpt-6-luna")
+# How long one read may take. The worker runs jobs one at a time, so a call
+# that hangs holds up every invoice behind it; giving up and letting the queue
+# retry recovers just as well and fails where someone can see it.
+OPENAI_TIMEOUT_SECONDS = env.int("OPENAI_TIMEOUT_SECONDS", default=60)
+
+# Invoices one restaurant may have read per calendar month. 0 means no
+# ceiling, which is the default: a limit nobody chose would refuse real work
+# on the day it was hit. Set one and a bad afternoon costs a known amount.
+# Whether a PDF page that already carries its own text is sent as that text
+# rather than as a picture of itself.
+#
+# On, because it is several times cheaper: a page sent as an image costs about
+# a thousand input tokens, and the same page's text costs a few hundred. Off is
+# worth having without a deploy, because it is also a change in what the model
+# sees - extracted text has lost its column alignment, and if a supplier's
+# layout turns out to read badly that way, this is the switch.
+INVOICE_SCAN_PDF_TEXT = env.bool("INVOICE_SCAN_PDF_TEXT", default=True)
+
+INVOICE_SCAN_MONTHLY_CAP = env.int("INVOICE_SCAN_MONTHLY_CAP", default=0)

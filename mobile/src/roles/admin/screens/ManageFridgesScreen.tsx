@@ -1,5 +1,5 @@
 import React from 'react';
-import {Image, Pressable, StyleSheet, Text, View} from 'react-native';
+import {Image, StyleSheet, Text, View} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {Ionicons} from '@expo/vector-icons';
@@ -11,6 +11,7 @@ import {EmptyState} from '../../../components/EmptyState';
 import {ErrorState} from '../../../components/ErrorState';
 import {FadeIn} from '../../../components/FadeIn';
 import {LoadingView} from '../../../components/LoadingView';
+import {PressableScale} from '../../../components/PressableScale';
 import {Screen} from '../../../components/Screen';
 import {describeApiError} from '../../../api/errors';
 import {useAdminFridgeUnits} from '../../../features/compliance/hooks';
@@ -43,14 +44,13 @@ export function ManageFridgesScreen(): React.JSX.Element {
 
   return (
     <Screen onRefresh={() => fridges.refetch()} refreshing={fridges.isRefetching}>
-      <Text style={styles.heading}>Fridges & freezers</Text>
-
       {fridgeList.length === 0 ? (
         <EmptyState title="None yet" body="Add your first fridge or freezer below." />
       ) : (
         fridgeList.map((fridge, index) => (
           <FadeIn key={fridge.id} delay={index * 50}>
-            <Pressable onPress={() => navigation.navigate('EditFridge', {fridgeId: fridge.id})}>
+            <PressableScale
+              onPress={() => navigation.navigate('EditFridge', {fridgeId: fridge.id})}>
               <Card style={styles.row}>
                 {fridge.photo ? (
                   <Image source={{uri: fridge.photo}} style={styles.photo} />
@@ -69,7 +69,7 @@ export function ManageFridgesScreen(): React.JSX.Element {
                 </View>
                 {!fridge.is_active ? <Badge label="Inactive" tone="neutral" /> : null}
               </Card>
-            </Pressable>
+            </PressableScale>
           </FadeIn>
         ))
       )}
@@ -84,7 +84,6 @@ export function ManageFridgesScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  heading: {fontSize: 20, fontWeight: '700', color: colors.text},
   row: {flexDirection: 'row', alignItems: 'center', gap: spacing.sm},
   photo: {width: 44, height: 44, borderRadius: radii.md},
   photoPlaceholder: {

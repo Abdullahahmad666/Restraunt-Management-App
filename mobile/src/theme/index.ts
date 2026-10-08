@@ -3,13 +3,12 @@ import {DarkTheme, type Theme} from '@react-navigation/native';
 /**
  * Invisiko's dark theme: black and white, with amber kept as the one accent.
  *
- * This used to sit on the logo's navy badge exactly, so launch had no colour
- * shift - the splash screen simply became the app. It no longer does: the
- * splash screen and app icon backgrounds are separate native assets
- * (app.json's "backgroundColor"/"primaryColor", still #08172B) that were not
- * part of this pass. Changing those is an asset job, not a token edit, so
- * until they're redrawn to match, a cold launch will show a brief navy-to-
- * black handoff.
+ * `background` is also what the native launch assets are set to - the splash
+ * screen and the Android adaptive icon read their colour from app.json, and
+ * the iOS icon has it painted in. They were left on the logo's old navy for a
+ * while, which made a cold launch flash navy and then turn black. Change
+ * `brand.black` and those three have to change with it, or the flash comes
+ * back.
  *
  * The app is dark-only. `userInterfaceStyle` is pinned to "dark" in app.json,
  * so there is no light variant to keep in step. If a light theme is ever
@@ -104,21 +103,11 @@ export const navigationTheme: Theme = {
 /**
  * Shared bottom-tab options.
  *
- * navigationTheme handles the card and header, but the tab bar keeps its own
- * defaults - the inactive label lands on a grey that is close to unreadable
- * against this navy, and the top hairline shows as a light line.
+ * Only the header is configured here. The bar itself is drawn by
+ * navigation/FloatingTabBar, which reads its colours from this file directly -
+ * tabBarStyle and the tint colours would be settings nothing looks at.
  */
 export const tabScreenOptions = {
-  tabBarActiveTintColor: colors.primary,
-  tabBarInactiveTintColor: colors.textMuted,
-  tabBarStyle: {
-    backgroundColor: colors.surface,
-    borderTopColor: colors.border,
-    height: 62,
-    paddingBottom: 8,
-    paddingTop: 6,
-  },
-  tabBarLabelStyle: {fontSize: 11, fontWeight: '600' as const},
   headerStyle: {backgroundColor: colors.background},
   headerTintColor: colors.text,
   headerShadowVisible: false,

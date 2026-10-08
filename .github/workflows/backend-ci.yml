@@ -80,6 +80,17 @@ jobs:
         env:
           DJANGO_SETTINGS_MODULE: config.settings.production
           CSRF_TRUSTED_ORIGINS: https://example.com
+          # Production refuses to boot without a bucket, on purpose: uploads
+          # would otherwise land on a container filesystem that the next
+          # deploy throws away. This check only imports settings and never
+          # stores anything, so a placeholder satisfies it - the same trick
+          # the Dockerfile uses to run collectstatic. A real deploy without a
+          # real bucket still fails loudly, which is the point.
+          AWS_STORAGE_BUCKET_NAME: ci-only-placeholder-never-written-to
+          # Required alongside the bucket: the region is baked into the S3
+          # endpoint, and settings refuse a bucket without one rather than
+          # build https://s3..amazonaws.com.
+          AWS_S3_REGION_NAME: us-west-2
 
       - name: Run tests
         run: pytest

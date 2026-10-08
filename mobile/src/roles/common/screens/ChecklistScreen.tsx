@@ -10,6 +10,7 @@ import {EmptyState} from '../../../components/EmptyState';
 import {ErrorState} from '../../../components/ErrorState';
 import {FadeIn} from '../../../components/FadeIn';
 import {LoadingView} from '../../../components/LoadingView';
+import {PressableScale} from '../../../components/PressableScale';
 import {Screen} from '../../../components/Screen';
 import {TextField} from '../../../components/TextField';
 import {describeApiError} from '../../../api/errors';
@@ -72,9 +73,9 @@ function ChecklistRow({
 
   return (
     <Card>
-      <Pressable style={styles.row} onPress={onToggle} disabled={pending}>
+      <PressableScale style={styles.row} onPress={onToggle} disabled={pending}>
         <View style={[styles.checkbox, completion && styles.checkboxDone]}>
-          {completion ? <Ionicons name="checkmark" size={16} color="#FFFFFF" /> : null}
+          {completion ? <Ionicons name="checkmark" size={16} color={colors.background} /> : null}
         </View>
         <View style={styles.rowText}>
           <Text style={[styles.itemText, completion && styles.itemTextDone]}>{item.text}</Text>
@@ -87,7 +88,7 @@ function ChecklistRow({
             <Text style={styles.noteText}>Note: {completion.note}</Text>
           ) : null}
         </View>
-      </Pressable>
+      </PressableScale>
 
       {editingNote ? (
         <View style={styles.noteEditor}>
@@ -164,7 +165,7 @@ export function ChecklistScreen(): React.JSX.Element {
       {itemList.length === 0 ? (
         <EmptyState
           title="No checklist items yet"
-          body="Ask your manager to add them in Manage compliance."
+          body="Ask your manager to add them - they are set up under Manage on the Checks tab."
         />
       ) : (
         itemList.map((item, index) => (

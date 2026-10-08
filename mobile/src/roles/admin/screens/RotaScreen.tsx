@@ -5,6 +5,7 @@ import {Button} from '../../../components/Button';
 import {Card} from '../../../components/Card';
 import {ErrorState} from '../../../components/ErrorState';
 import {FadeIn} from '../../../components/FadeIn';
+import {FilterChip} from '../../../components/FilterChip';
 import {LoadingView} from '../../../components/LoadingView';
 import {MonthNav} from '../../../components/MonthNav';
 import {Screen} from '../../../components/Screen';
@@ -16,7 +17,7 @@ import {useRates} from '../../../features/payroll/hooks';
 import {useStaffAccounts} from '../../../features/staff/hooks';
 import type {StaffAccount} from '../../../features/staff/types';
 import {useWeekCursor} from '../../../hooks/useWeekCursor';
-import {colors, radii, spacing} from '../../../theme';
+import {colors, spacing} from '../../../theme';
 import {LOCALE, formatCurrency, formatHours, formatTime, fullName} from '../../../utils/format';
 
 const JOB_TITLES = Object.keys(JOB_TITLE_LABELS) as JobTitle[];
@@ -209,19 +210,14 @@ function DayCard({
         <View style={styles.addForm}>
           <Text style={styles.label}>Who's working</Text>
           <View style={styles.chipRow}>
-            {activeStaff.map(member => {
-              const selected = selectedStaffId === member.id;
-              return (
-                <Pressable
-                  key={member.id}
-                  onPress={() => setSelectedStaffId(member.id)}
-                  style={[styles.chip, selected && styles.chipSelected]}>
-                  <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
-                    {fullName(member)}
-                  </Text>
-                </Pressable>
-              );
-            })}
+            {activeStaff.map(member => (
+              <FilterChip
+                key={member.id}
+                label={fullName(member)}
+                selected={selectedStaffId === member.id}
+                onPress={() => setSelectedStaffId(member.id)}
+              />
+            ))}
           </View>
 
           <View style={styles.timeRow}>
@@ -231,19 +227,17 @@ function DayCard({
 
           <Text style={styles.label}>Job title (optional)</Text>
           <View style={styles.chipRow}>
-            {JOB_TITLES.map(title => {
-              const selected = jobTitle === title;
-              return (
-                <Pressable
-                  key={title}
-                  onPress={() => setJobTitle(current => (current === title ? null : title))}
-                  style={[styles.chip, selected && styles.chipSelected]}>
-                  <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
-                    {JOB_TITLE_LABELS[title]}
-                  </Text>
-                </Pressable>
-              );
-            })}
+            {/* Chips rather than a toggle: a job title is optional, and
+                tapping the picked one clears it. A segmented control has no way
+                to show "none of these". */}
+            {JOB_TITLES.map(title => (
+              <FilterChip
+                key={title}
+                label={JOB_TITLE_LABELS[title]}
+                selected={jobTitle === title}
+                onPress={() => setJobTitle(current => (current === title ? null : title))}
+              />
+            ))}
           </View>
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -294,16 +288,6 @@ const styles = StyleSheet.create({
   addForm: {gap: spacing.sm, marginTop: spacing.sm},
   label: {fontSize: 13, fontWeight: '600', color: colors.textMuted},
   chipRow: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm},
-  chip: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.pill,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-  },
-  chipSelected: {backgroundColor: colors.primary, borderColor: colors.primary},
-  chipText: {fontSize: 13, color: colors.text},
-  chipTextSelected: {color: '#FFFFFF', fontWeight: '700'},
   timeRow: {flexDirection: 'row', gap: spacing.md},
   formActions: {flexDirection: 'row', gap: spacing.sm, justifyContent: 'flex-end'},
   error: {color: colors.danger, fontSize: 12},

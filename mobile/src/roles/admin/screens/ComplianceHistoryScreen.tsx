@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {Pressable, StyleSheet, Text, View} from 'react-native';
+import {StyleSheet, Text, View} from 'react-native';
 
 import {Card} from '../../../components/Card';
 import {EmptyState} from '../../../components/EmptyState';
@@ -7,23 +7,32 @@ import {ErrorState} from '../../../components/ErrorState';
 import {FadeIn} from '../../../components/FadeIn';
 import {LoadingView} from '../../../components/LoadingView';
 import {Screen} from '../../../components/Screen';
+import {SegmentedToggle, type SegmentedOption} from '../../../components/SegmentedToggle';
 import {describeApiError} from '../../../api/errors';
 import {useFridgeUnits, useTemperatureReadingHistory} from '../../../features/compliance/hooks';
 import {ROUTINE_LABELS} from '../../../features/compliance/types';
 import type {ComplianceRoutine, TemperatureReading} from '../../../features/compliance/types';
-import {colors, radii, spacing} from '../../../theme';
+import {colors} from '../../../theme';
 import {formatDateTime} from '../../../utils/format';
 
-const RANGE_OPTIONS = [
-  {label: '7 days', days: 7},
-  {label: '14 days', days: 14},
-  {label: '30 days', days: 30},
+/** Days, held as strings because that is what the toggle compares on. The one
+ * place it matters reads it back with Number(). */
+type RangeDays = '7' | '14' | '30';
+
+const RANGE_OPTIONS: SegmentedOption<RangeDays>[] = [
+  {value: '7', label: '7 days'},
+  {value: '14', label: '14 days'},
+  {value: '30', label: '30 days'},
 ];
 
-const ROUTINE_FILTERS: Array<{label: string; value: ComplianceRoutine | undefined}> = [
-  {label: 'All', value: undefined},
-  {label: 'Opening', value: 'OPENING'},
-  {label: 'Closing', value: 'CLOSING'},
+/** 'ALL' rather than undefined, for the same reason the attendance filters use
+ * it: the toggle needs a value behind every option. */
+type RoutineFilter = ComplianceRoutine | 'ALL';
+
+const ROUTINE_FILTERS: SegmentedOption<RoutineFilter>[] = [
+  {value: 'ALL', label: 'All'},
+  {value: 'OPENING', label: 'Opening'},
+  {value: 'CLOSING', label: 'Closing'},
 ];
 
 function isoDaysAgo(days: number): string {
@@ -69,12 +78,12 @@ function ReadingRow({
  * correct today's reading in RoutineScreen/FridgeTemperaturesScreen, but
  * looking back over past days is a manager's job, not a floor task. */
 export function ComplianceHistoryScreen(): React.JSX.Element {
-  const [rangeDays, setRangeDays] = useState(14);
-  const [routineFilter, setRoutineFilter] = useState<ComplianceRoutine | undefined>();
+  const [rangeDays, setRangeDays] = useState<RangeDays>('14');
+  const [routineFilter, setRoutineFilter] = useState<RoutineFilter>('ALL');
 
   const fridges = useFridgeUnits();
   const history = useTemperatureReadingHistory({
-    dateFrom: isoDaysAgo(rangeDays),
+    dateFrom: isoDaysAgo(Number(rangeDays)),
     dateTo: todayIso(),
   });
 
@@ -100,38 +109,25 @@ export function ComplianceHistoryScreen(): React.JSX.Element {
 
   const fridgeNameById = new Map(fridges.data?.results.map(f => [f.id, f.name]) ?? []);
   const readings = (history.data?.results ?? []).filter(
-    reading => !routineFilter || reading.routine === routineFilter,
+    reading => routineFilter === 'ALL' || reading.routine === routineFilter,
   );
 
   return (
     <Screen onRefresh={refresh} refreshing={fridges.isRefetching || history.isRefetching}>
-      <Text style={styles.heading}>Temperature history</Text>
-
-      <View style={styles.filterRow}>
-        {RANGE_OPTIONS.map(option => (
-          <Pressable
-            key={option.days}
-            onPress={() => setRangeDays(option.days)}
-            style={[styles.chip, rangeDays === option.days && styles.chipActive]}>
-            <Text style={[styles.chipLabel, rangeDays === option.days && styles.chipLabelActive]}>
-              {option.label}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-      <View style={styles.filterRow}>
-        {ROUTINE_FILTERS.map(filter => (
-          <Pressable
-            key={filter.label}
-            onPress={() => setRoutineFilter(filter.value)}
-            style={[styles.chip, routineFilter === filter.value && styles.chipActive]}>
-            <Text
-              style={[styles.chipLabel, routineFilter === filter.value && styles.chipLabelActive]}>
-              {filter.label}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+      <SegmentedToggle
+        options={RANGE_OPTIONS}
+        value={rangeDays}
+        onChange={setRangeDays}
+        accessibilityLabel="How far back to look"
+        compact
+      />
+      <SegmentedToggle
+        options={ROUTINE_FILTERS}
+        value={routineFilter}
+        onChange={setRoutineFilter}
+        accessibilityLabel="Which checks to show"
+        compact
+      />
 
       {readings.length === 0 ? (
         <EmptyState
@@ -153,18 +149,6 @@ export function ComplianceHistoryScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  heading: {fontSize: 20, fontWeight: '700', color: colors.text},
-  filterRow: {flexDirection: 'row', gap: spacing.xs},
-  chip: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.lg,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-  },
-  chipActive: {backgroundColor: colors.primary, borderColor: colors.primary},
-  chipLabel: {fontSize: 13, color: colors.text},
-  chipLabelActive: {color: '#FFFFFF', fontWeight: '600'},
   row: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'},
   rowText: {flex: 1},
   name: {fontSize: 15, fontWeight: '600', color: colors.text},

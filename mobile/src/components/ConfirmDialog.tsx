@@ -1,6 +1,7 @@
 import React from 'react';
-import {ActivityIndicator, Image, Modal, Pressable, StyleSheet, Text, View} from 'react-native';
+import {Image, Modal, Pressable, StyleSheet, Text, View} from 'react-native';
 
+import {PrimaryButton} from './PrimaryButton';
 import {colors, radii, spacing, typography} from '../theme';
 
 const logo = require('../../assets/images/splash-icon.png');
@@ -68,41 +69,13 @@ export function ConfirmDialog({
           <Text style={styles.message}>{message}</Text>
 
           <View style={styles.actions}>
-            <Pressable
+            <PrimaryButton
+              label={confirmLabel}
               onPress={onConfirm}
-              disabled={busy}
-              accessibilityRole="button"
-              style={({pressed}) => [
-                styles.button,
-                destructive ? styles.destructive : styles.primary,
-                pressed && !busy && styles.pressed,
-                busy && styles.disabled,
-              ]}>
-              {busy ? (
-                <ActivityIndicator color={destructive ? colors.danger : colors.onPrimary} />
-              ) : (
-                <Text
-                  style={[
-                    styles.buttonText,
-                    destructive ? styles.destructiveText : styles.primaryText,
-                  ]}>
-                  {confirmLabel}
-                </Text>
-              )}
-            </Pressable>
-
-            <Pressable
-              onPress={onCancel}
-              disabled={busy}
-              accessibilityRole="button"
-              style={({pressed}) => [
-                styles.button,
-                styles.cancel,
-                pressed && !busy && styles.pressed,
-                busy && styles.disabled,
-              ]}>
-              <Text style={[styles.buttonText, styles.cancelText]}>{cancelLabel}</Text>
-            </Pressable>
+              loading={busy}
+              variant={destructive ? 'danger' : 'primary'}
+            />
+            <PrimaryButton label={cancelLabel} onPress={onCancel} disabled={busy} variant="ghost" />
           </View>
         </Pressable>
       </Pressable>
@@ -149,20 +122,4 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   actions: {width: '100%', gap: spacing.sm, marginTop: spacing.md},
-  button: {
-    borderRadius: radii.md,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 50,
-  },
-  primary: {backgroundColor: colors.primary},
-  destructive: {backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.danger},
-  cancel: {backgroundColor: 'transparent'},
-  pressed: {opacity: 0.85},
-  disabled: {opacity: 0.5},
-  buttonText: {...typography.body, fontWeight: '700'},
-  primaryText: {color: colors.onPrimary},
-  destructiveText: {color: colors.danger},
-  cancelText: {color: colors.textMuted},
 });

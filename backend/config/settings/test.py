@@ -16,8 +16,20 @@ up: `docker compose up -d db` from the repo root.
 """
 
 from .base import *  # noqa: F403
+from .base import STORAGES
 
 DEBUG = False
+
+# Uploads go to a temp directory, never to a bucket.
+#
+# base.py switches to S3 whenever a bucket is configured, which is right for
+# every environment except this one - inheriting it from a developer's .env
+# made the suite several times slower, made it need the network to pass, and
+# left a stray object in the real bucket for every upload a test exercised.
+STORAGES = {
+    **STORAGES,
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+}
 
 # Hashing is deliberately weak here - it is the single biggest cost in a test
 # suite that creates users, and nothing in a test database is real.

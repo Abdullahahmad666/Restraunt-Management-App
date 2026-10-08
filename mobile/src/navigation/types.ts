@@ -3,9 +3,23 @@ import type {NavigatorScreenParams} from '@react-navigation/native';
 import type {AttendanceLog, ScanAction, Shift} from '../features/attendance/types';
 import type {ChecklistFrequency, ComplianceRoutine} from '../features/compliance/types';
 
+/**
+ * Which of the two people in front of the app this is.
+ *
+ * Signing in is identical for both, so one Login screen serves them - but
+ * signing *up* is not: a manager creates a restaurant from nothing, a staff
+ * member joins one with a code their manager sent them. The choice is made on
+ * the welcome screen and travels with them, so "new here?" on the sign-in
+ * screen offers the route they actually have.
+ */
+export type Audience = 'manager' | 'staff';
+
 export type AuthStackParamList = {
   Welcome: undefined;
-  Login: undefined;
+  /** `who` decides which way out of here a person without an account is
+   * offered. Absent (a deep link, a bounce back from a reset) means manager,
+   * which is what this screen offered everybody before. */
+  Login: {who?: Audience} | undefined;
   /** Admin only - the only way an ADMIN account gets made. Staff never see
    * this screen; they arrive through Join instead. */
   SetupTakeaway: undefined;
@@ -16,7 +30,7 @@ export type AuthStackParamList = {
    * so it can sign in immediately once the code checks out, rather than
    * bouncing back to a login form with the fields empty.
    */
-  VerifyEmail: {email: string; password: string};
+  VerifyEmail: {email: string; password: string; who?: Audience};
   ForgotPassword: undefined;
   /**
    * Reached from the emailed deep link (invisiko://reset-password?uid=..&token=..),
@@ -71,6 +85,14 @@ export type InventoryStackParamList = {
   // only shown there for an ADMIN user (see its own role check) - the
   // underlying admin API endpoints reject a staff caller regardless.
   ManageInventoryItems: undefined;
+  // Same arrangement: declared here so the shared hub can link to it, and
+  // registered on the admin stack only. What the restaurant buys, from whom,
+  // and at what cost.
+  PurchaseHistory: undefined;
+  // Tidying the supplier and storage-area lists, both of which fill
+  // themselves - staff add a supplier mid-review, and a storage area is
+  // created from whatever a delivery note says. Admin stack only.
+  ManageSources: undefined;
 };
 
 // ---------------------------------------------------------------------------

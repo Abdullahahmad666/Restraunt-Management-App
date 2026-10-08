@@ -9,18 +9,18 @@ import {ErrorState} from '../../../components/ErrorState';
 import {FadeIn} from '../../../components/FadeIn';
 import {LoadingView} from '../../../components/LoadingView';
 import {Screen} from '../../../components/Screen';
+import {SegmentedToggle} from '../../../components/SegmentedToggle';
 import {TextField} from '../../../components/TextField';
 import {describeApiError} from '../../../api/errors';
 import {useMyLogs, useMyShifts, useUpdateMyLogNote} from '../../../features/attendance/hooks';
-import type {AttendanceLog, AttendanceStatus, Shift} from '../../../features/attendance/types';
-import {colors, radii, spacing} from '../../../theme';
+import {ATTENDANCE_STATUS_FILTERS, statusQuery} from '../../../features/attendance/types';
+import type {
+  AttendanceLog,
+  AttendanceStatusFilter,
+  Shift,
+} from '../../../features/attendance/types';
+import {colors, spacing} from '../../../theme';
 import {formatDateTime} from '../../../utils/format';
-
-const STATUS_FILTERS: Array<{label: string; value: AttendanceStatus | undefined}> = [
-  {label: 'All', value: undefined},
-  {label: 'On shift', value: 'OPEN'},
-  {label: 'Closed', value: 'CLOSED'},
-];
 
 /** How late a check-in was against its matched shift, or null if it wasn't
  * late (early/on-time isn't worth calling out - lateness is). */
@@ -39,9 +39,9 @@ function minutesLate(log: AttendanceLog, shiftById: Map<string, Shift>): number 
 /** Every check-in and check-out, filterable, with room to add a note to any
  * of them. */
 export function ScanHistoryScreen(): React.JSX.Element {
-  const [statusFilter, setStatusFilter] = useState<AttendanceStatus | undefined>();
+  const [statusFilter, setStatusFilter] = useState<AttendanceStatusFilter>('ALL');
   const shifts = useMyShifts();
-  const logs = useMyLogs({status: statusFilter});
+  const logs = useMyLogs({status: statusQuery(statusFilter)});
 
   const loading = shifts.isLoading || logs.isLoading;
   const error = shifts.error ?? logs.error;
@@ -68,19 +68,13 @@ export function ScanHistoryScreen(): React.JSX.Element {
 
   return (
     <Screen onRefresh={refresh} refreshing={shifts.isRefetching || logs.isRefetching}>
-      <View style={styles.filterRow}>
-        {STATUS_FILTERS.map(filter => (
-          <Pressable
-            key={filter.label}
-            onPress={() => setStatusFilter(filter.value)}
-            style={[styles.chip, statusFilter === filter.value && styles.chipActive]}>
-            <Text
-              style={[styles.chipLabel, statusFilter === filter.value && styles.chipLabelActive]}>
-              {filter.label}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+      <SegmentedToggle
+        options={ATTENDANCE_STATUS_FILTERS}
+        value={statusFilter}
+        onChange={setStatusFilter}
+        accessibilityLabel="Which scans to show"
+        compact
+      />
 
       {recentLogs.length === 0 ? (
         <EmptyState title="No scans yet" body="Your check-ins and check-outs will show up here." />
@@ -165,17 +159,6 @@ function LogRow({
 }
 
 const styles = StyleSheet.create({
-  filterRow: {flexDirection: 'row', gap: spacing.xs},
-  chip: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.lg,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-  },
-  chipActive: {backgroundColor: colors.primary, borderColor: colors.primary},
-  chipLabel: {fontSize: 13, color: colors.text},
-  chipLabelActive: {color: '#FFFFFF', fontWeight: '600'},
   rowHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
   rowTitle: {fontSize: 15, fontWeight: '600', color: colors.text},
   rowBody: {fontSize: 14, color: colors.textMuted},

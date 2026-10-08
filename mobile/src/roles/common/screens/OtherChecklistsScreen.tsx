@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {Pressable, StyleSheet, Text, View} from 'react-native';
+import {StyleSheet, Text, View} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {Ionicons} from '@expo/vector-icons';
@@ -9,7 +9,9 @@ import {EmptyState} from '../../../components/EmptyState';
 import {ErrorState} from '../../../components/ErrorState';
 import {FadeIn} from '../../../components/FadeIn';
 import {LoadingView} from '../../../components/LoadingView';
+import {PressableScale} from '../../../components/PressableScale';
 import {Screen} from '../../../components/Screen';
+import {SegmentedToggle, type SegmentedOption} from '../../../components/SegmentedToggle';
 import {describeApiError} from '../../../api/errors';
 import {
   useChecklistTaskCompletions,
@@ -19,11 +21,13 @@ import {
 import {FREQUENCY_LABELS} from '../../../features/compliance/types';
 import type {ChecklistFrequency, ChecklistTemplate} from '../../../features/compliance/types';
 import type {ComplianceStackParamList} from '../../../navigation/types';
-import {colors, radii, spacing} from '../../../theme';
+import {colors} from '../../../theme';
 
 type Nav = NativeStackNavigationProp<ComplianceStackParamList>;
 
-const FREQUENCIES: ChecklistFrequency[] = ['DAILY', 'WEEKLY', 'MONTHLY'];
+const FREQUENCIES: SegmentedOption<ChecklistFrequency>[] = (
+  ['DAILY', 'WEEKLY', 'MONTHLY'] as const
+).map(value => ({value, label: FREQUENCY_LABELS[value]}));
 
 function TemplateRow({
   template,
@@ -40,7 +44,7 @@ function TemplateRow({
   const subtitle = total === 0 ? 'No tasks yet' : `${done} of ${total} done`;
 
   return (
-    <Pressable onPress={onPress}>
+    <PressableScale onPress={onPress}>
       <Card style={styles.row}>
         <View style={styles.rowText}>
           <Text style={styles.rowTitle}>{template.name}</Text>
@@ -48,7 +52,7 @@ function TemplateRow({
         </View>
         <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
       </Card>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -78,20 +82,13 @@ export function OtherChecklistsScreen(): React.JSX.Element {
 
   return (
     <Screen onRefresh={() => templates.refetch()} refreshing={templates.isRefetching}>
-      <Text style={styles.heading}>Other checklists</Text>
-
-      <View style={styles.filterRow}>
-        {FREQUENCIES.map(value => (
-          <Pressable
-            key={value}
-            onPress={() => setFrequency(value)}
-            style={[styles.chip, frequency === value && styles.chipActive]}>
-            <Text style={[styles.chipLabel, frequency === value && styles.chipLabelActive]}>
-              {FREQUENCY_LABELS[value]}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+      <SegmentedToggle
+        options={FREQUENCIES}
+        value={frequency}
+        onChange={setFrequency}
+        accessibilityLabel="How often the checklist runs"
+        compact
+      />
 
       {templateList.length === 0 ? (
         <EmptyState
@@ -118,18 +115,6 @@ export function OtherChecklistsScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  heading: {fontSize: 20, fontWeight: '700', color: colors.text},
-  filterRow: {flexDirection: 'row', gap: spacing.xs},
-  chip: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.lg,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-  },
-  chipActive: {backgroundColor: colors.primary, borderColor: colors.primary},
-  chipLabel: {fontSize: 13, color: colors.text},
-  chipLabelActive: {color: '#FFFFFF', fontWeight: '600'},
   row: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'},
   rowText: {flex: 1},
   rowTitle: {fontSize: 15, fontWeight: '600', color: colors.text},

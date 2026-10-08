@@ -99,8 +99,19 @@ def test_staff_sees_only_their_own_restaurants_tables(staff_client, restaurant, 
     assert response.data["count"] == 1
 
 
-def test_user_with_no_restaurant_sees_nothing(db, django_user_model, restaurant):
-    """Fails closed: an unassigned account gets an empty list, not everything."""
+def test_user_with_no_restaurant_is_told_why(db, django_user_model, restaurant):
+    """Fails closed, and says so.
+
+    This used to answer 200 with an empty list. That failed closed for reads
+    and not at all for writes - every create reads request.user.restaurant
+    straight through, so an unassigned account got a 500 and a NOT NULL
+    violation out of the database the first time it tried to upload anything.
+
+    Refusing the request is the same answer for both, and an empty app that
+    explains nothing is worse than one that names what is missing. Only a 401
+    triggers the client's refresh-and-retry, so a 403 surfaces as a message
+    rather than signing anyone out.
+    """
     orphan = django_user_model.objects.create_user(
         email="unassigned@example.com", password="test-password-123", role=Role.STAFF
     )
@@ -108,8 +119,26 @@ def test_user_with_no_restaurant_sees_nothing(db, django_user_model, restaurant)
     client.force_authenticate(user=orphan)
 
     response = client.get(reverse("v1:staff:restaurants:restaurant-list"))
-    assert response.status_code == 200
-    assert response.data["count"] == 0
+
+    assert response.status_code == 403
+    assert "restaurant" in str(response.data).lower()
+
+
+def test_an_unassigned_account_cannot_write_either(db, django_user_model, restaurant):
+    """The half this was missing: the upload that found it."""
+    orphan = django_user_model.objects.create_user(
+        email="unassigned2@example.com", password="test-password-123", role=Role.STAFF
+    )
+    client = APIClient()
+    client.force_authenticate(user=orphan)
+
+    response = client.post(
+        reverse("v1:staff:inventory:inventory-item-list"),
+        {"name": "Ketchup", "unit": "bottle"},
+        format="json",
+    )
+
+    assert response.status_code == 403
 
 
 # --------------------------------------------------------------------------

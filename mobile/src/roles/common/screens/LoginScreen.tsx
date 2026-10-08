@@ -1,6 +1,6 @@
 import React, {useRef, useState} from 'react';
 import {Pressable, StyleSheet, Text, TextInput, View} from 'react-native';
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, useRoute, type RouteProp} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
 import {describeApiError} from '../../../api/errors';
@@ -16,9 +16,14 @@ import {colors, spacing, typography} from '../../../theme';
 import type {AuthStackParamList} from '../../../navigation/types';
 
 type Nav = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
+type Route = RouteProp<AuthStackParamList, 'Login'>;
 
 export function LoginScreen(): React.JSX.Element {
   const navigation = useNavigation<Nav>();
+  // Whoever sent us here said which of the two this is. Nobody said (a reset
+  // link, a deep link) means manager, which is what this screen used to offer
+  // everybody.
+  const who = useRoute<Route>().params?.who ?? 'manager';
   const passwordRef = useRef<TextInput>(null);
 
   const [email, setEmail] = useState('');
@@ -103,14 +108,34 @@ export function LoginScreen(): React.JSX.Element {
         />
       </View>
 
+      {/*
+        A staff member cannot create an account here, and offering them
+        "Create an account" sent them to the form for setting up a restaurant
+        they do not own - a dead end they could only discover by filling it in.
+        They need their invite code instead, so that is what they are offered.
+      */}
       <View style={styles.footer}>
-        <Text style={styles.footerText}>New here?</Text>
-        <Pressable
-          onPress={() => navigation.navigate('SetupTakeaway')}
-          disabled={submitting}
-          hitSlop={8}>
-          <Text style={styles.link}>Create an account</Text>
-        </Pressable>
+        {who === 'manager' ? (
+          <>
+            <Text style={styles.footerText}>New here?</Text>
+            <Pressable
+              onPress={() => navigation.navigate('SetupTakeaway')}
+              disabled={submitting}
+              hitSlop={8}>
+              <Text style={styles.link}>Create an account</Text>
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <Text style={styles.footerText}>Got an invite code?</Text>
+            <Pressable
+              onPress={() => navigation.navigate('Join', {})}
+              disabled={submitting}
+              hitSlop={8}>
+              <Text style={styles.link}>Set up your account</Text>
+            </Pressable>
+          </>
+        )}
       </View>
     </AuthScreen>
   );

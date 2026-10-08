@@ -3,45 +3,74 @@
 Mounted at /api/v1/staff/inventory/.
 """
 
-from datetime import datetime
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.files.storage import default_storage
+from django.db.models import DecimalField, Sum, Value
+from django.db.models.functions import Coalesce
 from rest_framework import mixins, serializers, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 
 from apps.common.api.viewsets import RestaurantScopedQuerysetMixin
 from apps.common.permissions import IsStaff
+from apps.jobs.services import queue
 
-from .. import models
-from ..services import scanning as scanning_service
+from .. import jobs as inventory_jobs
+from .. import models, selectors
+from ..services import scanning, uploads, usage
 from ..services import stock as stock_service
 from .common import (
     BaseInventoryItemSerializer,
     InvoiceLineItemSerializer,
     InvoiceScanSerializer,
     StockMovementSerializer,
+    SupplierSerializer,
+    WarehouseSerializer,
 )
 
 
-def _safe_decimal(value, default=None):
-    if value is None:
-        return default
-    try:
-        return Decimal(str(value))
-    except (InvalidOperation, ValueError, TypeError):
-        return default
+class StaffSupplierViewSet(
+    RestaurantScopedQuerysetMixin,
+    mixins.ListModelMixin,
+    mixins.CreateModelMixin,
+    viewsets.GenericViewSet,
+):
+    """Suppliers to pick from while reviewing an invoice, plus adding one the
+    restaurant has not bought from before - the same shape as adding an
+    inventory item inline. Editing and retiring stay admin-only: those change
+    what every past invoice appears to say."""
+
+    serializer_class = SupplierSerializer
+    permission_classes = [IsStaff]
+    queryset = models.Supplier.objects.all()
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return models.Supplier.objects.none()
+        return super().get_queryset().filter(is_active=True)
+
+    def perform_create(self, serializer):
+        serializer.save(restaurant=self.request.user.restaurant)
 
 
-def _safe_date(value):
-    if not value:
-        return None
-    try:
-        return datetime.strptime(str(value), "%Y-%m-%d").date()
-    except (ValueError, TypeError):
-        return None
+class StaffWarehouseViewSet(
+    RestaurantScopedQuerysetMixin, mixins.ListModelMixin, viewsets.GenericViewSet
+):
+    """Where a delivery can be sent. Read-only: a warehouse is a physical
+    place someone set up once, not something to invent mid-review."""
+
+    serializer_class = WarehouseSerializer
+    permission_classes = [IsStaff]
+    queryset = models.Warehouse.objects.all()
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return models.Warehouse.objects.none()
+        return super().get_queryset().filter(is_active=True)
 
 
 class StaffInventoryItemViewSet(
@@ -108,7 +137,49 @@ class StaffStockMovementViewSet(
 
 
 class UploadInvoiceSerializer(serializers.Serializer):
-    photo = serializers.ImageField()
+    """A photographed or PDF invoice.
+
+    FileField rather than ImageField - ImageField runs the upload through
+    Pillow, which rejects every PDF. The type is worked out from the file's
+    own leading bytes instead of trusting the declared one, and kept, because
+    a file read back out of storage later has no content type of its own.
+    """
+
+    photo = serializers.FileField()
+
+    def validate(self, attrs):
+        upload = attrs["photo"]
+
+        if upload.size > scanning.MAX_FILE_BYTES:
+            raise serializers.ValidationError(
+                {
+                    "photo": "That file is too large - upload one under "
+                    f"{scanning.MAX_FILE_BYTES // (1024 * 1024)}MB."
+                }
+            )
+
+        head = upload.read(32)
+        upload.seek(0)
+        content_type = scanning.sniff_content_type(head, getattr(upload, "content_type", "") or "")
+        if not content_type:
+            raise serializers.ValidationError(
+                {"photo": "That file cannot be read - upload a photo (JPEG, PNG or WebP) or a PDF."}
+            )
+
+        attrs["content_type"] = content_type
+        return attrs
+
+
+class UploadUrlSerializer(serializers.Serializer):
+    """Asking for somewhere to upload to.
+
+    Only the type is needed. The key is generated here rather than taken from
+    a client-supplied filename - two phones both sending "invoice.jpg" must
+    not collide, and a path from a client is not one to build storage keys out
+    of.
+    """
+
+    content_type = serializers.ChoiceField(choices=sorted(scanning.SUPPORTED_TYPES))
 
 
 class StaffInvoiceScanViewSet(
@@ -116,6 +187,7 @@ class StaffInvoiceScanViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
     mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
     viewsets.GenericViewSet,
 ):
     """Invoice photos staff have uploaded, with the line items a vision
@@ -124,59 +196,187 @@ class StaffInvoiceScanViewSet(
 
     serializer_class = InvoiceScanSerializer
     permission_classes = [IsStaff]
-    filterset_fields = ("status",)
-    queryset = models.InvoiceScan.objects.select_related("uploaded_by").prefetch_related(
-        "line_items", "line_items__matched_item"
+    filterset_fields = ("status", "supplier", "warehouse")
+    http_method_names = ["get", "post", "patch", "head", "options"]
+    # Annotated rather than summed per row in the serializer, which would be
+    # one query per invoice on a list of them.
+    queryset = (
+        models.InvoiceScan.objects.select_related("uploaded_by", "supplier", "warehouse")
+        .prefetch_related("line_items", "line_items__matched_item")
+        .annotate(
+            lines_total=Coalesce(
+                Sum(selectors.line_spend("line_items__")),
+                Value(Decimal("0")),
+                output_field=DecimalField(max_digits=14, decimal_places=2),
+            )
+        )
+        # Restated because the annotation's GROUP BY drops the model's default
+        # ordering, and an unordered queryset makes paging through invoices
+        # return rows in whatever order the database felt like - including the
+        # same row twice across two pages.
+        .order_by("-created_at")
     )
 
-    def _populate_from_scan(self, invoice: "models.InvoiceScan") -> None:
-        invoice.photo.open("rb")
-        try:
-            image_bytes = invoice.photo.read()
-        finally:
-            invoice.photo.close()
-        content_type = getattr(invoice.photo.file, "content_type", None) or "image/jpeg"
+    def perform_update(self, serializer):
+        """Only the supplier and warehouse are writable; everything else on
+        this serializer is read-only. Both are checked against the caller's own
+        restaurant - a foreign key is not scoped by the queryset mixin, so
+        without this a staff member could attach another restaurant's supplier
+        to their invoice and quietly corrupt both restaurants' reporting."""
+        if serializer.instance.status != models.InvoiceScan.Status.PENDING:
+            raise DRFValidationError("This invoice has already been confirmed or discarded.")
 
-        try:
-            data = scanning_service.extract_invoice_data(
-                image_bytes=image_bytes, content_type=content_type
+        restaurant_id = self.request.user.restaurant_id
+        for field, label in (("supplier", "supplier"), ("warehouse", "warehouse")):
+            related = serializer.validated_data.get(field)
+            if related is not None and related.restaurant_id != restaurant_id:
+                raise DRFValidationError(f"That {label} is not part of your restaurant.")
+
+        serializer.save()
+
+    def get_throttles(self):
+        """Rate-limit only the actions that spend money.
+
+        The viewset-wide `throttle_scope` DRF would otherwise use covers reads
+        too, and a reviewer polling an invoice while it scans would throttle
+        themselves out of watching it finish.
+        """
+        if self.action in {"create", "upload_url", "rescan", "uploaded"}:
+            self.throttle_scope = "invoice_scan"
+            return [ScopedRateThrottle()]
+        return super().get_throttles()
+
+    def _queue_scan(self, invoice: "models.InvoiceScan") -> None:
+        """Hand the photo to the worker and return.
+
+        Reading an invoice takes seconds of waiting on a vision model. Doing it
+        here would hold one of gunicorn's three workers for the duration, so a
+        few simultaneous uploads would stall every other request in the app.
+        The client polls this invoice until scan_state leaves QUEUED.
+        """
+        if usage.cap_reached(restaurant_id=invoice.restaurant_id):
+            raise DRFValidationError(
+                "You have reached this month's limit for reading invoices. The invoice is "
+                "saved - add its items by hand, or ask a manager to raise the limit."
             )
-        except DjangoValidationError as exc:
-            invoice.scan_error = "; ".join(getattr(exc, "messages", [str(exc)]))[:500]
-            invoice.save(update_fields=["scan_error", "updated_at"])
-            return
 
-        invoice.supplier_name = str(data.get("supplier_name") or "")[:200]
-        invoice.invoice_date = _safe_date(data.get("invoice_date"))
+        invoice.scan_state = models.InvoiceScan.ScanState.QUEUED
         invoice.scan_error = ""
-        invoice.save(update_fields=["supplier_name", "invoice_date", "scan_error", "updated_at"])
-
-        for index, line in enumerate(data.get("line_items") or []):
-            if not isinstance(line, dict):
-                continue
-            models.InvoiceLineItem.objects.create(
-                invoice=invoice,
-                raw_name=str(line.get("name") or "Unnamed item")[:255],
-                quantity=_safe_decimal(line.get("quantity"), default=Decimal("1")),
-                unit=str(line.get("unit") or "")[:32],
-                unit_price=_safe_decimal(line.get("unit_price")),
-                line_total=_safe_decimal(line.get("line_total")),
-                sort_order=index,
-            )
+        invoice.save(update_fields=["scan_state", "scan_error", "updated_at"])
+        queue.enqueue(kind=inventory_jobs.SCAN_INVOICE, payload={"invoice_id": str(invoice.id)})
 
     def create(self, request, *args, **kwargs):
         input_serializer = UploadInvoiceSerializer(data=request.data)
         input_serializer.is_valid(raise_exception=True)
+        content_type = input_serializer.validated_data["content_type"]
 
+        # Stored under a generated key rather than the name the phone sent.
+        # Passing the upload to the model used the client's filename, which is
+        # guessable and carries whatever the file happened to be called - the
+        # first real upload landed as the customer's company name. The
+        # pre-signed path already generated keys; this makes the two agree.
+        key = default_storage.save(
+            uploads.build_key(content_type), input_serializer.validated_data["photo"]
+        )
+
+        try:
+            invoice = models.InvoiceScan.objects.create(
+                restaurant=request.user.restaurant,
+                photo=key,
+                content_type=content_type,
+                uploaded_by=request.user,
+            )
+            self._queue_scan(invoice)
+        except Exception:
+            # The bytes are already in the bucket by this point, and the
+            # request's transaction cannot take them back out - a rollback
+            # undoes the row and leaves the object behind, paid for and
+            # referenced by nothing.
+            default_storage.delete(key)
+            raise
+
+        # 202, not 201: the invoice exists, but the line items the caller
+        # actually wants are not there yet.
+        return Response(self.get_serializer(invoice).data, status=202)
+
+    @action(detail=False, methods=["post"], url_path="upload-url")
+    def upload_url(self, request):
+        """Reserve a row and hand back somewhere to put the file.
+
+        The phone uploads to S3 itself, so a 15MB PDF never passes through a
+        gunicorn worker. It must call `uploaded` afterwards - S3 tells us
+        nothing, so until then this invoice is only a reservation.
+        """
+        if not uploads.direct_upload_available():
+            # The client is meant to fall back to posting the file itself, so
+            # this is really an API-contract answer - but it can reach a
+            # screen, and "on this server" is not something to put in front of
+            # someone holding a delivery note.
+            raise DRFValidationError(
+                "Uploading is unavailable at the moment - please try again later."
+            )
+
+        input_serializer = UploadUrlSerializer(data=request.data)
+        input_serializer.is_valid(raise_exception=True)
+        content_type = input_serializer.validated_data["content_type"]
+
+        key = uploads.build_key(content_type)
         invoice = models.InvoiceScan.objects.create(
             restaurant=request.user.restaurant,
-            photo=input_serializer.validated_data["photo"],
+            photo=key,
+            content_type=content_type,
             uploaded_by=request.user,
+            scan_state=models.InvoiceScan.ScanState.AWAITING_UPLOAD,
         )
-        self._populate_from_scan(invoice)
-        invoice.refresh_from_db()
+        presigned = uploads.presign_upload(key=key, content_type=content_type)
 
-        return Response(self.get_serializer(invoice).data, status=201)
+        return Response(
+            {
+                "invoice": self.get_serializer(invoice).data,
+                "upload": {
+                    "url": presigned["url"],
+                    "fields": presigned["fields"],
+                    "expires_in": uploads.UPLOAD_URL_EXPIRY_SECONDS,
+                },
+            },
+            status=201,
+        )
+
+    @action(detail=True, methods=["post"])
+    def uploaded(self, request, pk=None):
+        """The phone says the file landed. Check, then queue the read.
+
+        Checked rather than taken on trust: this is what stops a caller
+        queueing an expensive read of a file that was never uploaded.
+        """
+        invoice = self.get_object()
+        if invoice.scan_state != models.InvoiceScan.ScanState.AWAITING_UPLOAD:
+            raise DRFValidationError("This invoice has already been uploaded.")
+
+        key = uploads.key_for(invoice.photo.name)
+        try:
+            _, content_type = uploads.verify_upload(key=key)
+        except uploads.UploadNotFound:
+            raise DRFValidationError(
+                "That file has not finished uploading yet - please try again."
+            ) from None
+        except uploads.UploadRejected as exc:
+            # The object is junk, so drop it from the bucket - but keep the row
+            # carrying the reason, the same way a failed scan does. Deleting it
+            # here would not work anyway: DRF rolls the transaction back when it
+            # turns an exception into a 4xx, and ATOMIC_REQUESTS wraps the whole
+            # request, so the delete would be undone on the way out.
+            uploads.delete_object(key=key)
+            invoice.scan_state = models.InvoiceScan.ScanState.FAILED
+            invoice.scan_error = str(exc)[:500]
+            invoice.save(update_fields=["scan_state", "scan_error", "updated_at"])
+            return Response(self.get_serializer(invoice).data, status=400)
+
+        invoice.content_type = content_type
+        invoice.save(update_fields=["content_type", "updated_at"])
+        self._queue_scan(invoice)
+
+        return Response(self.get_serializer(invoice).data, status=202)
 
     @action(detail=True, methods=["post"])
     def rescan(self, request, pk=None):
@@ -188,9 +388,8 @@ class StaffInvoiceScanViewSet(
             raise DRFValidationError("This invoice has already been confirmed or discarded.")
 
         invoice.line_items.all().delete()
-        self._populate_from_scan(invoice)
-        invoice.refresh_from_db()
-        return Response(self.get_serializer(invoice).data)
+        self._queue_scan(invoice)
+        return Response(self.get_serializer(invoice).data, status=202)
 
     @action(detail=True, methods=["post"])
     def confirm(self, request, pk=None):

@@ -17,6 +17,8 @@ import {ManageChecklistTemplatesScreen} from '../screens/ManageChecklistTemplate
 import {ManageChecklistTemplateTasksScreen} from '../screens/ManageChecklistTemplateTasksScreen';
 import {ManageFridgesScreen} from '../screens/ManageFridgesScreen';
 import {ManageInventoryItemsScreen} from '../screens/ManageInventoryItemsScreen';
+import {ManageSourcesScreen} from '../screens/ManageSourcesScreen';
+import {PurchaseHistoryScreen} from '../screens/PurchaseHistoryScreen';
 import {NotificationsScreen} from '../screens/NotificationsScreen';
 import {PayrollScreen} from '../screens/PayrollScreen';
 import {RotaScreen} from '../screens/RotaScreen';
@@ -34,6 +36,7 @@ import {InvoiceReviewScreen} from '../../../roles/common/screens/InvoiceReviewSc
 import {OtherChecklistsScreen} from '../../../roles/common/screens/OtherChecklistsScreen';
 import {ProfileScreen} from '../../../roles/common/screens/ProfileScreen';
 import {RoutineScreen} from '../../../roles/common/screens/RoutineScreen';
+import {renderFloatingTabBar} from '../../../navigation/FloatingTabBar';
 import {tabIcon} from '../../../navigation/tabIcon';
 import {tabScreenOptions} from '../../../theme';
 import type {AdminStackParamList, AdminTabParamList} from '../../../navigation/types';
@@ -45,7 +48,10 @@ const Stack = createNativeStackNavigator<AdminStackParamList>();
  * default tab), then the areas a manager works in, then their own account. */
 function AdminTabs(): React.JSX.Element {
   return (
-    <Tab.Navigator screenOptions={tabScreenOptions} initialRouteName="Analytics">
+    <Tab.Navigator
+      screenOptions={tabScreenOptions}
+      initialRouteName="Analytics"
+      tabBar={renderFloatingTabBar}>
       <Tab.Screen
         name="Analytics"
         component={TeamAnalyticsScreen}
@@ -162,6 +168,16 @@ export function AdminNavigator(): React.JSX.Element {
         name="ManageInventoryItems"
         component={ManageInventoryItemsScreen}
         options={{title: 'Manage inventory'}}
+      />
+      <Stack.Screen
+        name="PurchaseHistory"
+        component={PurchaseHistoryScreen}
+        options={{title: 'Purchase history'}}
+      />
+      <Stack.Screen
+        name="ManageSources"
+        component={ManageSourcesScreen}
+        options={{title: 'Suppliers & storage'}}
       />
     </Stack.Navigator>
   );

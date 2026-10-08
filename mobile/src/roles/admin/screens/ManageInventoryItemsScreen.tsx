@@ -117,8 +117,6 @@ export function ManageInventoryItemsScreen(): React.JSX.Element {
 
   return (
     <Screen onRefresh={() => items.refetch()} refreshing={items.isRefetching}>
-      <Text style={styles.heading}>Manage inventory items</Text>
-
       {itemList.length === 0 ? (
         <EmptyState title="No items yet" body="Add the first one below." />
       ) : (
@@ -150,7 +148,6 @@ export function ManageInventoryItemsScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  heading: {fontSize: 18, fontWeight: '700', color: colors.text},
   row: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
   rowText: {flex: 1, marginRight: spacing.sm},
   itemText: {fontSize: 15, fontWeight: '600', color: colors.text},

@@ -262,7 +262,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   hint: {color: colors.textMuted, flexShrink: 1},
-  message: {padding: spacing.lg, fontSize: 15, color: colors.textMuted},
   permission: {
     flex: 1,
     backgroundColor: colors.background,

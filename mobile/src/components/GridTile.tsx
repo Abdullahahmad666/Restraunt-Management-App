@@ -1,7 +1,8 @@
-import React, {useRef} from 'react';
-import {Animated, Pressable, StyleSheet, Text, View} from 'react-native';
+import React from 'react';
+import {StyleSheet, Text, View} from 'react-native';
 import {Ionicons} from '@expo/vector-icons';
 
+import {PressableScale} from './PressableScale';
 import {colors, radii, spacing, typography} from '../theme';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -14,40 +15,15 @@ type Props = {
 };
 
 /**
- * One tile in a grid menu (see the staff "My hours" hub). Presses scale the
- * tile down slightly rather than just recolouring it - a black-and-white
- * palette has no colour left to signal "pressed" with, so the motion carries
- * that instead.
+ * One tile in a grid menu (see the staff "My hours" hub).
+ *
+ * Dips further on press than a button does - it is a much larger surface, and
+ * the same small dip on something this size barely registers.
  */
 export function GridTile({icon, label, subtitle, onPress}: Props): React.JSX.Element {
-  const scale = useRef(new Animated.Value(1)).current;
-
-  function onPressIn() {
-    Animated.spring(scale, {
-      toValue: 0.95,
-      useNativeDriver: true,
-      speed: 50,
-      bounciness: 0,
-    }).start();
-  }
-
-  function onPressOut() {
-    Animated.spring(scale, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 20,
-      bounciness: 6,
-    }).start();
-  }
-
   return (
-    <Pressable
-      onPress={onPress}
-      onPressIn={onPressIn}
-      onPressOut={onPressOut}
-      style={styles.wrap}
-      accessibilityRole="button">
-      <Animated.View style={[styles.tile, {transform: [{scale}]}]}>
+    <PressableScale onPress={onPress} scaleTo={0.95} style={styles.wrap} accessibilityRole="button">
+      <View style={styles.tile}>
         <View style={styles.iconWrap}>
           <Ionicons name={icon} size={26} color={colors.primary} />
         </View>
@@ -59,8 +35,8 @@ export function GridTile({icon, label, subtitle, onPress}: Props): React.JSX.Ele
             {subtitle}
           </Text>
         ) : null}
-      </Animated.View>
-    </Pressable>
+      </View>
+    </PressableScale>
   );
 }
 

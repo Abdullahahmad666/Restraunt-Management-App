@@ -8,6 +8,7 @@ import {EmptyState} from '../../../components/EmptyState';
 import {ErrorState} from '../../../components/ErrorState';
 import {FadeIn} from '../../../components/FadeIn';
 import {LoadingView} from '../../../components/LoadingView';
+import {PressableScale} from '../../../components/PressableScale';
 import {Screen} from '../../../components/Screen';
 import {TextField} from '../../../components/TextField';
 import {describeApiError} from '../../../api/errors';
@@ -186,7 +187,7 @@ function PeriodRow({
 
   return (
     <Card>
-      <Pressable style={styles.rowHeader} onPress={onToggle}>
+      <PressableScale style={styles.rowHeader} onPress={onToggle}>
         <View style={styles.rowHeaderText}>
           <View style={styles.titleRow}>
             <Text style={styles.rowTitle}>{period.label}</Text>
@@ -197,7 +198,7 @@ function PeriodRow({
           </Text>
         </View>
         <Badge label={PAY_PERIOD_STATUS_LABEL[period.status]} tone={STATUS_TONE[period.status]} />
-      </Pressable>
+      </PressableScale>
 
       <Text style={styles.periodHint}>{PAY_PERIOD_MANAGER_HINT[period.status]}</Text>
 
@@ -368,7 +369,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 1,
   },
-  stepNumberText: {fontSize: 12, fontWeight: '700', color: '#FFFFFF'},
+  stepNumberText: {fontSize: 12, fontWeight: '700', color: colors.onPrimary},
   stepText: {flex: 1, fontSize: 13, color: colors.textMuted, lineHeight: 18},
   stepEmphasis: {color: colors.text, fontWeight: '700'},
   rowHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},

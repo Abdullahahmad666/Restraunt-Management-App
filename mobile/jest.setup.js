@@ -15,3 +15,15 @@ jest.mock('expo-secure-store', () => {
     __store: store,
   };
 });
+
+// @expo/vector-icons reaches expo-font, which reaches expo-asset - a package
+// nothing in this app depends on directly, so it is not installed and any test
+// that renders a screen with an icon in it dies on the import rather than on
+// anything it meant to check. The icons are glyphs with nothing to assert on,
+// so stand every set in that module up as a plain Text of its icon name.
+jest.mock('@expo/vector-icons', () => {
+  const React = require('react');
+  const {Text} = require('react-native');
+  const Icon = ({name, ...rest}) => React.createElement(Text, rest, name);
+  return new Proxy({__esModule: true}, {get: (target, key) => target[key] ?? Icon});
+});

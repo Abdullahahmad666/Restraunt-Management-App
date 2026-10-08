@@ -2,6 +2,13 @@
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 
 import * as api from './api';
+import {isScanInProgress} from './types';
+import type {PurchaseFilters, PurchasePeriod} from './types';
+
+/** How often to ask whether the worker has finished reading an invoice.
+ * Frequent enough to feel immediate, rare enough not to hammer the API while
+ * someone leaves the screen open. */
+const SCAN_POLL_MS = 2000;
 
 const keys = {
   items: ['inventory', 'items'] as const,
@@ -9,6 +16,19 @@ const keys = {
   invoiceScans: (status?: string) => ['inventory', 'invoice-scans', status ?? 'all'] as const,
   invoiceScan: (id: string) => ['inventory', 'invoice-scan', id] as const,
   adminItems: ['inventory', 'admin-items'] as const,
+  suppliers: ['inventory', 'suppliers'] as const,
+  warehouses: ['inventory', 'warehouses'] as const,
+  // Separate keys from the staff lists above: those hold only what is usable,
+  // these also hold what has been retired.
+  adminSuppliers: ['inventory', 'admin-suppliers'] as const,
+  adminWarehouses: ['inventory', 'admin-warehouses'] as const,
+  // Filters are part of the key, so changing one refetches rather than
+  // showing the previous filter's numbers under the new heading.
+  purchases: (filters: PurchaseFilters) => ['inventory', 'purchases', filters] as const,
+  purchaseTimeline: (period: PurchasePeriod, filters: PurchaseFilters) =>
+    ['inventory', 'purchases', 'timeline', period, filters] as const,
+  purchaseSummary: (filters: PurchaseFilters) =>
+    ['inventory', 'purchases', 'summary', filters] as const,
 };
 
 function invalidateAll(queryClient: ReturnType<typeof useQueryClient>) {
@@ -31,10 +51,14 @@ export function useCreateInventoryItem() {
   });
 }
 
-export function useStockMovements(item?: string) {
+export function useStockMovements(item?: string, enabled = true) {
   return useQuery({
     queryKey: keys.movements(item),
     queryFn: () => api.listStockMovements(item ? {item} : undefined),
+    // One stock list can hold hundreds of items, and each row would otherwise
+    // ask for its own history on mount. Callers switch this on when a row is
+    // actually opened.
+    enabled,
   });
 }
 
@@ -58,6 +82,12 @@ export function useInvoiceScan(id: string) {
     queryKey: keys.invoiceScan(id),
     queryFn: () => api.getInvoiceScan(id),
     enabled: Boolean(id),
+    // Reading happens on a worker, so the invoice arrives empty and fills in
+    // afterwards. Poll while that is outstanding and stop the moment it is
+    // not - the server always reaches DONE or FAILED, including when it gives
+    // up, so this terminates rather than spinning.
+    refetchInterval: query =>
+      query.state.data && isScanInProgress(query.state.data.scan_state) ? SCAN_POLL_MS : false,
   });
 }
 
@@ -133,5 +163,102 @@ export function useUpdateInventoryItem() {
     mutationFn: ({id, input}: {id: string; input: api.UpdateInventoryItemInput}) =>
       api.updateInventoryItem(id, input),
     onSuccess: () => invalidateAll(queryClient),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Suppliers and warehouses
+// ---------------------------------------------------------------------------
+
+export function useSuppliers() {
+  return useQuery({queryKey: keys.suppliers, queryFn: api.listSuppliers});
+}
+
+export function useWarehouses() {
+  return useQuery({queryKey: keys.warehouses, queryFn: api.listWarehouses});
+}
+
+export function useCreateSupplier() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: api.createSupplier,
+    onSuccess: () => queryClient.invalidateQueries({queryKey: keys.suppliers}),
+  });
+}
+
+export function useAssignInvoice(invoiceId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: api.AssignInvoiceInput) => api.assignInvoice(invoiceId, input),
+    onSuccess: () => invalidateInvoice(queryClient, invoiceId),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Purchase history (admin)
+// ---------------------------------------------------------------------------
+
+export function usePurchasesByItem(filters: PurchaseFilters) {
+  return useQuery({
+    queryKey: keys.purchases(filters),
+    queryFn: () => api.listPurchasesByItem(filters),
+  });
+}
+
+export function usePurchaseTimeline(period: PurchasePeriod, filters: PurchaseFilters) {
+  return useQuery({
+    queryKey: keys.purchaseTimeline(period, filters),
+    queryFn: () => api.getPurchaseTimeline(period, filters),
+  });
+}
+
+export function usePurchaseSummary(filters: PurchaseFilters) {
+  return useQuery({
+    queryKey: keys.purchaseSummary(filters),
+    queryFn: () => api.getPurchaseSummary(filters),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Managing suppliers and warehouses (admin)
+// ---------------------------------------------------------------------------
+
+export function useAdminSuppliers() {
+  return useQuery({queryKey: keys.adminSuppliers, queryFn: api.listAdminSuppliers});
+}
+
+export function useAdminWarehouses() {
+  return useQuery({queryKey: keys.adminWarehouses, queryFn: api.listAdminWarehouses});
+}
+
+/** Retiring one changes what every past invoice appears to say, so these
+ * invalidate the invoice lists as well as their own. */
+function invalidateSources(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({queryKey: ['inventory']});
+}
+
+export function useUpdateSupplier() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({id, input}: {id: string; input: api.UpdateSupplierInput}) =>
+      api.updateSupplier(id, input),
+    onSuccess: () => invalidateSources(queryClient),
+  });
+}
+
+export function useCreateWarehouse() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: api.createWarehouse,
+    onSuccess: () => invalidateSources(queryClient),
+  });
+}
+
+export function useUpdateWarehouse() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({id, input}: {id: string; input: api.UpdateWarehouseInput}) =>
+      api.updateWarehouse(id, input),
+    onSuccess: () => invalidateSources(queryClient),
   });
 }
