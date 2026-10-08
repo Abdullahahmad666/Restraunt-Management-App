@@ -71,6 +71,7 @@ urlpatterns = [
     # at. Static markup, so a TemplateView is enough; nothing here needs the
     # API/auth machinery the rest of this file sets up.
     path("privacy/", TemplateView.as_view(template_name="privacy.html"), name="privacy-policy"),
+    path("support/", TemplateView.as_view(template_name="support.html"), name="support"),
     path("api/v1/", include((api_v1, "v1"), namespace="v1")),
     # OpenAPI schema + docs. The mobile client mirrors these in src/api/.
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
