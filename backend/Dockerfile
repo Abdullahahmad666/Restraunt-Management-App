@@ -24,6 +24,7 @@ COPY . .
 RUN DJANGO_SECRET_KEY=build-only-placeholder-not-used-at-runtime \
     DATABASE_URL=postgres://build:build@localhost:5432/build \
     AWS_STORAGE_BUCKET_NAME=build-only-placeholder-not-used-at-runtime \
+    AWS_S3_REGION_NAME=eu-west-2 \
     python manage.py collectstatic --noinput
 
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
