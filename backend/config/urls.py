@@ -17,6 +17,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
+from django.views.generic import TemplateView
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularRedocView,
@@ -66,6 +67,10 @@ api_v1 = [
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("healthz/", health_check, name="health-check"),
+    # Public, plain HTML - the URL app store listings and review notes point
+    # at. Static markup, so a TemplateView is enough; nothing here needs the
+    # API/auth machinery the rest of this file sets up.
+    path("privacy/", TemplateView.as_view(template_name="privacy.html"), name="privacy-policy"),
     path("api/v1/", include((api_v1, "v1"), namespace="v1")),
     # OpenAPI schema + docs. The mobile client mirrors these in src/api/.
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
