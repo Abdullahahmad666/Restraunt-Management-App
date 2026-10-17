@@ -1,5 +1,17 @@
-import React, {useMemo, useState} from 'react';
-import {Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View} from 'react-native';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
+import {
+  Animated,
+  Dimensions,
+  Keyboard,
+  Modal,
+  PanResponder,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import {Ionicons} from '@expo/vector-icons';
 
 import {PressableScale} from './PressableScale';
@@ -65,6 +77,52 @@ export function PickerSheet({
   onClose,
 }: Props): React.JSX.Element {
   const [query, setQuery] = useState('');
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [expanded, setExpanded] = useState(false);
+  const drag = useRef(new Animated.Value(0)).current;
+
+  /**
+   * The keyboard covers the bottom of the screen, which is exactly where a
+   * sheet lives: the search box ends up underneath it and somebody types
+   * blind into a field they cannot see.
+   *
+   * So the sheet grows to meet it - full height while typing, and padded
+   * clear of the keys - and shrinks back when the keyboard goes.
+   */
+  useEffect(() => {
+    const shown = Keyboard.addListener('keyboardDidShow', event => {
+      setKeyboardHeight(event.endCoordinates.height);
+      setExpanded(true);
+    });
+    const hidden = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
+    return () => {
+      shown.remove();
+      hidden.remove();
+    };
+  }, []);
+
+  // Dragging the handle: down far enough closes, up expands, anything less
+  // springs back. The sheet follows the finger while it happens, because a
+  // sheet that only reacts on release does not feel like a thing being moved.
+  const dragging = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_event, gesture) => Math.abs(gesture.dy) > 6,
+      onPanResponderMove: (_event, gesture) => {
+        drag.setValue(Math.max(gesture.dy, -40));
+      },
+      onPanResponderRelease: (_event, gesture) => {
+        if (gesture.dy > 120) {
+          Keyboard.dismiss();
+          closeRef.current();
+          return;
+        }
+        if (gesture.dy < -40) {
+          setExpanded(true);
+        }
+        Animated.spring(drag, {toValue: 0, useNativeDriver: true, bounciness: 4}).start();
+      },
+    }),
+  ).current;
 
   const results = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -84,8 +142,17 @@ export function PickerSheet({
 
   function close() {
     setQuery('');
+    setExpanded(false);
+    Keyboard.dismiss();
     onClose();
   }
+
+  // The gesture handler is created once and would otherwise hold the first
+  // render's close().
+  const closeRef = useRef(close);
+  closeRef.current = close;
+
+  const maxHeight = Dimensions.get('window').height * (expanded ? 0.92 : 0.75);
 
   return (
     <Modal
@@ -95,9 +162,29 @@ export function PickerSheet({
       statusBarTranslucent
       onRequestClose={close}>
       <Pressable style={styles.backdrop} onPress={close} accessibilityRole="button">
-        <Pressable style={styles.sheet} onPress={() => {}}>
-          <View style={styles.grabber} />
-          <Text style={styles.title}>{title}</Text>
+        <Animated.View
+          testID="picker-sheet"
+          style={[
+            styles.sheet,
+            {maxHeight, paddingBottom: keyboardHeight || spacing.xl},
+            {transform: [{translateY: drag}]},
+          ]}>
+          {/* Swallows taps so pressing the sheet itself does not dismiss it,
+              and carries the drag gesture. */}
+          <Pressable onPress={() => {}} {...dragging.panHandlers}>
+            <View style={styles.grabber} />
+          </Pressable>
+
+          <View style={styles.header}>
+            <Text style={styles.title}>{title}</Text>
+            <PressableScale
+              onPress={close}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+              style={styles.closeButton}>
+              <Ionicons name="close" size={18} color={colors.textMuted} />
+            </PressableScale>
+          </View>
 
           <View style={styles.searchRow}>
             <Ionicons name="search" size={16} color={colors.textMuted} />
@@ -110,6 +197,7 @@ export function PickerSheet({
               autoCapitalize="none"
               autoCorrect={false}
               returnKeyType="search"
+              onFocus={() => setExpanded(true)}
             />
             {query.length > 0 ? (
               <Pressable onPress={() => setQuery('')} hitSlop={8} accessibilityLabel="Clear search">
@@ -170,11 +258,7 @@ export function PickerSheet({
             // Said where the button would be, rather than after tapping one.
             <Text style={styles.createHint}>Type a name above to add a new one.</Text>
           ) : null}
-
-          <PressableScale onPress={close} accessibilityRole="button" style={styles.cancel}>
-            <Text style={styles.cancelLabel}>Cancel</Text>
-          </PressableScale>
-        </Pressable>
+        </Animated.View>
       </Pressable>
     </Modal>
   );
@@ -183,9 +267,9 @@ export function PickerSheet({
 const styles = StyleSheet.create({
   backdrop: {flex: 1, backgroundColor: 'rgba(3, 9, 18, 0.82)', justifyContent: 'flex-end'},
   sheet: {
-    // Tall enough to show a handful of results without becoming the whole
-    // screen - the line being matched stays visible above it.
-    maxHeight: '80%',
+    // Height is set at render: three quarters of the screen normally, nearly
+    // all of it once somebody is typing, because the keyboard takes the rest.
+    width: '100%',
     backgroundColor: colors.surface,
     borderTopLeftRadius: radii.lg,
     borderTopRightRadius: radii.lg,
@@ -195,6 +279,15 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     paddingBottom: spacing.xl,
     gap: spacing.sm,
+  },
+  header: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'},
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceRaised,
   },
   grabber: {
     alignSelf: 'center',
@@ -246,6 +339,4 @@ const styles = StyleSheet.create({
   creating: {opacity: 0.5},
   createHint: {...typography.caption, color: colors.textMuted, textAlign: 'center'},
   createLabel: {...typography.body, fontWeight: '600', color: colors.primary, flexShrink: 1},
-  cancel: {alignItems: 'center', paddingVertical: spacing.xs},
-  cancelLabel: {...typography.body, fontWeight: '600', color: colors.textMuted},
 });
