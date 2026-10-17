@@ -12,6 +12,7 @@ import {FilterChip} from '../../../components/FilterChip';
 import {LoadingView} from '../../../components/LoadingView';
 import {PickerSheet} from '../../../components/PickerSheet';
 import {PressableScale} from '../../../components/PressableScale';
+import {OptionalDateField} from '../../../components/OptionalDateField';
 import {PromptDialog} from '../../../components/PromptDialog';
 import {Screen} from '../../../components/Screen';
 import {describeApiError} from '../../../api/errors';
@@ -21,6 +22,7 @@ import {
   PermissionDenied,
   type CaptureSource,
 } from '../../../features/files/capture';
+import {describeExpiry, expiryStatus} from '../../../features/documents/expiry';
 import {
   useCreateCategory,
   useDocumentCategories,
@@ -60,9 +62,8 @@ function DocumentCard({
   document: ComplianceDocument;
   onPress: () => void;
 }): React.JSX.Element {
-  const expired =
-    document.expires_on !== null &&
-    new Date(document.expires_on) < new Date(new Date().toDateString());
+  const status = expiryStatus(document.expires_on);
+  const expiry = describeExpiry(document.expires_on);
 
   return (
     <PressableScale
@@ -84,10 +85,15 @@ function DocumentCard({
         <Text style={styles.cardMeta} numberOfLines={1}>
           {document.category_name ?? 'Uncategorised'}
         </Text>
-        {document.expires_on ? (
-          <Text style={[styles.cardExpiry, expired && styles.cardExpired]} numberOfLines={1}>
-            {expired ? 'Expired ' : 'Valid to '}
-            {formatDate(document.expires_on)}
+        {expiry ? (
+          <Text
+            style={[
+              styles.cardExpiry,
+              status === 'expired' && styles.cardExpired,
+              status === 'soon' && styles.cardExpiringSoon,
+            ]}
+            numberOfLines={1}>
+            {status === 'valid' ? `Valid to ${formatDate(document.expires_on as string)}` : expiry}
           </Text>
         ) : null}
       </Card>
@@ -113,6 +119,7 @@ export function DocumentsScreen(): React.JSX.Element {
 
   const [picking, setPicking] = useState(false);
   const [pendingFile, setPendingFile] = useState<PreparedFile | null>(null);
+  const [expiresOn, setExpiresOn] = useState<string | null>(null);
   const [busySource, setBusySource] = useState<CaptureSource | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -126,6 +133,7 @@ export function DocumentsScreen(): React.JSX.Element {
       const file = await captureFile(source, {profile: DOCUMENT, name: 'document.jpg'});
       if (file) {
         setPendingFile(file);
+        setExpiresOn(null);
       }
     } catch (err) {
       if (err instanceof PermissionDenied) {
@@ -148,9 +156,10 @@ export function DocumentsScreen(): React.JSX.Element {
         file: pendingFile,
         // Filed under whatever is being viewed: somebody who filtered to
         // "Licences" and then photographed one means it to go there.
-        details: {title, category: category ?? null},
+        details: {title, category: category ?? null, expires_on: expiresOn},
       });
       setPendingFile(null);
+      setExpiresOn(null);
     } catch (err) {
       setError(describeApiError(err, 'Could not save that document.'));
     }
@@ -292,8 +301,18 @@ export function DocumentsScreen(): React.JSX.Element {
         confirmLabel="Save document"
         busy={upload.isPending}
         onConfirm={onSave}
-        onCancel={() => setPendingFile(null)}
-      />
+        onCancel={() => setPendingFile(null)}>
+        {/* Asked here rather than later, because the date is on the document
+            in front of them. Optional on purpose: a hygiene certificate runs
+            out, a company registration does not, and "none" is an answer
+            rather than a field left blank. */}
+        <OptionalDateField
+          label="Expires on"
+          value={expiresOn}
+          onChange={setExpiresOn}
+          emptyLabel="Does not expire"
+        />
+      </PromptDialog>
     </Screen>
   );
 }
@@ -336,4 +355,5 @@ const styles = StyleSheet.create({
   cardMeta: {fontSize: 11, color: colors.textMuted},
   cardExpiry: {fontSize: 11, color: colors.textMuted},
   cardExpired: {color: colors.danger, fontWeight: '700'},
+  cardExpiringSoon: {color: colors.warning, fontWeight: '700'},
 });

@@ -11,6 +11,9 @@ type Props = {
   icon: IconName;
   label: string;
   subtitle?: string;
+  /** For a subtitle that is a warning rather than a description - "1 expired"
+   * in the same grey as "12 registered" is a sentence nobody reads twice. */
+  tone?: 'danger' | 'warning';
   onPress: () => void;
 };
 
@@ -20,7 +23,7 @@ type Props = {
  * Dips further on press than a button does - it is a much larger surface, and
  * the same small dip on something this size barely registers.
  */
-export function GridTile({icon, label, subtitle, onPress}: Props): React.JSX.Element {
+export function GridTile({icon, label, subtitle, tone, onPress}: Props): React.JSX.Element {
   return (
     <PressableScale onPress={onPress} scaleTo={0.95} style={styles.wrap} accessibilityRole="button">
       <View style={styles.tile}>
@@ -31,7 +34,14 @@ export function GridTile({icon, label, subtitle, onPress}: Props): React.JSX.Ele
           {label}
         </Text>
         {subtitle ? (
-          <Text style={styles.subtitle} numberOfLines={1} ellipsizeMode="tail">
+          <Text
+            style={[
+              styles.subtitle,
+              tone === 'danger' && styles.subtitleDanger,
+              tone === 'warning' && styles.subtitleWarning,
+            ]}
+            numberOfLines={1}
+            ellipsizeMode="tail">
             {subtitle}
           </Text>
         ) : null}
@@ -74,4 +84,6 @@ const styles = StyleSheet.create({
   },
   label: {...typography.body, fontWeight: '700', color: colors.text},
   subtitle: {...typography.caption, color: colors.textMuted},
+  subtitleDanger: {color: colors.danger, fontWeight: '700'},
+  subtitleWarning: {color: colors.warning, fontWeight: '700'},
 });

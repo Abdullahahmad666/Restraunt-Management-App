@@ -25,6 +25,10 @@ type Props = {
   busy?: boolean;
   onConfirm: (value: string) => void;
   onCancel: () => void;
+  /** Anything else being asked for at the same time - a date, a category.
+   * Inside the dialog, because a field belonging to a question has to be
+   * where the question is. */
+  children?: React.ReactNode;
 };
 
 /**
@@ -51,6 +55,7 @@ export function PromptDialog({
   busy = false,
   onConfirm,
   onCancel,
+  children,
 }: Props): React.JSX.Element {
   const [value, setValue] = useState(initialValue);
 
@@ -100,6 +105,8 @@ export function PromptDialog({
               returnKeyType="done"
               onSubmitEditing={() => ready && onConfirm(value.trim())}
             />
+
+            {children}
 
             <View style={styles.actions}>
               <PrimaryButton

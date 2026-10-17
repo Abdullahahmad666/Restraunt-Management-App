@@ -10,6 +10,7 @@ import {ErrorState} from '../../../components/ErrorState';
 import {LoadingView} from '../../../components/LoadingView';
 import {PrimaryButton} from '../../../components/PrimaryButton';
 import {describeApiError} from '../../../api/errors';
+import {describeExpiry, expiryStatus} from '../../../features/documents/expiry';
 import {useDeleteDocument, useDocuments} from '../../../features/documents/hooks';
 import {colors, radii, spacing, typography} from '../../../theme';
 import {formatDate, formatDateTime} from '../../../utils/format';
@@ -55,9 +56,7 @@ export function DocumentPreviewScreen(): React.JSX.Element {
     );
   }
 
-  const expired =
-    document.expires_on !== null &&
-    new Date(document.expires_on) < new Date(new Date().toDateString());
+  const status = expiryStatus(document.expires_on);
 
   async function onDelete() {
     setError(null);
@@ -96,11 +95,15 @@ export function DocumentPreviewScreen(): React.JSX.Element {
         <Detail label="Category" value={document.category_name ?? 'Uncategorised'} />
         {document.expires_on ? (
           <Detail
-            label={expired ? 'Expired' : 'Valid until'}
-            value={formatDate(document.expires_on)}
-            tone={expired ? 'danger' : undefined}
+            label={status === 'expired' ? 'Expired' : 'Valid until'}
+            value={`${formatDate(document.expires_on)}${
+              status === 'soon' ? ` - ${describeExpiry(document.expires_on)?.toLowerCase()}` : ''
+            }`}
+            tone={status === 'expired' ? 'danger' : status === 'soon' ? 'warning' : undefined}
           />
-        ) : null}
+        ) : (
+          <Detail label="Expires" value="Does not expire" />
+        )}
         <Detail label="Added" value={formatDateTime(document.created_at)} />
         {document.uploaded_by_name ? (
           <Detail label="Filed by" value={document.uploaded_by_name} />
@@ -144,12 +147,18 @@ function Detail({
 }: {
   label: string;
   value: string;
-  tone?: 'danger';
+  tone?: 'danger' | 'warning';
 }): React.JSX.Element {
   return (
     <View style={styles.detail}>
       <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={[styles.detailValue, tone === 'danger' && styles.detailDanger]} selectable>
+      <Text
+        style={[
+          styles.detailValue,
+          tone === 'danger' && styles.detailDanger,
+          tone === 'warning' && styles.detailWarning,
+        ]}
+        selectable>
         {value}
       </Text>
     </View>
@@ -192,6 +201,7 @@ const styles = StyleSheet.create({
   },
   detailValue: {...typography.body, fontSize: 15, color: colors.text},
   detailDanger: {color: colors.danger, fontWeight: '700'},
+  detailWarning: {color: colors.warning, fontWeight: '700'},
   error: {fontSize: 12, color: colors.danger},
   actions: {gap: spacing.sm},
 });

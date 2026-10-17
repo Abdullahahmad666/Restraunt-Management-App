@@ -9,6 +9,8 @@ import {GridTile} from '../../../components/GridTile';
 import {LoadingView} from '../../../components/LoadingView';
 import {Screen} from '../../../components/Screen';
 import {describeApiError} from '../../../api/errors';
+import {summariseDocuments} from '../../../features/documents/expiry';
+import {useDocuments} from '../../../features/documents/hooks';
 import {
   useChecklistCompletions,
   useChecklistItems,
@@ -54,6 +56,7 @@ export function ComplianceDashboardScreen(): React.JSX.Element {
   const closingItems = useChecklistItems('CLOSING');
   const openingReadings = useTemperatureReadings({date, routine: 'OPENING'});
   const closingReadings = useTemperatureReadings({date, routine: 'CLOSING'});
+  const documents = useDocuments();
   const completions = useChecklistCompletions(date);
 
   const loading =
@@ -91,6 +94,10 @@ export function ComplianceDashboardScreen(): React.JSX.Element {
   }
 
   const fridgeList = fridges.data?.results ?? [];
+  // Deliberately not part of `loading` above: paperwork is the one tile on
+  // this screen nobody is waiting on, and a slow documents request should not
+  // hold up the checks somebody opened the app to do.
+  const documentSummary = summariseDocuments(documents.data?.results ?? []);
   const completionList = completions.data?.results ?? [];
   const openingItemIds = new Set((openingItems.data?.results ?? []).map(i => i.id));
   const closingItemIds = new Set((closingItems.data?.results ?? []).map(i => i.id));
@@ -216,7 +223,8 @@ export function ComplianceDashboardScreen(): React.JSX.Element {
           <GridTile
             icon="folder-open-outline"
             label="Documents"
-            subtitle="Licences & certificates"
+            subtitle={documentSummary.subtitle}
+            tone={documentSummary.tone}
             onPress={() => navigation.navigate('Documents')}
           />
         </FadeIn>
