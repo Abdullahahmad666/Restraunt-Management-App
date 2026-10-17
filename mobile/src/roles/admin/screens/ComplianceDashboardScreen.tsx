@@ -209,6 +209,17 @@ export function ComplianceDashboardScreen(): React.JSX.Element {
             onPress={() => navigation.navigate('ManageChecklistTemplates', {frequency: 'MONTHLY'})}
           />
         </FadeIn>
+        {/* Not a check anybody performs, but the paperwork the checks are
+            done for - and this is the screen a manager is already on when an
+            inspector is standing there. */}
+        <FadeIn delay={460} style={styles.tileWrap}>
+          <GridTile
+            icon="folder-open-outline"
+            label="Documents"
+            subtitle="Licences & certificates"
+            onPress={() => navigation.navigate('Documents')}
+          />
+        </FadeIn>
       </View>
     </Screen>
   );
