@@ -21,17 +21,27 @@ import logging
 import openai
 from django.conf import settings
 
+from apps.common.files import (
+    MAX_FILE_BYTES,
+    PDF_TYPE,
+    SUPPORTED_IMAGE_TYPES,
+    SUPPORTED_TYPES,
+)
+
 from .rasterise import TooManyPages, pdf_pages
 
 logger = logging.getLogger(__name__)
 
-PDF_TYPE = "application/pdf"
-SUPPORTED_IMAGE_TYPES = frozenset({"image/jpeg", "image/png", "image/webp", "image/gif"})
-SUPPORTED_TYPES = SUPPORTED_IMAGE_TYPES | {PDF_TYPE}
-
-#: Uploads are capped well below any provider limit - a phone photo is a
-#: tenth of this and a scanned delivery note rarely close.
-MAX_FILE_BYTES = 20 * 1024 * 1024
+__all__ = [
+    "MAX_FILE_BYTES",
+    "PDF_TYPE",
+    "SUPPORTED_IMAGE_TYPES",
+    "SUPPORTED_TYPES",
+    "PermanentScanError",
+    "ScanError",
+    "TransientScanError",
+    "extract_invoice_data",
+]
 
 
 def _timeout() -> float:

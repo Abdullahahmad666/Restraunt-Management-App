@@ -1,3 +1,4 @@
+import {Keyboard, StyleSheet} from 'react-native';
 import {act, fireEvent, render, screen} from '@testing-library/react-native';
 
 import {PickerSheet} from '../src/components/PickerSheet';
@@ -92,5 +93,59 @@ describe('searching', () => {
 
     expect(screen.getByText('Bidfood')).toBeTruthy();
     expect(screen.queryByText('Brakes')).toBeNull();
+  });
+});
+
+describe('getting out of it, and out of the keyboard', () => {
+  it('closes from the button rather than only by guessing at the backdrop', async () => {
+    const onClose = jest.fn();
+    await render(sheet({onClose}));
+
+    await fireEvent.press(screen.getByLabelText('Close'));
+
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('clears the search when it closes', async () => {
+    // Otherwise reopening shows the last search's results, which look like
+    // the whole list until somebody notices the box is not empty.
+    const onClose = jest.fn();
+    const view = await render(sheet({onClose}));
+
+    await act(async () => {
+      fireEvent.changeText(screen.getByPlaceholderText(/search/i), 'bid');
+    });
+    await fireEvent.press(screen.getByLabelText('Close'));
+    await view.rerender(sheet({onClose, visible: true}));
+
+    expect(screen.getByPlaceholderText(/search/i).props.value).toBe('');
+    expect(screen.getByText('Brakes')).toBeTruthy();
+  });
+
+  it('lifts itself clear when the keyboard appears', async () => {
+    // The failure this fixes: the sheet sits at the bottom of the screen,
+    // which is where the keyboard opens, so the search box ends up underneath
+    // it and somebody types blind into a field they cannot see.
+    const listeners: Record<string, (event: unknown) => void> = {};
+    jest.spyOn(Keyboard, 'addListener').mockImplementation(((
+      event: string,
+      handler: (payload: unknown) => void,
+    ) => {
+      listeners[event] = handler;
+      return {remove: jest.fn()};
+    }) as never);
+
+    await render(sheet());
+    const before = StyleSheet.flatten(screen.getByTestId('picker-sheet').props.style);
+
+    await act(async () => {
+      listeners.keyboardDidShow?.({endCoordinates: {height: 320}});
+    });
+
+    const after = StyleSheet.flatten(screen.getByTestId('picker-sheet').props.style);
+    // Padded clear of the keys, and taller, because the keyboard has taken
+    // the bottom third of the screen and the list still needs somewhere to be.
+    expect(after.paddingBottom).toBe(320);
+    expect(after.maxHeight).toBeGreaterThan(before.maxHeight as number);
   });
 });

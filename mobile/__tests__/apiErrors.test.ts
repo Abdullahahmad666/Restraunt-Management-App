@@ -22,12 +22,20 @@ describe('describeApiError', () => {
     // "check your email and password", which sends debugging the wrong way.
     const message = describeApiError(axiosError({}));
 
-    expect(message).toMatch(/cannot reach the server/i);
+    expect(message).toMatch(/no connection/i);
     expect(message).not.toMatch(/password/i);
   });
 
-  it('names the address it tried, so a stale LAN IP is obvious', () => {
-    expect(describeApiError(axiosError({}))).toContain('/api/v1');
+  it('keeps the address it tried out of what a user reads', () => {
+    // It used to be named here, which is genuinely the fastest way to spot a
+    // stale LAN IP - and meaningless to a manager in a kitchen, who reads an
+    // internal address as the app being broken rather than the wifi being out.
+    // It goes to the console instead, where whoever needs it is looking.
+    const message = describeApiError(axiosError({}));
+
+    expect(message).not.toContain('/api/v1');
+    expect(message).not.toMatch(/https?:/);
+    expect(message).not.toMatch(/\d+\.\d+\.\d+\.\d+/);
   });
 
   it('blames credentials only on a real 401', () => {
@@ -35,11 +43,20 @@ describe('describeApiError', () => {
   });
 
   it('distinguishes a timeout from an unreachable server', () => {
-    expect(describeApiError(axiosError({code: 'ECONNABORTED'}))).toMatch(/took too long/i);
+    const timeout = describeApiError(axiosError({code: 'ECONNABORTED'}));
+
+    expect(timeout).toMatch(/taking longer/i);
+    expect(timeout).not.toBe(describeApiError(axiosError({})));
+    // The seconds used to be in here. A number nobody chose is a number
+    // nobody can act on.
+    expect(timeout).not.toMatch(/\d/);
   });
 
-  it('reports a server fault as not the user fault', () => {
-    expect(describeApiError(axiosError({status: 500}))).toMatch(/bug, not something you did/i);
+  it('reports a server fault without the status code or the word bug', () => {
+    const message = describeApiError(axiosError({status: 500}));
+
+    expect(message).toMatch(/our end/i);
+    expect(message).not.toMatch(/500/);
   });
 
   it('calls out throttling separately', () => {

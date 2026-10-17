@@ -11,6 +11,21 @@ import type {ApiErrorBody} from '../types/api';
  * to a `catch` block but need completely different actions, and guessing wrong
  * costs whoever is debugging it an afternoon.
  */
+/**
+ * The part that helps whoever is debugging, kept away from whoever is cooking.
+ *
+ * A stale LAN IP after a new DHCP lease is still the most common cause of a
+ * dead connection in development, and the address we tried is the fastest way
+ * to spot it - but it means nothing to a manager in a kitchen, and an error
+ * naming an internal address reads as the app being broken rather than the
+ * wifi being out.
+ */
+function logForDeveloper(detail: string, error: unknown): void {
+  if (__DEV__) {
+    console.warn(`[api] ${detail}`, error);
+  }
+}
+
 /** invite_code -> "Invite code", so a field name can be shown to a person. */
 function humanise(field: string): string {
   const spaced = field.replace(/_/g, ' ').trim();
@@ -23,17 +38,18 @@ export function describeApiError(error: unknown, fallback = 'Something went wron
   }
 
   if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
-    return `The server took too long to answer (${
-      env.apiTimeoutMs / 1000
-    }s). It may be starting up, or on a different network.`;
+    logForDeveloper(`Request timed out after ${env.apiTimeoutMs}ms`, error);
+    return 'That is taking longer than it should. Check your connection and try again.';
   }
 
-  // Request went out, nothing came back: wrong address, server down, phone on
-  // a different network, or a firewall in the way. Naming the address it tried
-  // is the single most useful thing we can say here - a stale LAN IP after a
-  // new DHCP lease is by far the most common cause.
+  // Request went out, nothing came back: no signal, server down, phone on a
+  // different network, or a firewall in the way. Indistinguishable from here,
+  // and only one of them is the user's to do anything about - so they get the
+  // one sentence that covers all of it, and the address we tried goes to the
+  // console, where the person who needs it is looking.
   if (!error.response) {
-    return `Cannot reach the server at ${env.apiBaseUrl}. Check that the backend is running and that this address is still correct.`;
+    logForDeveloper(`Could not reach ${env.apiBaseUrl}`, error);
+    return 'No connection. Check your internet and try again.';
   }
 
   const {status, data} = error.response;
@@ -60,7 +76,10 @@ export function describeApiError(error: unknown, fallback = 'Something went wron
     return 'Too many attempts. Wait a minute and try again.';
   }
   if (status >= 500) {
-    return `The server hit an error (${status}). This is a bug, not something you did.`;
+    logForDeveloper(`Server returned ${status}`, error);
+    // "At our end" rather than a status code: the one thing worth telling
+    // somebody is that it is not theirs to fix.
+    return 'Something went wrong at our end. Try again in a moment.';
   }
 
   // 400-level: surface what DRF actually said rather than inventing a message.

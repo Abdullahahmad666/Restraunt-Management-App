@@ -212,9 +212,9 @@ def test_an_oversized_file_never_reaches_the_api():
 def test_an_old_row_without_a_stored_type_falls_back_to_its_extension():
     """Rows uploaded before content_type existed still have to scan, and a
     .pdf among them must not be sent as a JPEG."""
-    assert scanning._type_from_name("invoice_scans/abc.pdf") == "application/pdf"
-    assert scanning._type_from_name("invoice_scans/abc.PNG") == "image/png"
-    assert scanning._type_from_name("invoice_scans/abc") == "image/jpeg"
+    assert scanning.type_from_name("invoice_scans/abc.pdf") == "application/pdf"
+    assert scanning.type_from_name("invoice_scans/abc.PNG") == "image/png"
+    assert scanning.type_from_name("invoice_scans/abc") == "image/jpeg"
 
 
 # ---------------------------------------------------------------------------

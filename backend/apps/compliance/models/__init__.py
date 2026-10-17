@@ -8,6 +8,7 @@ rather than per-staff-member) or a fail-requires-fix-before-close rule
 yet. Fill them in if either lands later.
 """
 
+from .documents import ComplianceDocument, DocumentCategory
 from .results import (
     ChecklistCompletion,
     ChecklistTaskCompletion,
@@ -35,6 +36,8 @@ __all__ = [
     "ChecklistTask",
     "ChecklistTaskCompletion",
     "ChecklistTemplate",
+    "ComplianceDocument",
+    "DocumentCategory",
     "FridgeUnit",
     "Routine",
     "TemperatureReading",

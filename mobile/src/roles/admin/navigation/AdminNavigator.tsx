@@ -8,6 +8,8 @@ import {AttendanceHistoryScreen} from '../screens/AttendanceHistoryScreen';
 import {AttendanceLiveScreen} from '../screens/AttendanceLiveScreen';
 import {ComplianceDashboardScreen} from '../screens/ComplianceDashboardScreen';
 import {ComplianceHistoryScreen} from '../screens/ComplianceHistoryScreen';
+import {DocumentPreviewScreen} from '../screens/DocumentPreviewScreen';
+import {DocumentsScreen} from '../screens/DocumentsScreen';
 import {EditFridgeScreen} from '../screens/EditFridgeScreen';
 import {EquipmentScreen} from '../screens/EquipmentScreen';
 import {FoodScreen} from '../screens/FoodScreen';
@@ -132,6 +134,12 @@ export function AdminNavigator(): React.JSX.Element {
         name="ChecklistTemplateTasks"
         component={ChecklistTemplateTasksScreen}
         options={{title: 'Checklist'}}
+      />
+      <Stack.Screen name="Documents" component={DocumentsScreen} options={{title: 'Documents'}} />
+      <Stack.Screen
+        name="DocumentPreview"
+        component={DocumentPreviewScreen}
+        options={{title: ''}}
       />
       <Stack.Screen
         name="ManageFridges"

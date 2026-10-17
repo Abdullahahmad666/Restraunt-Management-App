@@ -188,6 +188,10 @@ export type AdminStackParamList = ComplianceStackParamList &
     // Admin-only: registering fridges/freezers and maintaining the
     // opening/closing checklists - not reachable from the staff side.
     ManageFridges: undefined;
+    /** The restaurant's licences, certificates and insurance. Admin-only, and
+     * there is no staff equivalent - the backend has no route for one. */
+    Documents: undefined;
+    DocumentPreview: {documentId: string};
     EditFridge: {fridgeId?: string};
     ManageChecklist: {routine: ComplianceRoutine};
     // Admin-only: adding/deactivating a frequency's named checklists, and one
