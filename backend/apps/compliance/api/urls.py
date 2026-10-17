@@ -9,6 +9,8 @@ from .admin import (
     AdminChecklistItemViewSet,
     AdminChecklistTaskViewSet,
     AdminChecklistTemplateViewSet,
+    AdminComplianceDocumentViewSet,
+    AdminDocumentCategoryViewSet,
     AdminFridgeUnitViewSet,
 )
 from .staff import (
@@ -49,6 +51,10 @@ admin_router.register(
     "checklist-templates", AdminChecklistTemplateViewSet, basename="checklist-template"
 )
 admin_router.register("checklist-tasks", AdminChecklistTaskViewSet, basename="checklist-task")
+admin_router.register(
+    "document-categories", AdminDocumentCategoryViewSet, basename="document-category"
+)
+admin_router.register("documents", AdminComplianceDocumentViewSet, basename="document")
 
 staff_urlpatterns = staff_router.urls
 admin_urlpatterns = admin_router.urls
