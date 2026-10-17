@@ -123,6 +123,10 @@ export const endpoints = {
       list: `${ADMIN}/notifications/`,
     },
     compliance: {
+      documents: `${ADMIN}/documents/`,
+      document: (id: string) => `${ADMIN}/documents/${id}/`,
+      documentCategories: `${ADMIN}/document-categories/`,
+      documentCategory: (id: string) => `${ADMIN}/document-categories/${id}/`,
       fridgeUnits: `${ADMIN}/fridge-units/`,
       fridgeUnit: (id: string) => `${ADMIN}/fridge-units/${id}/`,
       checklistItems: `${ADMIN}/checklist-items/`,

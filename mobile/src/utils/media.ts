@@ -41,6 +41,17 @@ export const EQUIPMENT_PHOTO: CompressionProfile = {maxDimension: 1024, quality:
  */
 export const INVOICE: CompressionProfile = {maxDimension: 1568, quality: 0.85};
 
+/**
+ * A compliance document - a hygiene certificate, a licence, an insurance
+ * schedule.
+ *
+ * As generous as an invoice, for a different reason. Nothing reads these
+ * automatically; a person does, often an inspector holding the phone, and the
+ * small print at the bottom of a certificate is exactly the part they will
+ * want to zoom into.
+ */
+export const DOCUMENT: CompressionProfile = {maxDimension: 1568, quality: 0.85};
+
 export type PreparedFile = {
   uri: string;
   mimeType: string;
