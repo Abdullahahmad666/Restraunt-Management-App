@@ -7,14 +7,28 @@ import {Ionicons} from '@expo/vector-icons';
 import {Card} from '../../../components/Card';
 import {ConfirmDialog} from '../../../components/ConfirmDialog';
 import {ErrorState} from '../../../components/ErrorState';
+import {ImageViewer} from '../../../components/ImageViewer';
 import {LoadingView} from '../../../components/LoadingView';
+import {OptionalDateField} from '../../../components/OptionalDateField';
+import {PickerRow} from '../../../components/PickerRow';
+import {PickerSheet} from '../../../components/PickerSheet';
+import {PressableScale} from '../../../components/PressableScale';
 import {PrimaryButton} from '../../../components/PrimaryButton';
 import {describeApiError} from '../../../api/errors';
 import {describeExpiry, expiryStatus} from '../../../features/documents/expiry';
-import {useDeleteDocument, useDocuments} from '../../../features/documents/hooks';
+import {
+  useDeleteDocument,
+  useDocumentCategories,
+  useDocuments,
+  useUpdateDocument,
+} from '../../../features/documents/hooks';
+import type {NewDocument} from '../../../features/documents/types';
 import {colors, radii, spacing, typography} from '../../../theme';
-import {formatDate, formatDateTime} from '../../../utils/format';
+import {formatDateTime} from '../../../utils/format';
 import type {AdminStackParamList} from '../../../navigation/types';
+
+/** "Filed under nothing", as a value a picker can hold. */
+const NO_CATEGORY = '__none__';
 
 type Route = RouteProp<AdminStackParamList, 'DocumentPreview'>;
 type Nav = NativeStackNavigationProp<AdminStackParamList>;
@@ -38,7 +52,12 @@ export function DocumentPreviewScreen(): React.JSX.Element {
   const documents = useDocuments();
   const remove = useDeleteDocument();
 
+  const categories = useDocumentCategories();
+  const update = useUpdateDocument();
+
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [viewing, setViewing] = useState(false);
+  const [pickingCategory, setPickingCategory] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (documents.isLoading) {
@@ -57,6 +76,16 @@ export function DocumentPreviewScreen(): React.JSX.Element {
   }
 
   const status = expiryStatus(document.expires_on);
+  const categoryList = (categories.data?.results ?? []).filter(row => row.is_active);
+
+  async function onChange(input: Partial<NewDocument>) {
+    setError(null);
+    try {
+      await update.mutateAsync({id: params.documentId, input});
+    } catch (err) {
+      setError(describeApiError(err, 'Could not update that document.'));
+    }
+  }
 
   async function onDelete() {
     setError(null);
@@ -75,12 +104,21 @@ export function DocumentPreviewScreen(): React.JSX.Element {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}>
       {document.is_image ? (
-        <Image
-          source={{uri: document.file}}
-          style={styles.image}
-          resizeMode="contain"
-          accessibilityLabel={document.title}
-        />
+        <PressableScale
+          onPress={() => setViewing(true)}
+          accessibilityRole="button"
+          accessibilityLabel={`${document.title}. Open full screen`}>
+          <Image
+            source={{uri: document.file}}
+            style={styles.image}
+            resizeMode="contain"
+            accessibilityIgnoresInvertColors
+          />
+          <View style={styles.zoomBadge}>
+            <Ionicons name="scan-outline" size={14} color={colors.text} />
+            <Text style={styles.zoomLabel}>Tap to zoom</Text>
+          </View>
+        </PressableScale>
       ) : (
         <View style={styles.pdf}>
           <Ionicons name="document-text" size={48} color={colors.primary} />
@@ -91,19 +129,34 @@ export function DocumentPreviewScreen(): React.JSX.Element {
 
       <Text style={styles.title}>{document.title}</Text>
 
+      {/* Editable, because the moment of filing is the moment somebody is
+          holding a phone over a certificate and is least likely to be thinking
+          about where it belongs. Getting it wrong then should not mean
+          deleting it and photographing it again. */}
+      <PickerRow
+        icon={document.category ? 'pricetag' : 'pricetag-outline'}
+        tone={document.category ? 'done' : 'pending'}
+        title={document.category_name ?? 'No category'}
+        hint="Category"
+        actionLabel={document.category ? 'Change' : 'Choose'}
+        onPress={() => setPickingCategory(true)}
+        disabled={update.isPending}
+      />
+
       <Card style={styles.details}>
-        <Detail label="Category" value={document.category_name ?? 'Uncategorised'} />
-        {document.expires_on ? (
+        <OptionalDateField
+          label="Expires on"
+          value={document.expires_on}
+          onChange={value => onChange({expires_on: value})}
+          emptyLabel="Does not expire"
+        />
+        {document.expires_on && status !== 'valid' ? (
           <Detail
-            label={status === 'expired' ? 'Expired' : 'Valid until'}
-            value={`${formatDate(document.expires_on)}${
-              status === 'soon' ? ` - ${describeExpiry(document.expires_on)?.toLowerCase()}` : ''
-            }`}
-            tone={status === 'expired' ? 'danger' : status === 'soon' ? 'warning' : undefined}
+            label={status === 'expired' ? 'Expired' : 'Expiring'}
+            value={describeExpiry(document.expires_on) ?? ''}
+            tone={status === 'expired' ? 'danger' : 'warning'}
           />
-        ) : (
-          <Detail label="Expires" value="Does not expire" />
-        )}
+        ) : null}
         <Detail label="Added" value={formatDateTime(document.created_at)} />
         {document.uploaded_by_name ? (
           <Detail label="Filed by" value={document.uploaded_by_name} />
@@ -114,10 +167,17 @@ export function DocumentPreviewScreen(): React.JSX.Element {
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <View style={styles.actions}>
-        <PrimaryButton
-          label={document.is_image ? 'Open full size' : 'Open PDF'}
-          onPress={() => Linking.openURL(document.file)}
-        />
+        {/* Only a PDF leaves the app. An image opens full screen in it,
+            where a browser's address bar is not part of what an inspector
+            sees. */}
+        {document.is_image ? (
+          <PrimaryButton label="View full screen" onPress={() => setViewing(true)} />
+        ) : (
+          <PrimaryButton
+            label="Open in your phone's viewer"
+            onPress={() => Linking.openURL(document.file)}
+          />
+        )}
         <PrimaryButton
           label="Remove"
           variant="danger"
@@ -125,6 +185,26 @@ export function DocumentPreviewScreen(): React.JSX.Element {
           disabled={remove.isPending}
         />
       </View>
+
+      <ImageViewer
+        visible={viewing && document.is_image}
+        uri={document.file}
+        title={document.title}
+        onClose={() => setViewing(false)}
+      />
+
+      <PickerSheet
+        visible={pickingCategory}
+        title="File this under"
+        searchPlaceholder="Search categories"
+        choices={[
+          {value: NO_CATEGORY, label: 'No category'},
+          ...categoryList.map(row => ({value: row.id, label: row.name})),
+        ]}
+        selected={document.category ?? NO_CATEGORY}
+        onSelect={value => onChange({category: value === NO_CATEGORY ? null : value})}
+        onClose={() => setPickingCategory(false)}
+      />
 
       <ConfirmDialog
         visible={confirmingDelete}
@@ -202,6 +282,19 @@ const styles = StyleSheet.create({
   detailValue: {...typography.body, fontSize: 15, color: colors.text},
   detailDanger: {color: colors.danger, fontWeight: '700'},
   detailWarning: {color: colors.warning, fontWeight: '700'},
+  zoomBadge: {
+    position: 'absolute',
+    right: spacing.sm,
+    bottom: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(11, 11, 13, 0.75)',
+  },
+  zoomLabel: {fontSize: 11, fontWeight: '600', color: colors.text},
   error: {fontSize: 12, color: colors.danger},
   actions: {gap: spacing.sm},
 });

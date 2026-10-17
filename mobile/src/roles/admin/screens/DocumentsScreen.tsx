@@ -8,8 +8,8 @@ import {Card} from '../../../components/Card';
 import {EmptyState} from '../../../components/EmptyState';
 import {ErrorState} from '../../../components/ErrorState';
 import {FadeIn} from '../../../components/FadeIn';
-import {FilterChip} from '../../../components/FilterChip';
 import {LoadingView} from '../../../components/LoadingView';
+import {PickerRow} from '../../../components/PickerRow';
 import {PickerSheet} from '../../../components/PickerSheet';
 import {PressableScale} from '../../../components/PressableScale';
 import {OptionalDateField} from '../../../components/OptionalDateField';
@@ -195,19 +195,22 @@ export function DocumentsScreen(): React.JSX.Element {
         see these.
       </Text>
 
-      {categoryList.length > 0 ? (
-        <View style={styles.filters}>
-          <FilterChip label="All" selected={!category} onPress={() => setCategory(undefined)} />
-          {categoryList.map(row => (
-            <FilterChip
-              key={row.id}
-              label={`${row.name} (${row.document_count})`}
-              selected={category === row.id}
-              onPress={() => setCategory(category === row.id ? undefined : row.id)}
-            />
-          ))}
-        </View>
-      ) : null}
+      {/* One row rather than a chip per category. A restaurant with thirty
+          of them - a chain, or anybody who files by year - would otherwise
+          get a wall of them above every screenful of documents, and the row
+          is also where a new category is added. */}
+      <PickerRow
+        icon="pricetags-outline"
+        tone="done"
+        title={categoryList.find(row => row.id === category)?.name ?? 'All categories'}
+        hint={
+          category
+            ? 'Showing this category. New uploads are filed here'
+            : 'Showing everything you have filed'
+        }
+        actionLabel={category ? 'Change' : 'Filter'}
+        onPress={() => setPicking(true)}
+      />
 
       <View style={styles.addRow}>
         {SOURCES.map(option => (
@@ -229,18 +232,6 @@ export function DocumentsScreen(): React.JSX.Element {
           </PressableScale>
         ))}
       </View>
-
-      <PressableScale
-        onPress={() => setPicking(true)}
-        accessibilityRole="button"
-        style={styles.categoryLink}>
-        <Ionicons name="pricetags-outline" size={14} color={colors.primary} />
-        <Text style={styles.categoryLinkLabel}>
-          {category
-            ? `Filing under ${categoryList.find(row => row.id === category)?.name}`
-            : 'Choose a category'}
-        </Text>
-      </PressableScale>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -264,10 +255,10 @@ export function DocumentsScreen(): React.JSX.Element {
 
       <PickerSheet
         visible={picking}
-        title="File under"
+        title="Categories"
         searchPlaceholder="Search categories"
         choices={[
-          {value: ALL, label: 'No category'},
+          {value: ALL, label: 'All categories'},
           ...categoryList.map(row => ({
             value: row.id,
             label: row.name,
@@ -319,7 +310,6 @@ export function DocumentsScreen(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   intro: {fontSize: 13, color: colors.textMuted, lineHeight: 18},
-  filters: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs},
   addRow: {flexDirection: 'row', gap: spacing.sm},
   addTile: {
     flex: 1,
@@ -335,8 +325,6 @@ const styles = StyleSheet.create({
   },
   addTileBusy: {borderColor: colors.primary},
   addLabel: {fontSize: 12, fontWeight: '600', color: colors.text, textAlign: 'center'},
-  categoryLink: {flexDirection: 'row', alignItems: 'center', gap: spacing.xs},
-  categoryLinkLabel: {fontSize: 13, fontWeight: '600', color: colors.primary},
   error: {fontSize: 12, color: colors.danger},
   grid: {flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm},
   gridCell: {flexBasis: '47%', flexGrow: 1},
