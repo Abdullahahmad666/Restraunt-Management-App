@@ -11,15 +11,19 @@ Runs on the background worker, not in the request - see apps.inventory.jobs.
 import logging
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
-from pathlib import PurePosixPath
 
 from django.db import transaction
 
-from .extraction import (
+from apps.common.files import (
     MAX_FILE_BYTES,
     PDF_TYPE,
     SUPPORTED_IMAGE_TYPES,
     SUPPORTED_TYPES,
+    sniff_content_type,
+    type_from_name,
+)
+
+from .extraction import (
     PermanentScanError,
     ScanError,
     TransientScanError,
@@ -39,48 +43,8 @@ __all__ = [
     "extract_invoice_data",
     "populate_invoice_from_scan",
     "sniff_content_type",
+    "type_from_name",
 ]
-
-
-#: Leading bytes that identify a file regardless of what the client called it.
-#: Phones routinely upload a perfectly good PDF as application/octet-stream,
-#: and a whitelist of declared types alone would turn those away.
-_MAGIC = (
-    (b"%PDF", PDF_TYPE),
-    (b"\x89PNG\r\n\x1a\n", "image/png"),
-    (b"\xff\xd8\xff", "image/jpeg"),
-    (b"GIF87a", "image/gif"),
-    (b"GIF89a", "image/gif"),
-)
-
-
-def sniff_content_type(head: bytes, declared: str = "") -> str:
-    """Identify a file from its first bytes, falling back to what the client
-    declared. Returns "" when neither is a type we can read."""
-    for prefix, content_type in _MAGIC:
-        if head.startswith(prefix):
-            return content_type
-    # WebP is a RIFF container - the marker sits after a 4-byte length.
-    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
-        return "image/webp"
-    return declared if declared in SUPPORTED_TYPES else ""
-
-
-#: Fallback for rows uploaded before content_type was recorded. Extension is
-#: weaker evidence than the type the client sent, which is why it is only the
-#: fallback, but it is enough to tell a PDF from a photo.
-_TYPE_BY_EXTENSION = {
-    ".pdf": PDF_TYPE,
-    ".png": "image/png",
-    ".webp": "image/webp",
-    ".gif": "image/gif",
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-}
-
-
-def _type_from_name(name: str) -> str:
-    return _TYPE_BY_EXTENSION.get(PurePosixPath(name or "").suffix.lower(), "image/jpeg")
 
 
 def _safe_decimal(value, default=None):
@@ -180,7 +144,7 @@ def populate_invoice_from_scan(invoice) -> None:
     try:
         data = extract_invoice_data(
             image_bytes=file_bytes,
-            content_type=invoice.content_type or _type_from_name(invoice.photo.name),
+            content_type=invoice.content_type or type_from_name(invoice.photo.name),
         )
     except PermanentScanError as exc:
         invoice.scan_state = InvoiceScan.ScanState.FAILED
@@ -273,44 +237,3 @@ def populate_invoice_from_scan(invoice) -> None:
                 "updated_at",
             ]
         )
-
-
-#: Fallback for rows uploaded before content_type was recorded. Extension is
-#: weaker evidence than the type the client sent, which is why it is only the
-#: fallback, but it is enough to tell a PDF from a photo.
-_TYPE_BY_EXTENSION = {
-    ".pdf": PDF_TYPE,
-    ".png": "image/png",
-    ".webp": "image/webp",
-    ".gif": "image/gif",
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-}
-
-
-def _type_from_name(name: str) -> str:
-    from pathlib import PurePosixPath
-
-    return _TYPE_BY_EXTENSION.get(PurePosixPath(name or "").suffix.lower(), "image/jpeg")
-
-
-def _safe_decimal(value, default=None):
-    from decimal import Decimal, InvalidOperation
-
-    if value is None:
-        return default if default is None else Decimal(str(default))
-    try:
-        return Decimal(str(value))
-    except (InvalidOperation, ValueError, TypeError):
-        return default if default is None else Decimal(str(default))
-
-
-def _safe_date(value):
-    from datetime import datetime
-
-    if not value:
-        return None
-    try:
-        return datetime.strptime(str(value), "%Y-%m-%d").date()
-    except (ValueError, TypeError):
-        return None
