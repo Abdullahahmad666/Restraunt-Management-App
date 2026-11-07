@@ -28,6 +28,9 @@ export const endpoints = {
     logout: '/auth/logout/',
     me: '/auth/me/',
     changePassword: '/auth/change-password/',
+    // GET says what deleting your account would take with it; POST
+    // does it. Apple's guideline 5.1.1(v).
+    deleteAccount: '/auth/delete-account/',
     passwordReset: '/auth/password-reset/',
     passwordResetConfirm: '/auth/password-reset/confirm/',
     // Public - the join screen calls this before anyone has signed in, to

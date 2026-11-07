@@ -144,3 +144,41 @@ export async function uploadAvatar(uri: string): Promise<User> {
   });
   return data;
 }
+
+/**
+ * What deleting your account would actually take with it.
+ *
+ * Fetched before the confirmation is shown rather than described in static
+ * copy, because the answer is different for a staff member (their own
+ * account) and for the only manager a restaurant has (the restaurant, and
+ * everybody in it).
+ */
+export type DeletionPlan = {
+  /** The row goes. False means employment records force it to survive, scrubbed. */
+  hard_delete: boolean;
+  deletes_restaurant: boolean;
+  requires_name_confirmation: boolean;
+  restaurant_name: string | null;
+  staff_accounts: number;
+  attendance_records: number;
+  compliance_records: number;
+};
+
+export async function fetchDeletionPlan(): Promise<DeletionPlan> {
+  const {data} = await apiClient.get<DeletionPlan>(endpoints.auth.deleteAccount);
+  return data;
+}
+
+/**
+ * Delete the signed-in account.
+ *
+ * `restaurantName` is only read when the plan says a restaurant goes too -
+ * the server checks it against the real name and refuses the whole request if
+ * it does not match, which is the point of asking for it.
+ */
+export async function deleteAccount(password: string, restaurantName?: string): Promise<void> {
+  await apiClient.post(endpoints.auth.deleteAccount, {
+    password,
+    ...(restaurantName ? {restaurant_name: restaurantName} : {}),
+  });
+}
