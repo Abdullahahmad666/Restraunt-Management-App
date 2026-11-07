@@ -64,6 +64,18 @@ class User(AbstractUser, TimeStampedModel):
     email_otp_created_at = models.DateTimeField(null=True, blank=True)
     profile_picture = models.ImageField(upload_to="profile_pictures/", null=True, blank=True)
 
+    # Set when someone deletes their own account (Apple requires the option;
+    # see apps.users.services.deletion). Distinct from is_active=False, which
+    # is a manager deactivating a leaver: that account still has a name, an
+    # email and a password, and can be switched back on. This one has had all
+    # three destroyed and is never coming back.
+    #
+    # The row survives only because AttendanceLog, Shift, StaffPayRate,
+    # RateChange and PayrollEntry are PROTECT'd against it - those are the
+    # restaurant's employment records, not the account's, and deleting the
+    # account must not take them.
+    deleted_at = models.DateTimeField(null=True, blank=True, db_index=True)
+
     # Set once the restaurants app defines Restaurant. Kept as a string
     # reference so the two apps do not import each other.
     restaurant = models.ForeignKey(
@@ -84,6 +96,32 @@ class User(AbstractUser, TimeStampedModel):
 
     def __str__(self):
         return self.email
+
+    #: What a deleted account is called wherever a name would be shown.
+    DELETED_DISPLAY_NAME = "Former team member"
+
+    @property
+    def is_deleted(self) -> bool:
+        return self.deleted_at is not None
+
+    def get_full_name(self) -> str:
+        """The name to show, with one override: a deleted account has none.
+
+        Every serializer that displays a person renders
+        `get_full_name() or email` - ten of them at the time of writing, for
+        who recorded a temperature, who uploaded a document, who was asked to
+        cover a shift. Overriding here rather than in each of them means a
+        deleted account reads as "Former team member" everywhere at once, and
+        - more to the point - means a serializer written next year inherits
+        that without its author having to know.
+
+        Without this, the `or email` fallback would put the scrubbed
+        placeholder address on screen, which looks like a leak even though it
+        routes nowhere.
+        """
+        if self.is_deleted:
+            return self.DELETED_DISPLAY_NAME
+        return super().get_full_name()
 
     @property
     def is_admin(self) -> bool:
