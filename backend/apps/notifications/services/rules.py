@@ -240,3 +240,47 @@ def notify_swap_decided(swap_request) -> None:
             related_object_id=swap_request.id,
         )
         send_notification(target_notification)
+
+
+def notify_admins_of_account_deletion(*, restaurant, was_admin: bool) -> None:
+    """A manager hears that somebody deleted their account - but not who.
+
+    Deliberately unnamed. The whole point of the deletion is that the name is
+    gone; writing it into a notification row that outlives the account would
+    put it straight back, in a table nobody would think to look in when asked
+    to prove the erasure happened.
+
+    What the manager actually needs is the thing this does say: that a gap in
+    next week's rota has an explanation, and that the hours already recorded
+    are still there. Who it was, they know from their own records - they are
+    the employer, and those they keep.
+
+    Called after the deletion, so there is no account left to link to and no
+    related object to point at.
+    """
+    from django.contrib.auth import get_user_model
+
+    from apps.common.roles import Role
+
+    User = get_user_model()
+
+    admins = User.objects.filter(
+        restaurant=restaurant,
+        role=Role.ADMIN,
+        is_active=True,
+        deleted_at__isnull=True,
+    )
+
+    who = "A manager" if was_admin else "A team member"
+    for admin in admins:
+        notification = models.Notification.objects.create(
+            user=admin,
+            kind=models.Notification.Kind.ACCOUNT_DELETED,
+            title=f"{who} deleted their account",
+            body=(
+                f"{who} on your team deleted their Invisiko account. Their recorded "
+                "hours and checks are still on file, shown as "
+                '"Former team member". Any upcoming shifts they had are now unassigned.'
+            ),
+        )
+        send_notification(notification)

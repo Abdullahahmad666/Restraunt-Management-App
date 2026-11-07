@@ -241,6 +241,68 @@ class ChangePasswordSerializer(serializers.Serializer):
         return value
 
 
+class DeletionPlanSerializer(serializers.Serializer):
+    """What deleting your account would do, so the confirmation can say it.
+
+    Read-only, and read before the deletion rather than reported after it -
+    "this also deletes 4 staff accounts and the restaurant" is a different
+    decision from "this deletes your account", and somebody is entitled to
+    know which one they are taking.
+    """
+
+    hard_delete = serializers.BooleanField(read_only=True)
+    deletes_restaurant = serializers.BooleanField(read_only=True)
+    requires_name_confirmation = serializers.BooleanField(read_only=True)
+    restaurant_name = serializers.CharField(read_only=True, allow_null=True)
+    staff_accounts = serializers.IntegerField(read_only=True)
+    attendance_records = serializers.IntegerField(read_only=True)
+    compliance_records = serializers.IntegerField(read_only=True)
+
+
+class DeleteAccountSerializer(serializers.Serializer):
+    """Confirming a deletion: always a password, sometimes a name typed back.
+
+    The password is not about authentication - the caller already proved who
+    they are to reach this endpoint. It is about the phone being unlocked on a
+    counter in a kitchen. An account that can be destroyed by whoever picks
+    the handset up is not one anybody should be asked to trust with their
+    hours and their pay.
+
+    `restaurant_name` is required only when this deletion takes a restaurant
+    and other people's accounts with it. Typing a name is deliberate friction:
+    it is the difference between confirming and agreeing.
+    """
+
+    password = serializers.CharField(write_only=True, required=True)
+    restaurant_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
+
+    def validate_password(self, value):
+        user = self.context["request"].user
+        if not user.check_password(value):
+            raise serializers.ValidationError("That password is not correct.")
+        return value
+
+    def validate(self, attrs):
+        from apps.users.services import deletion
+
+        plan = deletion.plan_for(self.context["request"].user)
+        if plan.requires_name_confirmation:
+            typed = (attrs.get("restaurant_name") or "").strip()
+            # Case and surrounding space forgiven; the point is that they
+            # looked at the name and meant it, not that they can touch-type.
+            if typed.casefold() != plan.restaurant_name.casefold():
+                raise serializers.ValidationError(
+                    {
+                        "restaurant_name": (
+                            f'Type the restaurant\'s name exactly - "{plan.restaurant_name}" - '
+                            "to confirm you want it and its records deleted."
+                        )
+                    }
+                )
+        attrs["plan"] = plan
+        return attrs
+
+
 class GoogleLoginSerializer(serializers.Serializer):
     id_token = serializers.CharField(required=True)
 

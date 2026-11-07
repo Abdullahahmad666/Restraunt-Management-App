@@ -16,6 +16,8 @@ from apps.users.models import InviteCode
 from .serializers import (
     ChangePasswordSerializer,
     CustomTokenObtainPairSerializer,
+    DeleteAccountSerializer,
+    DeletionPlanSerializer,
     GoogleLoginSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
@@ -112,6 +114,69 @@ class ChangePasswordView(generics.GenericAPIView):
             {"detail": "Password updated successfully."},
             status=status.HTTP_200_OK,
         )
+
+
+class DeleteAccountView(generics.GenericAPIView):
+    """Delete your own account. Apple's guideline 5.1.1(v).
+
+    GET returns what the deletion would do, so the confirmation screen can be
+    specific about it. POST does it.
+
+    POST rather than DELETE: this needs a body - a password always, and the
+    restaurant's name when the deletion takes a restaurant with it - and a
+    DELETE carrying a body is the kind of thing that works until it meets a
+    proxy that strips it.
+    """
+
+    serializer_class = DeleteAccountSerializer
+    throttle_scope = "login"
+
+    @extend_schema(responses=DeletionPlanSerializer)
+    def get(self, request):
+        from apps.users.services import deletion
+
+        plan = deletion.plan_for(request.user)
+        return Response(
+            {
+                "hard_delete": plan.hard_delete,
+                "deletes_restaurant": plan.deletes_restaurant,
+                "requires_name_confirmation": plan.requires_name_confirmation,
+                "restaurant_name": plan.restaurant_name,
+                "staff_accounts": plan.staff_accounts,
+                "attendance_records": plan.attendance_records,
+                "compliance_records": plan.compliance_records,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @extend_schema(request=DeleteAccountSerializer, responses={204: None})
+    def post(self, request):
+        from apps.notifications.services.rules import notify_admins_of_account_deletion
+        from apps.users.services import deletion
+
+        serializer = self.get_serializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+
+        user = request.user
+        # Read before the deletion: afterwards the row is either gone or
+        # scrubbed, and `user.restaurant` on a deleted instance is not
+        # something to be relying on.
+        restaurant = user.restaurant
+        was_admin = user.is_admin
+
+        plan = deletion.delete_account(user)
+
+        # Nobody to tell when the restaurant went with them - the only
+        # manager was the person who just left.
+        if restaurant is not None and not plan.deletes_restaurant:
+            notify_admins_of_account_deletion(restaurant=restaurant, was_admin=was_admin)
+
+        logger.info(
+            "Account deleted (hard=%s, restaurant_deleted=%s)",
+            plan.hard_delete,
+            plan.deletes_restaurant,
+        )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class CustomLoginView(TokenObtainPairView):
