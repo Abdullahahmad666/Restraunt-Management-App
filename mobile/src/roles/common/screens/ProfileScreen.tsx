@@ -6,13 +6,15 @@ import * as ImagePicker from 'expo-image-picker';
 import {describeApiError} from '../../../api/errors';
 import {AVATAR, compressImage} from '../../../utils/media';
 import {ConfirmDialog} from '../../../components/ConfirmDialog';
+import {DeleteAccountDialog} from '../../../components/DeleteAccountDialog';
 import {FadeIn} from '../../../components/FadeIn';
 import {Field} from '../../../components/Field';
 import {FormError} from '../../../components/FormError';
 import {OptionSheet} from '../../../components/OptionSheet';
 import {PressableScale} from '../../../components/PressableScale';
 import {PrimaryButton} from '../../../components/PrimaryButton';
-import {updateProfile, uploadAvatar} from '../../../features/auth/api';
+import {deleteAccount, updateProfile, uploadAvatar} from '../../../features/auth/api';
+import {useDeletionPlan} from '../../../features/auth/hooks';
 import {useAuthStore} from '../../../store/authStore';
 import {colors, radii, spacing, typography} from '../../../theme';
 import {ROLES} from '../../../types/roles';
@@ -107,6 +109,14 @@ export function ProfileScreen(): React.JSX.Element {
   const [signOutOpen, setSignOutOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [settingsPrompt, setSettingsPrompt] = useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Only asked for once the dialog is open: it is two counting queries on the
+  // server, and almost nobody opening this screen is about to delete their
+  // account.
+  const deletionPlan = useDeletionPlan(deleteOpen);
 
   // The navigator only mounts this behind a session, so a null user means the
   // session was torn down mid-render. The navigator is already swapping this
@@ -415,6 +425,32 @@ export function ProfileScreen(): React.JSX.Element {
         />
       </View>
 
+      {/* Below sign-out and visually quieter than it. Apple requires this to
+          be reachable from inside the app, which it now is, but a button that
+          destroys an account should not sit next to one that ends a session
+          looking like the same weight of decision. */}
+      <View style={styles.dangerZone}>
+        <PressableScale
+          onPress={() => {
+            setDeleteError(null);
+            setDeleteOpen(true);
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Delete my account"
+          accessibilityHint="Permanently deletes your account. You will be asked to confirm."
+          disabled={signingOut}
+          testID="delete-account-button"
+          style={styles.dangerButton}>
+          <Ionicons name="trash-outline" size={16} color={colors.danger} />
+          <Text style={styles.dangerLabel}>Delete my account</Text>
+        </PressableScale>
+        <Text style={styles.dangerHint}>
+          {isAdmin
+            ? 'Permanent. If you are the only manager, this deletes the restaurant too.'
+            : 'Permanent. Your recorded hours stay on your restaurant’s record, without your name.'}
+        </Text>
+      </View>
+
       <OptionSheet
         visible={photoSheet}
         title="Profile photo"
@@ -449,6 +485,39 @@ export function ProfileScreen(): React.JSX.Element {
           await signOut();
         }}
         onCancel={() => setSignOutOpen(false)}
+      />
+
+      <DeleteAccountDialog
+        visible={deleteOpen}
+        plan={deletionPlan.data ?? null}
+        loading={deletionPlan.isLoading}
+        busy={deleting}
+        error={
+          deleteError ??
+          (deletionPlan.error
+            ? describeApiError(deletionPlan.error, 'Could not check what this would delete.')
+            : null)
+        }
+        onConfirm={async (password, restaurantName) => {
+          setDeleting(true);
+          setDeleteError(null);
+          try {
+            await deleteAccount(password, restaurantName);
+            // The account is gone, so the tokens in SecureStore point at
+            // nothing. signOut clears them and flips the navigator back to
+            // the welcome screen, which is also why nothing is set on state
+            // after it - this screen is unmounting.
+            await signOut();
+          } catch (err) {
+            setDeleteError(describeApiError(err, 'Could not delete your account.'));
+            setDeleting(false);
+          }
+        }}
+        onCancel={() => {
+          if (!deleting) {
+            setDeleteOpen(false);
+          }
+        }}
       />
     </ScrollView>
   );
@@ -591,6 +660,22 @@ const styles = StyleSheet.create({
   },
   warningText: {...typography.caption, color: colors.textMuted, flex: 1},
   actions: {marginTop: spacing.sm},
+
+  dangerZone: {gap: spacing.xs, alignItems: 'center'},
+  dangerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  dangerLabel: {fontSize: 14, fontWeight: '700', color: colors.danger},
+  dangerHint: {
+    ...typography.caption,
+    color: colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 16,
+  },
   settingsBox: {
     backgroundColor: colors.surface,
     borderWidth: 1,
