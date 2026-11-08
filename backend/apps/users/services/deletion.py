@@ -158,7 +158,20 @@ def plan_for(user) -> DeletionPlan:
 
 
 def _scrub_identity(user) -> None:
-    """Destroy everything about the account that identifies a person."""
+    """Destroy the account, keeping only the name the records need.
+
+    This path runs when employment records survive, and those records have to
+    stay attributable to somebody: a manager reconciling a closed pay period
+    needs to know whose eight hours those were, and HMRC requires the employee
+    on a retained payroll record to be identifiable. Three leavers who all
+    read "Former team member" are three rows nobody can tell apart, which
+    satisfies neither.
+
+    So the name moves to `retained_name` - an attribute of the record rather
+    than of an account - and everything else that identifies the person is
+    destroyed outright. Read before the fields are cleared, obviously.
+    """
+    user.retained_name = f"{user.first_name} {user.last_name}".strip()
     user.email = f"deleted-{uuid.uuid4().hex}@{SCRUBBED_EMAIL_DOMAIN}"
     user.first_name = ""
     user.last_name = ""
@@ -174,6 +187,7 @@ def _scrub_identity(user) -> None:
     user.set_unusable_password()
     user.save(
         update_fields=[
+            "retained_name",
             "email",
             "first_name",
             "last_name",

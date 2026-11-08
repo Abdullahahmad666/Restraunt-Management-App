@@ -76,6 +76,19 @@ class User(AbstractUser, TimeStampedModel):
     # account must not take them.
     deleted_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
+    # The person's name as it stood when they deleted their account, kept only
+    # when employment records survive them - and kept because those records
+    # have to stay attributable. An employer required to hold three years of
+    # payroll cannot hold three rows that all say "Former team member"; HMRC
+    # requires the employee to be identifiable, and a manager reconciling a
+    # closed pay period has to know whose hours these were.
+    #
+    # So this is not account data. The account is gone: no email, no phone, no
+    # photo, no password, no session. This is one attribute of a record the
+    # business is obliged to keep, which is the GDPR Article 17(3)(b) ground it
+    # sits on, and the app says so before anybody confirms.
+    retained_name = models.CharField(max_length=150, blank=True)
+
     # Set once the restaurants app defines Restaurant. Kept as a string
     # reference so the two apps do not import each other.
     restaurant = models.ForeignKey(
@@ -100,28 +113,61 @@ class User(AbstractUser, TimeStampedModel):
     #: What a deleted account is called wherever a name would be shown.
     DELETED_DISPLAY_NAME = "Former team member"
 
+    #: Appended wherever a deleted account is named, so a manager reading a
+    #: rota or a pay period can see at a glance that this person has gone and
+    #: should not be scheduled again.
+    FORMER_SUFFIX = "(former)"
+
     @property
     def is_deleted(self) -> bool:
         return self.deleted_at is not None
 
     def get_full_name(self) -> str:
-        """The name to show, with one override: a deleted account has none.
+        """The name to show, with one override for a deleted account.
 
         Every serializer that displays a person renders
         `get_full_name() or email` - ten of them at the time of writing, for
         who recorded a temperature, who uploaded a document, who was asked to
         cover a shift. Overriding here rather than in each of them means a
-        deleted account reads as "Former team member" everywhere at once, and
-        - more to the point - means a serializer written next year inherits
-        that without its author having to know.
+        deleted account reads correctly everywhere at once, and - more to the
+        point - means a serializer written next year inherits that without its
+        author having to know.
 
         Without this, the `or email` fallback would put the scrubbed
         placeholder address on screen, which looks like a leak even though it
         routes nowhere.
+
+        A deleted account keeps `retained_name` whenever employment records
+        survive it, because those records have to stay attributable: three
+        leavers all reading "Former team member" is three payroll rows nobody
+        can tell apart, which is no use to the manager who has to keep them
+        and no use to HMRC, who require the employee to be identifiable. So
+        the name is shown, marked as gone.
+
+        Where there is no retained name - nobody ever typed one - the id's
+        first block stands in, because distinguishing one leaver's hours from
+        another's is the entire point and "Former team member" twice does not.
         """
-        if self.is_deleted:
-            return self.DELETED_DISPLAY_NAME
-        return super().get_full_name()
+        if not self.is_deleted:
+            return super().get_full_name()
+        return self.former_display_name()
+
+    def former_display_name(self) -> str:
+        """What this account is called once it has been deleted.
+
+        Its own method because two callers need the same answer: this model,
+        when a serializer asks for a name, and the deletion endpoint, which
+        tells the manager who has gone. If those two disagreed - one saying
+        "Someone", the other "Former team member (bb7851de)" - the manager
+        would be unable to connect a push notification to the payroll row it
+        is about, which is the whole thing this is for.
+
+        Safe to call before the deletion, which is why the endpoint can.
+        """
+        name = self.retained_name or f"{self.first_name} {self.last_name}".strip()
+        if name:
+            return f"{name} {self.FORMER_SUFFIX}"
+        return f"{self.DELETED_DISPLAY_NAME} ({str(self.pk)[:8]})"
 
     @property
     def is_admin(self) -> bool:
