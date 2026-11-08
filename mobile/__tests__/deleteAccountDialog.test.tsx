@@ -82,20 +82,31 @@ describe('confirming before anything is destroyed', () => {
 });
 
 describe('telling the truth about what survives', () => {
-  it('says the hours stay when records have to be retained', async () => {
+  it('says the hours stay, under their name, when records are retained', async () => {
     await render(dialog({plan: RECORDS_RETAINED}));
 
     // The disclosure Apple's guideline is conditional on, and the honest
     // answer regardless: a button saying "delete" must not leave payroll
-    // rows behind without mentioning it.
+    // rows behind without mentioning it - nor claim the name went when the
+    // employer has to keep it to attribute them.
     expect(screen.getByText(/hours you worked/)).toBeTruthy();
-    expect(screen.getByText(/Former team member/)).toBeTruthy();
+    expect(screen.getByText(/under your name, marked as a former member/)).toBeTruthy();
+    expect(screen.getByText(/has to be able to say whose they were/)).toBeTruthy();
+  });
+
+  it('does not claim the name is removed', async () => {
+    await render(dialog({plan: RECORDS_RETAINED}));
+
+    // It was, in the first version of this. It is not any more, and copy
+    // promising otherwise would be the one sentence somebody later quotes.
+    expect(screen.queryByText(/name removed/)).toBeNull();
+    expect(screen.queryByText(/without your name/)).toBeNull();
   });
 
   it('does not promise retention when there is nothing to retain', async () => {
     await render(dialog({plan: NOTHING_RETAINED}));
 
-    expect(screen.queryByText(/Former team member/)).toBeNull();
+    expect(screen.queryByText(/stay on your restaurant/)).toBeNull();
     expect(screen.getByText(/everything on it will be permanently deleted/)).toBeTruthy();
   });
 });

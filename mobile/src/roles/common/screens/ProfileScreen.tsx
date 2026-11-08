@@ -447,7 +447,7 @@ export function ProfileScreen(): React.JSX.Element {
         <Text style={styles.dangerHint}>
           {isAdmin
             ? 'Permanent. If you are the only manager, this deletes the restaurant too.'
-            : 'Permanent. Your recorded hours stay on your restaurant’s record, without your name.'}
+            : 'Permanent. Your sign-in is destroyed; your recorded hours stay on your restaurant’s record.'}
         </Text>
       </View>
 

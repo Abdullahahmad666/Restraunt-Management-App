@@ -120,13 +120,13 @@ export function DeleteAccountDialog({
     return (
       <>
         <Text style={styles.message}>
-          Your account will be permanently deleted. Your name, email address, phone number and photo
-          are destroyed, you will not be able to sign in again, and this cannot be undone.
+          Your account will be permanently deleted. Your email address, phone number, photo and
+          password are destroyed, you will not be able to sign in again, and this cannot be undone.
         </Text>
         <Text style={styles.retention}>
           The hours you worked and the checks you recorded stay on your restaurant&apos;s record,
-          with your name removed - they will show as &quot;Former team member&quot;. Your employer
-          has to keep those by law, and they are not yours or ours to delete.
+          under your name, marked as a former member. Your employer has to keep those by law and has
+          to be able to say whose they were, so they are not yours or ours to delete.
         </Text>
       </>
     );
