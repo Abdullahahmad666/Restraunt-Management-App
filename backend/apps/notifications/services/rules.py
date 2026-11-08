@@ -242,18 +242,18 @@ def notify_swap_decided(swap_request) -> None:
         send_notification(target_notification)
 
 
-def notify_admins_of_account_deletion(*, restaurant, was_admin: bool) -> None:
-    """A manager hears that somebody deleted their account - but not who.
+def notify_admins_of_account_deletion(*, restaurant, was_admin: bool, display_name: str) -> None:
+    """A manager hears who deleted their account, and what is left on file.
 
-    Deliberately unnamed. The whole point of the deletion is that the name is
-    gone; writing it into a notification row that outlives the account would
-    put it straight back, in a table nobody would think to look in when asked
-    to prove the erasure happened.
+    Named, because the records it points at are named. An employer keeping
+    three years of payroll has to be able to say whose it was, so the name
+    stays on the retained rows (see User.retained_name) - and a notification
+    that then refused to say which of four people had gone would be withholding
+    something the manager can read off the rota anyway.
 
-    What the manager actually needs is the thing this does say: that a gap in
-    next week's rota has an explanation, and that the hours already recorded
-    are still there. Who it was, they know from their own records - they are
-    the employer, and those they keep.
+    `display_name` comes from the caller rather than the user row, because by
+    the time this runs the account is either scrubbed or gone, and this is one
+    of the few places that needs the name as it was.
 
     Called after the deletion, so there is no account left to link to and no
     related object to point at.
@@ -271,16 +271,17 @@ def notify_admins_of_account_deletion(*, restaurant, was_admin: bool) -> None:
         deleted_at__isnull=True,
     )
 
-    who = "A manager" if was_admin else "A team member"
+    role_word = "manager" if was_admin else "team member"
     for admin in admins:
         notification = models.Notification.objects.create(
             user=admin,
             kind=models.Notification.Kind.ACCOUNT_DELETED,
-            title=f"{who} deleted their account",
+            title=f"{display_name} deleted their account",
             body=(
-                f"{who} on your team deleted their Invisiko account. Their recorded "
-                "hours and checks are still on file, shown as "
-                '"Former team member". Any upcoming shifts they had are now unassigned.'
+                f"{display_name}, a {role_word} on your team, deleted their Invisiko "
+                "account and can no longer sign in. Their recorded hours and checks "
+                "stay on file under their name, marked as a former member. Any "
+                "upcoming shifts they had are now unassigned."
             ),
         )
         send_notification(notification)

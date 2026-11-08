@@ -158,18 +158,26 @@ class DeleteAccountView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
 
         user = request.user
-        # Read before the deletion: afterwards the row is either gone or
-        # scrubbed, and `user.restaurant` on a deleted instance is not
-        # something to be relying on.
+        # All read before the deletion: afterwards the row is either gone or
+        # scrubbed, `user.restaurant` on a deleted instance is not something
+        # to be relying on, and the name is the thing the manager is about to
+        # be told.
         restaurant = user.restaurant
         was_admin = user.is_admin
+        # The label the retained records will carry, so a manager can tie
+        # this notification to the payroll row it is about. Not
+        # `get_full_name()`, which at this point still returns the live name
+        # and returns "" for somebody who never typed one.
+        display_name = user.former_display_name()
 
         plan = deletion.delete_account(user)
 
         # Nobody to tell when the restaurant went with them - the only
         # manager was the person who just left.
         if restaurant is not None and not plan.deletes_restaurant:
-            notify_admins_of_account_deletion(restaurant=restaurant, was_admin=was_admin)
+            notify_admins_of_account_deletion(
+                restaurant=restaurant, was_admin=was_admin, display_name=display_name
+            )
 
         logger.info(
             "Account deleted (hard=%s, restaurant_deleted=%s)",

@@ -96,7 +96,9 @@ def give_history(user):
         status=AttendanceLog.Status.CLOSED,
     )
     StaffPayRate.objects.create(staff=user, rate_1=Decimal("12.50"), rate_2=Decimal("11.00"))
-    period = PayPeriod.objects.create(
+    # get_or_create, not create: a pay period's span is unique per restaurant,
+    # and two colleagues leaving are two entries in the same period.
+    period, _ = PayPeriod.objects.get_or_create(
         restaurant=user.restaurant,
         starts_on=(timezone.now() - timedelta(days=14)).date(),
         ends_on=timezone.now().date(),
@@ -231,20 +233,85 @@ def test_the_hours_survive_the_account(client, staff):
     assert StaffPayRate.objects.filter(staff_id=staff.pk).exists()
 
 
-def test_a_deleted_account_has_no_name_anywhere(client, staff):
+def test_a_retained_record_keeps_the_name_that_attributes_it(client, staff):
     """One override, every serializer.
 
     Ten of them render `get_full_name() or email`. If this returned the
     scrubbed placeholder instead, a screen would show
     "deleted-ab12...@invisiko.invalid" where a colleague's name used to be.
+
+    The name stays because the record does. An employer holding three years of
+    payroll has to be able to say whose it was, and HMRC requires the employee
+    on a retained record to be identifiable.
     """
     give_history(staff)
     client.force_authenticate(user=staff)
     client.post(reverse(DELETE), {"password": PASSWORD}, format="json")
 
     staff.refresh_from_db()
-    assert staff.get_full_name() == "Former team member"
+    assert staff.retained_name == "Priya Shah"
+    assert staff.get_full_name() == "Priya Shah (former)"
+    # The record is named; the account is still destroyed.
     assert "invalid" not in staff.get_full_name()
+    assert staff.first_name == ""
+    assert staff.phone == ""
+    assert not staff.has_usable_password()
+
+
+def test_two_leavers_can_be_told_apart(client, restaurant):
+    """The reason the name is kept at all.
+
+    Two people leave, and the manager is left reconciling two closed pay
+    periods. "Former team member" twice is two rows nobody can attribute,
+    which is no use to them and no use to HMRC.
+    """
+    one = make_user(restaurant, email="priya@example.com", first_name="Priya", last_name="Shah")
+    two = make_user(restaurant, email="marek@example.com", first_name="Marek", last_name="Kowal")
+    give_history(one)
+    give_history(two)
+
+    for person in (one, two):
+        fresh = APIClient()
+        fresh.force_authenticate(user=person)
+        assert fresh.post(reverse(DELETE), {"password": PASSWORD}, format="json").status_code == 204
+
+    one.refresh_from_db()
+    two.refresh_from_db()
+    assert one.get_full_name() != two.get_full_name()
+    assert one.get_full_name() == "Priya Shah (former)"
+    assert two.get_full_name() == "Marek Kowal (former)"
+
+
+def test_someone_who_never_gave_a_name_is_still_distinguishable(client, restaurant):
+    """A blank name must not collapse two records into one label.
+
+    Nobody typed a name in, so there is none to keep - but the records still
+    have to be told apart, and the id's first block does that.
+    """
+    one = make_user(restaurant, email="a@example.com")
+    two = make_user(restaurant, email="b@example.com")
+    give_history(one)
+    give_history(two)
+
+    for person in (one, two):
+        fresh = APIClient()
+        fresh.force_authenticate(user=person)
+        fresh.post(reverse(DELETE), {"password": PASSWORD}, format="json")
+
+    one.refresh_from_db()
+    two.refresh_from_db()
+    assert one.retained_name == ""
+    assert one.get_full_name().startswith("Former team member (")
+    assert one.get_full_name() != two.get_full_name()
+
+
+def test_a_hard_deleted_account_keeps_nothing_at_all(client, staff):
+    """No record to attribute means no name to keep."""
+    client.force_authenticate(user=staff)
+    client.post(reverse(DELETE), {"password": PASSWORD}, format="json")
+
+    assert not User.objects.filter(pk=staff.pk).exists()
+    assert not User.objects.filter(retained_name="Priya Shah").exists()
 
 
 def test_future_shifts_go_but_past_ones_stay(client, staff):
@@ -428,9 +495,12 @@ def test_the_preview_counts_what_a_teardown_would_take(client, restaurant, admin
 # ---------------------------------------------------------------------------
 
 
-def test_the_manager_hears_about_it_without_being_told_who(client, restaurant, admin, staff):
-    """Named would put the identity straight back, in a table nobody would
-    think to look in when asked to prove the erasure."""
+def test_the_manager_is_told_who_deleted_their_account(client, restaurant, admin, staff):
+    """Named, because the records it points at are named.
+
+    Refusing to say which of four people had gone would withhold something
+    the manager can read off the rota anyway.
+    """
     give_history(staff)
     client.force_authenticate(user=staff)
     client.post(reverse(DELETE), {"password": PASSWORD}, format="json")
@@ -438,9 +508,12 @@ def test_the_manager_hears_about_it_without_being_told_who(client, restaurant, a
     notes = Notification.objects.filter(user=admin, kind=Notification.Kind.ACCOUNT_DELETED)
     assert notes.count() == 1
     note = notes.get()
-    assert "Priya" not in note.title + note.body
+    assert "Priya Shah" in note.title
+    assert "team member" in note.body
+    # The name is a record attribution. The login identity is not, and must
+    # not travel into a notification row.
     assert "priya@example.com" not in note.title + note.body
-    assert "team member" in note.title.lower()
+    assert "invisiko.invalid" not in note.title + note.body
 
 
 def test_nobody_is_notified_when_the_restaurant_went_too(client, restaurant, admin):
@@ -451,3 +524,22 @@ def test_nobody_is_notified_when_the_restaurant_went_too(client, restaurant, adm
         format="json",
     )
     assert not Notification.objects.filter(kind=Notification.Kind.ACCOUNT_DELETED).exists()
+
+
+def test_the_notification_matches_the_label_on_the_records(client, restaurant, admin):
+    """A manager has to be able to tie the push to the payroll row.
+
+    Somebody who never typed a name shows as "Former team member (abcd1234)"
+    on their retained entry, so the notification has to say the same thing. It
+    said "Someone" at first, which left the two unconnectable.
+    """
+    nameless = make_user(restaurant, email="nameless@example.com")
+    give_history(nameless)
+
+    client.force_authenticate(user=nameless)
+    client.post(reverse(DELETE), {"password": PASSWORD}, format="json")
+
+    nameless.refresh_from_db()
+    note = Notification.objects.get(user=admin, kind=Notification.Kind.ACCOUNT_DELETED)
+    assert nameless.get_full_name() in note.title
+    assert "Someone" not in note.title
