@@ -40,6 +40,7 @@ class Notification(BaseModel):
         SHIFT_SWAP_REQUESTED = "SHIFT_SWAP_REQUESTED", "Shift swap requested"
         SHIFT_SWAP_APPROVED = "SHIFT_SWAP_APPROVED", "Shift swap approved"
         SHIFT_SWAP_DECLINED = "SHIFT_SWAP_DECLINED", "Shift swap declined"
+        ACCOUNT_DELETED = "ACCOUNT_DELETED", "Account deleted"
 
     class Status(models.TextChoices):
         PENDING = "PENDING", "Pending"

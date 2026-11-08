@@ -240,3 +240,48 @@ def notify_swap_decided(swap_request) -> None:
             related_object_id=swap_request.id,
         )
         send_notification(target_notification)
+
+
+def notify_admins_of_account_deletion(*, restaurant, was_admin: bool, display_name: str) -> None:
+    """A manager hears who deleted their account, and what is left on file.
+
+    Named, because the records it points at are named. An employer keeping
+    three years of payroll has to be able to say whose it was, so the name
+    stays on the retained rows (see User.retained_name) - and a notification
+    that then refused to say which of four people had gone would be withholding
+    something the manager can read off the rota anyway.
+
+    `display_name` comes from the caller rather than the user row, because by
+    the time this runs the account is either scrubbed or gone, and this is one
+    of the few places that needs the name as it was.
+
+    Called after the deletion, so there is no account left to link to and no
+    related object to point at.
+    """
+    from django.contrib.auth import get_user_model
+
+    from apps.common.roles import Role
+
+    User = get_user_model()
+
+    admins = User.objects.filter(
+        restaurant=restaurant,
+        role=Role.ADMIN,
+        is_active=True,
+        deleted_at__isnull=True,
+    )
+
+    role_word = "manager" if was_admin else "team member"
+    for admin in admins:
+        notification = models.Notification.objects.create(
+            user=admin,
+            kind=models.Notification.Kind.ACCOUNT_DELETED,
+            title=f"{display_name} deleted their account",
+            body=(
+                f"{display_name}, a {role_word} on your team, deleted their Invisiko "
+                "account and can no longer sign in. Their recorded hours and checks "
+                "stay on file under their name, marked as a former member. Any "
+                "upcoming shifts they had are now unassigned."
+            ),
+        )
+        send_notification(notification)

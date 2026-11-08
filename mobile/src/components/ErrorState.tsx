@@ -47,7 +47,7 @@ export function ErrorState({message, onRetry}: ErrorStateProps): React.JSX.Eleme
       </View>
       <Text style={styles.message}>{message}</Text>
       {onRetry ? (
-        <View style={styles.action}>
+        <View style={styles.action} testID="error-retry">
           <PrimaryButton
             label={retrying ? 'Trying…' : 'Try again'}
             variant="secondary"
@@ -82,5 +82,10 @@ const styles = StyleSheet.create({
   // Not danger red. A dropped connection is ordinary, and a screen of red text
   // makes somebody think they have broken something.
   message: {...typography.body, color: colors.textMuted, textAlign: 'center', maxWidth: 320},
-  action: {alignSelf: 'stretch', maxWidth: 280, width: '100%'},
+  // 'center', not 'stretch'. Stretch overrides the container's alignItems,
+  // and a stretched item that is then capped by maxWidth does not centre
+  // within the space it gave up - it stays anchored to the start, which put
+  // the button hard against the container's left padding while the icon and
+  // the message above it were centred.
+  action: {alignSelf: 'center', maxWidth: 280, width: '100%'},
 });

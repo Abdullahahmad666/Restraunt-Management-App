@@ -9,6 +9,7 @@ from .admin import AdminInviteCodeViewSet, AdminStaffViewSet
 from .views import (
     ChangePasswordView,
     CustomLoginView,
+    DeleteAccountView,
     GoogleLoginView,
     InviteCodeLookupView,
     MeView,
@@ -36,6 +37,8 @@ urlpatterns = [
     path("logout/", TokenBlacklistView.as_view(), name="logout"),
     path("me/", MeView.as_view(), name="me"),
     path("change-password/", ChangePasswordView.as_view(), name="change-password"),
+    # GET says what deletion would do; POST does it. Apple 5.1.1(v).
+    path("delete-account/", DeleteAccountView.as_view(), name="delete-account"),
     path(
         "password-reset/",
         PasswordResetRequestView.as_view(),
