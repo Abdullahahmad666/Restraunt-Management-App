@@ -104,6 +104,9 @@ class InvoiceScanSerializer(serializers.ModelSerializer):
         max_digits=14, decimal_places=2, read_only=True, default=None
     )
     reconciliation = serializers.SerializerMethodField()
+    # True once a scan still in progress has run long enough that the app
+    # should offer a retry - see services.scanning.is_scan_overdue.
+    scan_overdue = serializers.SerializerMethodField()
     warehouse_display = serializers.CharField(source="warehouse.name", read_only=True, default=None)
 
     class Meta:
@@ -118,6 +121,7 @@ class InvoiceScanSerializer(serializers.ModelSerializer):
             # The client polls this after uploading: QUEUED/SCANNING mean the
             # line items are not there yet, DONE and FAILED are terminal.
             "scan_state",
+            "scan_overdue",
             # The client needs this to decide whether the file can be shown as
             # an image at all - a PDF rendered into an <Image> is a blank box.
             "content_type",
@@ -185,6 +189,11 @@ class InvoiceScanSerializer(serializers.ModelSerializer):
 
         result = reconcile(invoice=obj, lines_total=getattr(obj, "lines_total", None))
         return ReconciliationSerializer(result).data
+
+    def get_scan_overdue(self, obj) -> bool:
+        from ..services.scanning import is_scan_overdue
+
+        return is_scan_overdue(obj)
 
     def get_uploaded_by_name(self, obj) -> str | None:
         if not obj.uploaded_by_id:

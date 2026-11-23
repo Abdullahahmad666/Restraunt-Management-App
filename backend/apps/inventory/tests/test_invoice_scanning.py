@@ -23,6 +23,7 @@ from PIL import Image
 from apps.common.roles import Role
 from apps.inventory.models import InventoryItem, InvoiceScan
 from apps.inventory.services.scanning import (
+    OVERDUE_AFTER,
     STALLED_AFTER,
     STALLED_ERROR,
     PermanentScanError,
@@ -671,3 +672,31 @@ def test_only_the_callers_own_restaurant_is_touched(
     api_client.get(reverse(STAFF_INVOICES))
 
     assert InvoiceScan.objects.get(pk=theirs).scan_state == InvoiceScan.ScanState.QUEUED
+
+
+def test_a_slow_scan_offers_a_retry_before_it_is_given_up_on(api_client, staff_member):
+    """Thirty minutes is a long time to stare at a spinner. Well before the
+    scan is failed, the app is told it may offer a retry."""
+    api_client.force_authenticate(user=staff_member)
+    invoice_id = _upload_without_a_worker(api_client)
+    detail = reverse(STAFF_INVOICE_DETAIL, kwargs={"pk": invoice_id})
+
+    assert api_client.get(detail).data["scan_overdue"] is False
+
+    _age(invoice_id, OVERDUE_AFTER + timedelta(minutes=1))
+    response = api_client.get(detail)
+
+    assert response.data["scan_overdue"] is True
+    # Offered, not decided: the scan is still running.
+    assert response.data["scan_state"] == "QUEUED"
+
+
+def test_a_finished_scan_is_never_overdue(api_client, staff_member):
+    api_client.force_authenticate(user=staff_member)
+    response = _upload(api_client, SCAN_RESULT)
+    _age(response.data["id"], STALLED_AFTER + timedelta(minutes=1))
+
+    response = api_client.get(reverse(STAFF_INVOICE_DETAIL, kwargs={"pk": response.data["id"]}))
+
+    assert response.data["scan_state"] == "DONE"
+    assert response.data["scan_overdue"] is False

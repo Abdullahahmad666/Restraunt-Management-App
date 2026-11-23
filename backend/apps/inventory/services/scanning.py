@@ -43,6 +43,7 @@ __all__ = [
     "TransientScanError",
     "extract_invoice_data",
     "fail_stalled_scans",
+    "is_scan_overdue",
     "populate_invoice_from_scan",
     "sniff_content_type",
     "type_from_name",
@@ -59,6 +60,28 @@ STALLED_ERROR = (
     "Reading this invoice is taking far longer than it should. Try scanning again, "
     "or add the items by hand."
 )
+
+#: When the app starts offering a retry while a scan is still in progress. A
+#: normal read takes seconds, so by this point something has usually gone
+#: wrong - but not certainly, which is why the scan is left running rather
+#: than failed, and STALLED_AFTER is what finally gives up on it.
+OVERDUE_AFTER = timedelta(minutes=5)
+
+
+def is_scan_overdue(invoice) -> bool:
+    """Whether a scan still in progress has taken long enough to offer a retry.
+
+    Decided here rather than on the phone so the phone's clock does not
+    matter, and so the answer changes on the next poll without the app having
+    to keep its own timer.
+    """
+    from ..models import InvoiceScan
+
+    return (
+        invoice.status == InvoiceScan.Status.PENDING
+        and invoice.scan_state in (InvoiceScan.ScanState.QUEUED, InvoiceScan.ScanState.SCANNING)
+        and invoice.updated_at < timezone.now() - OVERDUE_AFTER
+    )
 
 
 def fail_stalled_scans(*, restaurant_id) -> int:
