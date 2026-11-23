@@ -376,6 +376,31 @@ def test_an_invoice_stops_saying_scanning_once_the_queue_gives_up(api_client, st
     assert response.data["scan_error"] != ""
 
 
+def test_an_invoice_stops_saying_queued_if_the_queue_gives_up_before_reading_it(
+    api_client, staff_member
+):
+    """Every attempt can fail before the scan marks itself SCANNING - the
+    worker cannot reach the database, say. The invoice is still QUEUED when
+    the queue gives up, and must not stay that way."""
+    api_client.force_authenticate(user=staff_member)
+
+    created = api_client.post(
+        reverse(STAFF_INVOICES), {"photo": invoice_photo()}, format="multipart"
+    )
+    Job.objects.update(max_attempts=1)
+    with patch(
+        "apps.inventory.services.scanning.populate_invoice_from_scan",
+        side_effect=ConnectionError("database went away"),
+    ):
+        queue.run_next()
+
+    assert Job.objects.get().status == Job.Status.FAILED
+
+    response = api_client.get(reverse(STAFF_INVOICE_DETAIL, kwargs={"pk": created.data["id"]}))
+    assert response.data["scan_state"] == "FAILED"
+    assert response.data["scan_error"] != ""
+
+
 def test_the_invoices_own_figures_are_recorded(api_client, staff_member):
     """The invoice number identifies a re-upload; the stated totals are the
     only independent thing the lines can be checked against."""
