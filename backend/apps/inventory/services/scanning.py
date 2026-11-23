@@ -9,10 +9,11 @@ Runs on the background worker, not in the request - see apps.inventory.jobs.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
+from django.utils import timezone
 
 from apps.common.files import (
     MAX_FILE_BYTES,
@@ -41,10 +42,61 @@ __all__ = [
     "ScanError",
     "TransientScanError",
     "extract_invoice_data",
+    "fail_stalled_scans",
     "populate_invoice_from_scan",
     "sniff_content_type",
     "type_from_name",
 ]
+
+#: How long an invoice may sit waiting to be read, or being read, before it is
+#: reported as failed. A live worker reaches a verdict well inside this - about
+#: ten minutes with every retry used, under an hour even if the worker dies on
+#: each attempt, and each attempt restarts this clock. Waiting longer means
+#: nobody is reading it.
+STALLED_AFTER = timedelta(minutes=30)
+
+STALLED_ERROR = (
+    "Reading this invoice is taking far longer than it should. Try scanning again, "
+    "or add the items by hand."
+)
+
+
+def fail_stalled_scans(*, restaurant_id) -> int:
+    """Report invoices nobody is reading as failed, so staff can act on them.
+
+    The queue fails an invoice itself when it gives up, but only a running
+    worker can give up. With the worker stopped - suspended, crashing on boot,
+    hung - the job never runs, the invoice says "being read" forever, and the
+    app hides the retry button while it does. This runs on the web side when
+    invoices are fetched, which is the one place guaranteed to be alive when
+    someone is looking.
+
+    Only the reported state changes. The job stays queued, so a worker that
+    comes back still reads the invoice and replaces this verdict with a real
+    one.
+    """
+    from ..models import InvoiceScan
+
+    now = timezone.now()
+    stalled = InvoiceScan.objects.filter(
+        restaurant_id=restaurant_id,
+        status=InvoiceScan.Status.PENDING,
+        scan_state__in=(InvoiceScan.ScanState.QUEUED, InvoiceScan.ScanState.SCANNING),
+        # updated_at rather than created_at: queueing a rescan and starting
+        # each attempt both save the invoice, so this is when it last moved.
+        updated_at__lt=now - STALLED_AFTER,
+    )
+    # .update() skips auto_now, so the timestamp is set by hand.
+    count = stalled.update(
+        scan_state=InvoiceScan.ScanState.FAILED, scan_error=STALLED_ERROR, updated_at=now
+    )
+    if count:
+        logger.warning(
+            "Marked %s stalled invoice scan(s) failed for restaurant %s - is the worker running?",
+            count,
+            restaurant_id,
+        )
+    return count
 
 
 def _safe_decimal(value, default=None):

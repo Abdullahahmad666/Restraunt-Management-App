@@ -10,17 +10,24 @@ would, and hands back the invoice as it looks afterwards.
 """
 
 import io
+from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import patch
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
+from django.utils import timezone
 from PIL import Image
 
 from apps.common.roles import Role
 from apps.inventory.models import InventoryItem, InvoiceScan
-from apps.inventory.services.scanning import PermanentScanError, TransientScanError
+from apps.inventory.services.scanning import (
+    STALLED_AFTER,
+    STALLED_ERROR,
+    PermanentScanError,
+    TransientScanError,
+)
 from apps.inventory.tests.factories import line, party, scan_result
 from apps.jobs.models import Job
 from apps.jobs.services import queue
@@ -30,6 +37,7 @@ pytestmark = pytest.mark.django_db
 
 STAFF_INVOICES = "v1:staff:inventory:invoice-scan-list"
 STAFF_INVOICE_DETAIL = "v1:staff:inventory:invoice-scan-detail"
+STAFF_INVOICE_RESCAN = "v1:staff:inventory:invoice-scan-rescan"
 
 
 def invoice_photo():
@@ -562,3 +570,104 @@ def test_a_discarded_invoice_is_not_worth_duplicating(api_client, staff_member):
 
     assert second.status == InvoiceScan.Status.PENDING
     assert second.duplicate_of is None
+
+
+# ---------------------------------------------------------------------------
+# A scan nobody is reading
+# ---------------------------------------------------------------------------
+
+
+def _age(invoice_id, delta):
+    """Pretend the invoice last moved `delta` ago. Set with .update() because a
+    save would stamp updated_at with now."""
+    InvoiceScan.objects.filter(pk=invoice_id).update(updated_at=timezone.now() - delta)
+
+
+def _upload_without_a_worker(api_client):
+    created = api_client.post(
+        reverse(STAFF_INVOICES), {"photo": invoice_photo()}, format="multipart"
+    )
+    assert created.status_code == 202, created.data
+    return created.data["id"]
+
+
+def test_a_scan_no_worker_picks_up_is_eventually_reported_as_failed(api_client, staff_member):
+    """With the worker stopped the job never runs, so nothing on the queue side
+    can fail the invoice. Fetching it has to."""
+    api_client.force_authenticate(user=staff_member)
+    invoice_id = _upload_without_a_worker(api_client)
+    _age(invoice_id, STALLED_AFTER + timedelta(minutes=1))
+
+    response = api_client.get(reverse(STAFF_INVOICE_DETAIL, kwargs={"pk": invoice_id}))
+
+    assert response.data["scan_state"] == "FAILED"
+    assert response.data["scan_error"] == STALLED_ERROR
+    # Left queued, so a worker that comes back still reads it.
+    assert Job.objects.get().status == Job.Status.QUEUED
+
+
+def test_a_scan_stuck_mid_read_is_reported_as_failed_too(api_client, staff_member):
+    api_client.force_authenticate(user=staff_member)
+    invoice_id = _upload_without_a_worker(api_client)
+    InvoiceScan.objects.filter(pk=invoice_id).update(scan_state=InvoiceScan.ScanState.SCANNING)
+    _age(invoice_id, STALLED_AFTER + timedelta(minutes=1))
+
+    response = api_client.get(reverse(STAFF_INVOICES))
+
+    assert response.data["results"][0]["scan_state"] == "FAILED"
+
+
+def test_a_scan_still_within_its_time_is_left_alone(api_client, staff_member):
+    api_client.force_authenticate(user=staff_member)
+    invoice_id = _upload_without_a_worker(api_client)
+    _age(invoice_id, STALLED_AFTER - timedelta(minutes=1))
+
+    response = api_client.get(reverse(STAFF_INVOICE_DETAIL, kwargs={"pk": invoice_id}))
+
+    assert response.data["scan_state"] == "QUEUED"
+    assert response.data["scan_error"] == ""
+
+
+def test_a_worker_that_comes_back_still_reads_a_stalled_invoice(api_client, staff_member):
+    api_client.force_authenticate(user=staff_member)
+    invoice_id = _upload_without_a_worker(api_client)
+    _age(invoice_id, STALLED_AFTER + timedelta(minutes=1))
+    api_client.get(reverse(STAFF_INVOICE_DETAIL, kwargs={"pk": invoice_id}))
+
+    with patch("apps.inventory.services.scanning.extract_invoice_data", return_value=SCAN_RESULT):
+        assert queue.run_next() is True
+
+    response = api_client.get(reverse(STAFF_INVOICE_DETAIL, kwargs={"pk": invoice_id}))
+    assert response.data["scan_state"] == "DONE"
+    assert response.data["scan_error"] == ""
+    assert len(response.data["line_items"]) == 2
+
+
+def test_a_stalled_invoice_can_be_rescanned(api_client, staff_member):
+    api_client.force_authenticate(user=staff_member)
+    invoice_id = _upload_without_a_worker(api_client)
+    _age(invoice_id, STALLED_AFTER + timedelta(minutes=1))
+    api_client.get(reverse(STAFF_INVOICE_DETAIL, kwargs={"pk": invoice_id}))
+
+    response = api_client.post(reverse(STAFF_INVOICE_RESCAN, kwargs={"pk": invoice_id}))
+
+    assert response.status_code == 202, response.data
+    assert response.data["scan_state"] == "QUEUED"
+    assert response.data["scan_error"] == ""
+
+
+def test_only_the_callers_own_restaurant_is_touched(
+    api_client, staff_member, django_user_model, other_restaurant
+):
+    """Fetching your invoices must not write to anyone else's."""
+    neighbour = django_user_model.objects.create_user(
+        email="sam@example.com", password="x", role=Role.STAFF, restaurant=other_restaurant
+    )
+    api_client.force_authenticate(user=neighbour)
+    theirs = _upload_without_a_worker(api_client)
+    _age(theirs, STALLED_AFTER + timedelta(minutes=1))
+
+    api_client.force_authenticate(user=staff_member)
+    api_client.get(reverse(STAFF_INVOICES))
+
+    assert InvoiceScan.objects.get(pk=theirs).scan_state == InvoiceScan.ScanState.QUEUED
