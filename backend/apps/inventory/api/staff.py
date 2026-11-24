@@ -217,6 +217,16 @@ class StaffInvoiceScanViewSet(
         .order_by("-created_at")
     )
 
+    def list(self, request, *args, **kwargs):
+        scanning.fail_stalled_scans(restaurant_id=request.user.restaurant_id)
+        return super().list(request, *args, **kwargs)
+
+    def retrieve(self, request, *args, **kwargs):
+        # The detail view is what the app polls while a scan runs, so this is
+        # where a scan nobody is reading stops looking like one that is.
+        scanning.fail_stalled_scans(restaurant_id=request.user.restaurant_id)
+        return super().retrieve(request, *args, **kwargs)
+
     def perform_update(self, serializer):
         """Only the supplier and warehouse are writable; everything else on
         this serializer is read-only. Both are checked against the caller's own

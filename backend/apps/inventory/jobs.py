@@ -22,9 +22,15 @@ def scan_gave_up(*, invoice_id: str) -> None:
     Without this the invoice keeps the SCANNING state its last attempt set,
     and the app polls it forever waiting for line items nobody is still trying
     to produce. Staff get told, and can rescan or key the invoice in by hand.
+
+    QUEUED as well as SCANNING: an attempt that fails before the scan marks
+    itself SCANNING - the worker losing the database, say - leaves the invoice
+    QUEUED, and matching only SCANNING left exactly those invoices waiting
+    forever on a job that had already given up.
     """
     updated = InvoiceScan.objects.filter(
-        pk=invoice_id, scan_state=InvoiceScan.ScanState.SCANNING
+        pk=invoice_id,
+        scan_state__in=(InvoiceScan.ScanState.QUEUED, InvoiceScan.ScanState.SCANNING),
     ).update(
         scan_state=InvoiceScan.ScanState.FAILED,
         scan_error="Could not read that invoice - try again, or add the items by hand.",

@@ -96,6 +96,9 @@ export type InvoiceScan = {
   photo: string;
   status: InvoiceScanStatus;
   scan_state: InvoiceScanState;
+  /** A scan still in progress that has run long enough to offer a retry.
+   * Decided by the server, so it flips on a poll rather than a local timer. */
+  scan_overdue: boolean;
   content_type: string;
   supplier: string | null;
   supplier_display: string | null;

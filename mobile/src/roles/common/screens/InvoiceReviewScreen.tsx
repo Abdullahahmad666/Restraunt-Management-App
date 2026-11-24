@@ -530,6 +530,16 @@ export function InvoiceReviewScreen(): React.JSX.Element {
         </Card>
       ) : null}
 
+      {scanning && data.scan_overdue ? (
+        <Card>
+          <Text style={styles.warning}>
+            This is taking longer than it should. You can try scanning again, or add the items by
+            hand.
+          </Text>
+          <Button title="Try scanning again" onPress={onRescan} loading={rescan.isPending} />
+        </Card>
+      ) : null}
+
       {data.scan_error ? (
         <Card>
           <Text style={styles.error}>{data.scan_error}</Text>
